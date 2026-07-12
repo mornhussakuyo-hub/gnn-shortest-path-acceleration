@@ -1,5 +1,6 @@
 .venv/
 .venv-linux/
+.venv-gnn/
 venv/
 env/
 __pycache__/

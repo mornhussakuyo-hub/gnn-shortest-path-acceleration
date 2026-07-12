@@ -73,6 +73,110 @@ def build_hotspot_regions(
     )
 
 
+def build_scored_regions(
+    graph: WeightedDiGraph,
+    node_scores: dict[NodeId, float],
+    region_count: int,
+    region_size: int,
+    seed_exclusion_hops: int = 2,
+) -> list[Region]:
+    candidates = sorted(
+        graph.adjacency,
+        key=lambda node: (-node_scores.get(node, float("-inf")), node),
+    )
+    regions: list[Region] = []
+    used_nodes: set[NodeId] = set()
+    forbidden_seeds: set[NodeId] = set()
+
+    for seed_node in candidates:
+        if seed_node in forbidden_seeds:
+            continue
+        nodes = grow_bfs_region(graph, seed_node, region_size)
+        if len(nodes) < 2 or nodes & used_nodes:
+            continue
+        boundary_nodes = find_boundary_nodes(graph, nodes)
+        if len(boundary_nodes) < 2:
+            continue
+        regions.append(
+            Region(
+                region_id=len(regions),
+                nodes=nodes,
+                boundary_nodes=boundary_nodes,
+                seed_node=seed_node,
+                selection_method="gnn_seed_score",
+            )
+        )
+        used_nodes.update(nodes)
+        forbidden_seeds.update(_expand_node_set(graph, nodes, seed_exclusion_hops))
+        if len(regions) >= region_count:
+            break
+
+    return regions
+
+
+def build_risk_aware_scored_regions(
+    graph: WeightedDiGraph,
+    node_scores: dict[NodeId, float],
+    queries: list[Query],
+    region_count: int,
+    region_size: int,
+    seed_exclusion_hops: int = 2,
+    candidate_limit: int = 20_000,
+    endpoint_risk_penalty: float = 100.0,
+) -> list[Region]:
+    endpoint_counts: Counter[NodeId] = Counter()
+    for query in queries:
+        endpoint_counts[query.origin] += query.count
+        endpoint_counts[query.destination] += query.count
+    endpoint_total = max(1, sum(endpoint_counts.values()))
+    seeds = sorted(
+        graph.adjacency,
+        key=lambda node: (-node_scores.get(node, float("-inf")), node),
+    )[: max(region_count, candidate_limit)]
+
+    candidates: list[tuple[float, float, NodeId, frozenset[NodeId], frozenset[NodeId]]] = []
+    for seed_node in seeds:
+        nodes = grow_bfs_region(graph, seed_node, region_size)
+        if len(nodes) < 2:
+            continue
+        boundary_nodes = find_boundary_nodes(graph, nodes)
+        if len(boundary_nodes) < 2:
+            continue
+        internal_nodes = nodes - boundary_nodes
+        endpoint_fraction = (
+            sum(endpoint_counts[node] for node in internal_nodes) / endpoint_total
+        )
+        raw_score = node_scores.get(seed_node, 0.0)
+        adjusted_score = raw_score / (
+            1.0 + endpoint_risk_penalty * endpoint_fraction
+        )
+        candidates.append(
+            (adjusted_score, raw_score, seed_node, nodes, boundary_nodes)
+        )
+
+    candidates.sort(key=lambda item: (-item[0], -item[1], item[2]))
+    regions: list[Region] = []
+    used_nodes: set[NodeId] = set()
+    forbidden_seeds: set[NodeId] = set()
+    for _, _, seed_node, nodes, boundary_nodes in candidates:
+        if seed_node in forbidden_seeds or nodes & used_nodes:
+            continue
+        regions.append(
+            Region(
+                region_id=len(regions),
+                nodes=nodes,
+                boundary_nodes=boundary_nodes,
+                seed_node=seed_node,
+                selection_method="gnn_seed_score_risk_aware",
+            )
+        )
+        used_nodes.update(nodes)
+        forbidden_seeds.update(_expand_node_set(graph, nodes, seed_exclusion_hops))
+        if len(regions) >= region_count:
+            break
+    return regions
+
+
 def grow_bfs_region(graph: WeightedDiGraph, seed_node: NodeId, max_nodes: int) -> frozenset[NodeId]:
     if max_nodes <= 0 or not graph.has_node(seed_node):
         return frozenset()
@@ -146,3 +250,22 @@ def _undirected_neighbors(graph: WeightedDiGraph, node: NodeId) -> set[NodeId]:
     neighbors = {neighbor for neighbor, _ in graph.out_neighbors(node)}
     neighbors.update(neighbor for neighbor, _ in graph.in_neighbors(node))
     return neighbors
+
+
+def _expand_node_set(
+    graph: WeightedDiGraph,
+    nodes: Iterable[NodeId],
+    hops: int,
+) -> set[NodeId]:
+    expanded = set(nodes)
+    frontier = set(expanded)
+    for _ in range(max(0, hops)):
+        next_frontier: set[NodeId] = set()
+        for node in frontier:
+            next_frontier.update(_undirected_neighbors(graph, node))
+        next_frontier.difference_update(expanded)
+        if not next_frontier:
+            break
+        expanded.update(next_frontier)
+        frontier = next_frontier
+    return expanded

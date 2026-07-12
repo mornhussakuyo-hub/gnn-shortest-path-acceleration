@@ -52,6 +52,7 @@ class Query:
     destination: NodeId
     query_type: str = "porto_od"
     count: int = 1
+    timestamp: int | None = None
 
 
 @dataclass(frozen=True, slots=True)

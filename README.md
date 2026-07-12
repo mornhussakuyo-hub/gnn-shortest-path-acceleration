@@ -33,8 +33,8 @@ GNN 位于第 4 步。它不替代 Dijkstra，而是根据道路拓扑和历史 
 | --- | --- | --- |
 | 1. 数据与评测框架 | 已完成 | 构建 Porto 道路图和 98,082 条可用 OD；实现 Dijkstra、双向 Dijkstra、逐查询明细和正确性评测。 |
 | 2. 传统压缩与物化查询 | 已完成 | 实现随机、OD 热点区域；离线构建节点三态表、shortcut 和压缩图；全量配对实验正确率 100%，在线耗时下降。 |
-| 3. 参数与预算扫描 | 脚本已完成，待全量运行 | 已实现可断点续跑的控制变量实验脚本；需要其他研究者完成长时间运行，再根据结果确定推荐参数和公平预算。 |
-| 4. GNN 区域价值模型 | 未开始 | 需要实现节点特征、需求场传播、候选区域评分、无路径监督训练目标和预算选择。 |
+| 3. 参数与预算扫描 | 已完成 | 完成 42 组全量控制变量实验，全部正确率 100%；推荐区域数 100、区域大小 512，并以约 3.8～4 万条 shortcut 作为第一版公平预算。 |
+| 4. GNN 区域价值模型 | 进行中，第一版已完成 | 完成 GPU GraphSAGE 节点打分和区域风险修正；同 shortcut 预算下测试集平均耗时降低 12.03%，优于随机五种子均值 8.75%，正确率 100%。 |
 | 5. 最终对比实验 | 未开始 | 需要在相同预算下比较 GNN、随机区域和 OD 热点区域，并完成消融、稳定性和跨城市实验。 |
 
 各阶段的目标、成果、证据、遗留问题和完成标准统一记录在
@@ -47,9 +47,9 @@ GNN 位于第 4 步。它不替代 Dijkstra，而是根据道路拓扑和历史 
 | 随机区域 | 27.378 ms | 25.885 ms | **-5.45%** | -4.97% | -9.08% | 100% |
 | OD 热点区域 | 28.122 ms | 27.235 ms | **-3.15%** | -2.07% | -5.57% | 100% |
 
-这证明离线物化区域压缩图能够降低平均在线查询开销，但尚未证明 GNN 有效。目前
-只有传统启发式结果；下一步应先完成参数与预算扫描，再在相同压缩预算下训练和比较
-GNN。最终验证结果见
+这组结果证明离线物化区域压缩图能够降低平均在线查询开销。阶段三随后完成了公平预算
+扫描，阶段四第一版 GNN 已在相近 shortcut 预算下优于随机五种子均值；该优势仍需通过
+下文的大型多种子消融实验拆分各组件贡献。传统策略最终验证结果见
 [`results/regions/porto_98082queries_r200_s512_paired_final_report.md`](results/regions/porto_98082queries_r200_s512_paired_final_report.md)。
 
 ## 数据准备
@@ -273,6 +273,78 @@ python scripts/run_parameter_scan.py --restart
 ```
 
 CSV 包含每组配置的实际区域数、shortcut 数、压缩图规模、回退率、预处理时间、
-平均与 P95 在线耗时、展开节点变化、查询加速比例和正确率。全量运行完成后保留该
-CSV，由本项目维护者负责汇总随机种子的均值和波动、比较控制变量结果、筛选有效
-配置，并给出参数与预算扫描阶段的最终结论。
+平均与 P95 在线耗时、展开节点变化、查询加速比例和正确率。42 组全量扫描已经完成，
+全部配置正确率均为 100%。随机区域的推荐默认配置为区域数 `100`、区域大小 `512`，
+平均在线耗时降低 13.21%，平均展开节点数降低 15.80%。完整分析见
+[`reports/阶段三_参数与预算扫描.md`](reports/阶段三_参数与预算扫描.md)。
+
+## 训练与评测第一版 GNN
+
+第一版使用 CUDA GPU 训练，不会自动回退到 CPU。安装独立训练依赖：
+
+Linux / macOS：
+
+```bash
+python3 -m venv .venv-gnn
+.venv-gnn/bin/python -m pip install -r requirements-gnn.txt
+```
+
+Windows（PowerShell）：
+
+```powershell
+py -m venv .venv-gnn
+.\.venv-gnn\Scripts\python.exe -m pip install -r requirements-gnn.txt
+```
+
+运行 GPU 训练：
+
+```bash
+.venv-gnn/bin/python scripts/train_gnn_seed_model.py
+```
+
+训练完成后运行测试期 OD 精确配对评测：
+
+```bash
+python scripts/evaluate_gnn_seed_model.py
+```
+
+Windows 将命令中的 Python 入口替换为 `py` 或 `.\.venv-gnn\Scripts\python.exe`。
+第一版完整设计、训练环境、结果与限制见
+[`reports/阶段四_GNN第一版训练与结果.md`](reports/阶段四_GNN第一版训练与结果.md)。
+
+## 运行第一版 GNN 大型消融实验
+
+大型实验固定使用统一脚本，不手工逐组运行。先检查 13 个变体、5 个随机种子，共 65
+组配置：
+
+```bash
+.venv-gnn/bin/python scripts/run_gnn_ablation.py --dry-run
+```
+
+Linux 服务器上使用 `nohup` 后台启动：
+
+```bash
+mkdir -p results/gnn_ablation
+nohup .venv-gnn/bin/python scripts/run_gnn_ablation.py \
+  > results/gnn_ablation/runner.log 2>&1 &
+```
+
+命令返回的任务编号可以用来查看进程。查看总体进度：
+
+```bash
+tail -f results/gnn_ablation/runner.log
+```
+
+查看某个实验组的详细日志：
+
+```bash
+tail -f results/gnn_ablation/runs/full__seed1/run.log
+```
+
+脚本每完成一组就更新 `results/gnn_ablation/ablation_runs.csv`。服务器或进程中断后，
+重新执行同一条后台命令即可从未完成的训练或评测继续；已完成部分会自动跳过。只有明确
+需要清空全部结果时才添加 `--restart`。默认使用当前 Python 解释器，因此必须通过
+`.venv-gnn/bin/python` 启动，以保证 CUDA PyTorch 环境正确。
+
+实验设计、控制变量矩阵、指标和完成标准见
+[`reports/阶段四_GNN第一版大型消融实验报告.md`](reports/阶段四_GNN第一版大型消融实验报告.md)。

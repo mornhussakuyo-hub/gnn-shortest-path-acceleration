@@ -1,0 +1,316 @@
+"""按控制变量矩阵运行第一版 GNN 大型消融实验。"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+import os
+import shlex
+import shutil
+import subprocess
+import sys
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+DEFAULT_OUTPUT_DIR = ROOT_DIR / "results" / "gnn_ablation"
+TRAIN_SCRIPT = ROOT_DIR / "scripts" / "train_gnn_seed_model.py"
+EVALUATE_SCRIPT = ROOT_DIR / "scripts" / "evaluate_gnn_seed_model.py"
+
+
+@dataclass(frozen=True, slots=True)
+class AblationVariant:
+    name: str
+    model_type: str = "graph_sage"
+    target_mode: str = "midpoint"
+    excluded_features: tuple[str, ...] = field(default_factory=tuple)
+    diffusion_steps: int = 3
+    endpoint_penalty: float = 2.0
+    region_risk_penalty: float = 200.0
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="运行可断点续跑的 GNN 第一版大型消融实验。")
+    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument("--random-seeds", type=int, nargs="+", default=[1, 2, 3, 4, 5])
+    parser.add_argument("--workers", type=int, default=min(10, os.cpu_count() or 1))
+    parser.add_argument("--chunk-size", type=int, default=500)
+    parser.add_argument("--epochs", type=int, default=200)
+    parser.add_argument("--patience", type=int, default=30)
+    parser.add_argument("--gnn-region-count", type=int, default=85)
+    parser.add_argument("--region-count", type=int, default=100)
+    parser.add_argument("--region-size", type=int, default=512)
+    parser.add_argument("--candidate-limit", type=int, default=80_000)
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--restart", action="store_true")
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+    variants = _variants()
+    runs = [(variant, seed) for variant in variants for seed in args.random_seeds]
+    print(
+        f"variants={len(variants)} seeds={len(args.random_seeds)} total_runs={len(runs)}",
+        flush=True,
+    )
+    for variant, seed in runs:
+        print(f"{variant.name} seed={seed}", flush=True)
+    if args.dry_run:
+        return
+
+    if args.restart and args.output_dir.exists():
+        shutil.rmtree(args.output_dir)
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    _write_manifest(args.output_dir / "ablation_manifest.json", variants, args)
+
+    failures: list[str] = []
+    reference_dir = args.output_dir / "reference"
+    if not _evaluation_complete(reference_dir):
+        reference_dir.mkdir(parents=True, exist_ok=True)
+        reference_command = [
+            sys.executable,
+            str(EVALUATE_SCRIPT),
+            "--output-dir",
+            str(reference_dir),
+            "--methods",
+            "random",
+            "hotspot",
+            "--region-count",
+            str(args.region_count),
+            "--region-size",
+            str(args.region_size),
+            "--workers",
+            str(args.workers),
+            "--chunk-size",
+            str(args.chunk_size),
+        ]
+        if not _run_command(reference_command, reference_dir / "run.log"):
+            failures.append("reference")
+    else:
+        print("skip completed reference baselines", flush=True)
+
+    for index, (variant, seed) in enumerate(runs, start=1):
+        run_id = f"{variant.name}__seed{seed}"
+        run_dir = args.output_dir / "runs" / run_id
+        run_dir.mkdir(parents=True, exist_ok=True)
+        print(f"[{index}/{len(runs)}] {run_id}", flush=True)
+        training_summary = run_dir / "training_summary.json"
+        if not training_summary.is_file():
+            train_command = _training_command(args, variant, seed, run_dir)
+            if not _run_command(train_command, run_dir / "run.log"):
+                failures.append(f"{run_id}:train")
+                continue
+        else:
+            print(f"skip completed training: {run_id}", flush=True)
+
+        if not _evaluation_complete(run_dir):
+            evaluate_command = _evaluation_command(args, variant, run_dir)
+            if not _run_command(evaluate_command, run_dir / "run.log"):
+                failures.append(f"{run_id}:evaluate")
+                continue
+        else:
+            print(f"skip completed evaluation: {run_id}", flush=True)
+        _rebuild_aggregate(args.output_dir, variants)
+
+    _rebuild_aggregate(args.output_dir, variants)
+    if failures:
+        failure_path = args.output_dir / "failed_runs.txt"
+        failure_path.write_text("\n".join(failures) + "\n", encoding="utf-8")
+        raise SystemExit(f"有 {len(failures)} 个步骤失败，详见 {failure_path}")
+    (args.output_dir / "failed_runs.txt").unlink(missing_ok=True)
+    print("all ablation runs completed", flush=True)
+
+
+def _variants() -> list[AblationVariant]:
+    return [
+        AblationVariant("full"),
+        AblationVariant("mlp_no_message_passing", model_type="mlp"),
+        AblationVariant(
+            "no_diffused_demand_features",
+            excluded_features=("diffused_origin_demand", "diffused_destination_demand"),
+        ),
+        AblationVariant(
+            "no_raw_endpoint_frequency",
+            excluded_features=("origin_frequency", "destination_frequency"),
+        ),
+        AblationVariant("no_endpoint_proxy_penalty", endpoint_penalty=0.0),
+        AblationVariant("demand_overlap_target", target_mode="demand_overlap"),
+        AblationVariant("diffusion_steps_0", diffusion_steps=0),
+        AblationVariant("diffusion_steps_1", diffusion_steps=1),
+        AblationVariant("diffusion_steps_5", diffusion_steps=5),
+        AblationVariant("region_risk_penalty_0", region_risk_penalty=0.0),
+        AblationVariant("region_risk_penalty_50", region_risk_penalty=50.0),
+        AblationVariant("region_risk_penalty_100", region_risk_penalty=100.0),
+        AblationVariant("region_risk_penalty_400", region_risk_penalty=400.0),
+    ]
+
+
+def _training_command(
+    args: argparse.Namespace,
+    variant: AblationVariant,
+    seed: int,
+    run_dir: Path,
+) -> list[str]:
+    command = [
+        sys.executable,
+        str(TRAIN_SCRIPT),
+        "--output-dir",
+        str(run_dir),
+        "--model-type",
+        variant.model_type,
+        "--target-mode",
+        variant.target_mode,
+        "--diffusion-steps",
+        str(variant.diffusion_steps),
+        "--endpoint-penalty",
+        str(variant.endpoint_penalty),
+        "--region-endpoint-risk-penalty",
+        str(variant.region_risk_penalty),
+        "--region-count",
+        str(args.gnn_region_count),
+        "--region-size",
+        str(args.region_size),
+        "--candidate-limit",
+        str(args.candidate_limit),
+        "--epochs",
+        str(args.epochs),
+        "--patience",
+        str(args.patience),
+        "--seed",
+        str(seed),
+        "--skip-region-selection",
+    ]
+    if variant.excluded_features:
+        command.append("--exclude-features")
+        command.extend(variant.excluded_features)
+    return command
+
+
+def _evaluation_command(
+    args: argparse.Namespace,
+    variant: AblationVariant,
+    run_dir: Path,
+) -> list[str]:
+    return [
+        sys.executable,
+        str(EVALUATE_SCRIPT),
+        "--output-dir",
+        str(run_dir),
+        "--score-csv",
+        str(run_dir / "node_scores.csv"),
+        "--methods",
+        "gnn",
+        "--gnn-region-count",
+        str(args.gnn_region_count),
+        "--region-size",
+        str(args.region_size),
+        "--candidate-limit",
+        str(args.candidate_limit),
+        "--region-endpoint-risk-penalty",
+        str(variant.region_risk_penalty),
+        "--workers",
+        str(args.workers),
+        "--chunk-size",
+        str(args.chunk_size),
+    ]
+
+
+def _run_command(command: list[str], log_path: Path) -> bool:
+    print(shlex.join(command), flush=True)
+    with log_path.open("a", encoding="utf-8") as log_file:
+        log_file.write(f"\n$ {shlex.join(command)}\n")
+        log_file.flush()
+        completed = subprocess.run(
+            command,
+            cwd=ROOT_DIR,
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            check=False,
+        )
+    return completed.returncode == 0
+
+
+def _evaluation_complete(output_dir: Path) -> bool:
+    summary_path = output_dir / "evaluation_summary.csv"
+    if not summary_path.is_file():
+        return False
+    with summary_path.open("r", encoding="utf-8", newline="") as file:
+        return next(csv.DictReader(file), None) is not None
+
+
+def _write_manifest(
+    path: Path,
+    variants: list[AblationVariant],
+    args: argparse.Namespace,
+) -> None:
+    payload = {
+        "python": sys.executable,
+        "random_seeds": args.random_seeds,
+        "run_count": len(variants) * len(args.random_seeds),
+        "workers": args.workers,
+        "epochs": args.epochs,
+        "patience": args.patience,
+        "gnn_region_count": args.gnn_region_count,
+        "region_count": args.region_count,
+        "region_size": args.region_size,
+        "candidate_limit": args.candidate_limit,
+        "variants": [asdict(variant) for variant in variants],
+    }
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def _rebuild_aggregate(output_dir: Path, variants: list[AblationVariant]) -> None:
+    variant_by_name = {variant.name: variant for variant in variants}
+    rows: list[dict[str, object]] = []
+    runs_dir = output_dir / "runs"
+    if not runs_dir.is_dir():
+        return
+    for run_dir in sorted(path for path in runs_dir.iterdir() if path.is_dir()):
+        if "__seed" not in run_dir.name or not _evaluation_complete(run_dir):
+            continue
+        variant_name, seed_text = run_dir.name.rsplit("__seed", 1)
+        variant = variant_by_name.get(variant_name)
+        if variant is None:
+            continue
+        training_path = run_dir / "training_summary.json"
+        if not training_path.is_file():
+            continue
+        training = json.loads(training_path.read_text(encoding="utf-8"))
+        with (run_dir / "evaluation_summary.csv").open(
+            "r", encoding="utf-8", newline=""
+        ) as file:
+            evaluation = next(csv.DictReader(file))
+        rows.append(
+            {
+                "run_id": run_dir.name,
+                "variant": variant_name,
+                "seed": int(seed_text),
+                "model_type": variant.model_type,
+                "target_mode": variant.target_mode,
+                "excluded_features": ";".join(variant.excluded_features),
+                "diffusion_steps": variant.diffusion_steps,
+                "endpoint_penalty": variant.endpoint_penalty,
+                "region_risk_penalty": variant.region_risk_penalty,
+                "best_epoch": training["best_epoch"],
+                "test_correlation": training["test_correlation"],
+                "gpu_training_seconds": training["gpu_training_seconds"],
+                "peak_gpu_memory_mb": training["peak_gpu_memory_mb"],
+                **evaluation,
+            }
+        )
+    if not rows:
+        return
+    aggregate_path = output_dir / "ablation_runs.csv"
+    temporary_path = aggregate_path.with_suffix(".csv.tmp")
+    with temporary_path.open("w", encoding="utf-8", newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=list(rows[0]), lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+    temporary_path.replace(aggregate_path)
+
+
+if __name__ == "__main__":
+    main()
