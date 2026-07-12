@@ -10,6 +10,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -31,6 +32,43 @@ class AblationVariant:
     region_risk_penalty: float = 200.0
 
 
+@dataclass(slots=True)
+class TerminalProgress:
+    total_runs: int
+    enabled: bool
+
+    def update(
+        self,
+        processed_runs: int,
+        run_id: str,
+        stage: str,
+        elapsed_seconds: float,
+    ) -> None:
+        if not self.enabled:
+            return
+        ratio = processed_runs / max(1, self.total_runs)
+        bar_width = 24
+        filled = min(bar_width, round(ratio * bar_width))
+        bar = "█" * filled + "░" * (bar_width - filled)
+        elapsed = _format_duration(elapsed_seconds)
+        line = (
+            f"[{bar}] {processed_runs:>2}/{self.total_runs} {ratio * 100:5.1f}% "
+            f"| {stage} | {run_id} | {elapsed}"
+        )
+        sys.stdout.write(f"\r\033[2K{line}")
+        sys.stdout.flush()
+
+    def message(self, message: str) -> None:
+        if self.enabled:
+            self.clear()
+        print(message, flush=True)
+
+    def clear(self) -> None:
+        if self.enabled:
+            sys.stdout.write("\r\033[2K")
+            sys.stdout.flush()
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="运行可断点续跑的 GNN 第一版大型消融实验。")
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
@@ -45,6 +83,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--candidate-limit", type=int, default=80_000)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--restart", action="store_true")
+    parser.add_argument("--no-progress", action="store_true")
     return parser.parse_args()
 
 
@@ -56,15 +95,19 @@ def main() -> None:
         f"variants={len(variants)} seeds={len(args.random_seeds)} total_runs={len(runs)}",
         flush=True,
     )
-    for variant, seed in runs:
-        print(f"{variant.name} seed={seed}", flush=True)
     if args.dry_run:
+        for variant, seed in runs:
+            print(f"{variant.name} seed={seed}", flush=True)
         return
 
     if args.restart and args.output_dir.exists():
         shutil.rmtree(args.output_dir)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     _write_manifest(args.output_dir / "ablation_manifest.json", variants, args)
+    progress = TerminalProgress(
+        total_runs=len(runs),
+        enabled=sys.stdout.isatty() and not args.no_progress,
+    )
 
     failures: list[str] = []
     reference_dir = args.output_dir / "reference"
@@ -87,34 +130,60 @@ def main() -> None:
             "--chunk-size",
             str(args.chunk_size),
         ]
-        if not _run_command(reference_command, reference_dir / "run.log"):
+        if not _run_command(
+            reference_command,
+            reference_dir / "run.log",
+            progress,
+            0,
+            "reference",
+            "公共基线",
+        ):
             failures.append("reference")
     else:
-        print("skip completed reference baselines", flush=True)
+        progress.message("skip completed reference baselines")
 
     for index, (variant, seed) in enumerate(runs, start=1):
         run_id = f"{variant.name}__seed{seed}"
         run_dir = args.output_dir / "runs" / run_id
         run_dir.mkdir(parents=True, exist_ok=True)
-        print(f"[{index}/{len(runs)}] {run_id}", flush=True)
+        if not progress.enabled:
+            print(f"[{index}/{len(runs)}] {run_id}", flush=True)
         training_summary = run_dir / "training_summary.json"
         if not training_summary.is_file():
             train_command = _training_command(args, variant, seed, run_dir)
-            if not _run_command(train_command, run_dir / "run.log"):
+            if not _run_command(
+                train_command,
+                run_dir / "run.log",
+                progress,
+                index - 1,
+                run_id,
+                "GPU训练",
+            ):
                 failures.append(f"{run_id}:train")
+                progress.message(f"failed training: {run_id}")
                 continue
         else:
-            print(f"skip completed training: {run_id}", flush=True)
+            progress.message(f"skip completed training: {run_id}")
 
         if not _evaluation_complete(run_dir):
             evaluate_command = _evaluation_command(args, variant, run_dir)
-            if not _run_command(evaluate_command, run_dir / "run.log"):
+            if not _run_command(
+                evaluate_command,
+                run_dir / "run.log",
+                progress,
+                index - 1,
+                run_id,
+                "选区与精确评测",
+            ):
                 failures.append(f"{run_id}:evaluate")
+                progress.message(f"failed evaluation: {run_id}")
                 continue
         else:
-            print(f"skip completed evaluation: {run_id}", flush=True)
+            progress.message(f"skip completed evaluation: {run_id}")
         _rebuild_aggregate(args.output_dir, variants)
+        progress.update(index, run_id, "完成并落盘", 0.0)
 
+    progress.clear()
     _rebuild_aggregate(args.output_dir, variants)
     if failures:
         failure_path = args.output_dir / "failed_runs.txt"
@@ -218,19 +287,45 @@ def _evaluation_command(
     ]
 
 
-def _run_command(command: list[str], log_path: Path) -> bool:
-    print(shlex.join(command), flush=True)
+def _run_command(
+    command: list[str],
+    log_path: Path,
+    progress: TerminalProgress,
+    processed_runs: int,
+    run_id: str,
+    stage: str,
+) -> bool:
+    if not progress.enabled:
+        print(shlex.join(command), flush=True)
     with log_path.open("a", encoding="utf-8") as log_file:
         log_file.write(f"\n$ {shlex.join(command)}\n")
         log_file.flush()
-        completed = subprocess.run(
+        process = subprocess.Popen(
             command,
             cwd=ROOT_DIR,
             stdout=log_file,
             stderr=subprocess.STDOUT,
-            check=False,
         )
-    return completed.returncode == 0
+        start = time.monotonic()
+        while process.poll() is None:
+            progress.update(
+                processed_runs,
+                run_id,
+                stage,
+                time.monotonic() - start,
+            )
+            time.sleep(1.0)
+    progress.clear()
+    return process.returncode == 0
+
+
+def _format_duration(seconds: float) -> str:
+    total_seconds = max(0, int(seconds))
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, remaining_seconds = divmod(remainder, 60)
+    if hours:
+        return f"{hours:02d}:{minutes:02d}:{remaining_seconds:02d}"
+    return f"{minutes:02d}:{remaining_seconds:02d}"
 
 
 def _evaluation_complete(output_dir: Path) -> bool:

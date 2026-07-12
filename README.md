@@ -321,6 +321,16 @@ Windows 将命令中的 Python 入口替换为 `py` 或 `.\.venv-gnn\Scripts\pyt
 .venv-gnn/bin/python scripts/run_gnn_ablation.py --dry-run
 ```
 
+如果通过 PVE、SSH 或服务器图形化终端观察实验，建议前台运行：
+
+```bash
+.venv-gnn/bin/python scripts/run_gnn_ablation.py --workers 10
+```
+
+交互终端会显示总体组数进度条、当前变体、`GPU训练` 或 `选区与精确评测` 阶段以及
+当前阶段耗时。按 `Ctrl+C` 中断后重新执行同一命令即可续跑。使用 `--no-progress` 可以
+关闭进度条。
+
 Linux 服务器上使用 `nohup` 后台启动：
 
 ```bash
