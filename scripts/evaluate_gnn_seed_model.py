@@ -50,6 +50,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--workers", type=int, default=min(10, os.cpu_count() or 1))
     parser.add_argument("--chunk-size", type=int, default=500)
     parser.add_argument(
+        "--evaluation-split",
+        choices=("validation", "test"),
+        default="test",
+    )
+    parser.add_argument(
         "--methods",
         nargs="+",
         choices=("gnn", "random", "hotspot"),
@@ -62,7 +67,10 @@ def main() -> None:
     args = parse_args()
     graph = load_porto_graph(args.node_csv, args.edge_csv)
     queries = load_porto_queries(args.query_csv)
-    train_queries, _, test_queries = split_queries_chronologically(queries)
+    train_queries, validation_queries, test_queries = split_queries_chronologically(queries)
+    evaluation_queries = (
+        validation_queries if args.evaluation_split == "validation" else test_queries
+    )
     node_scores = _load_node_scores(args.score_csv) if "gnn" in args.methods else {}
 
     strategies = []
@@ -118,13 +126,13 @@ def main() -> None:
         preprocessing_seconds = time.perf_counter() - preprocessing_start
         fallback_count = sum(
             index.requires_original_graph(query.origin, query.destination)
-            for query in test_queries
+            for query in evaluation_queries
         )
         evaluation_start = time.perf_counter()
         metrics, _ = evaluate_paired(
             graph,
             index,
-            test_queries,
+            evaluation_queries,
             method,
             args.workers,
             args.chunk_size,
@@ -140,7 +148,8 @@ def main() -> None:
         row = {
             "method": method,
             "train_query_count": len(train_queries),
-            "test_query_count": len(test_queries),
+            "evaluation_split": args.evaluation_split,
+            "evaluation_query_count": len(evaluation_queries),
             "region_count": index.region_count,
             "region_size": args.region_size,
             "shortcut_count": index.shortcut_count,
@@ -148,7 +157,7 @@ def main() -> None:
             "compressed_node_count": index.compressed_graph.node_count,
             "compressed_edge_count": index.compressed_graph.edge_count,
             "fallback_query_count": fallback_count,
-            "fallback_rate_pct": fallback_count / len(test_queries) * 100.0,
+            "fallback_rate_pct": fallback_count / len(evaluation_queries) * 100.0,
             "preprocessing_seconds": preprocessing_seconds,
             "evaluation_wall_seconds": evaluation_seconds,
             "baseline_avg_ms": baseline_average,
@@ -162,7 +171,7 @@ def main() -> None:
             "expanded_change_pct": _change_pct(indexed_expanded, baseline_expanded),
             "faster_query_rate_pct": (
                 sum(delta < 0 for delta in metrics["elapsed_deltas"])
-                / len(test_queries)
+                / len(evaluation_queries)
                 * 100.0
             ),
             "correctness_rate": statistics.mean(metrics["correct_values"]),
@@ -211,7 +220,7 @@ def _write_rows(path: Path, rows: list[dict[str, object]]) -> None:
 
 def _write_report(path: Path, rows: list[dict[str, object]]) -> None:
     lines = [
-        "# 第一版 GNN 种子模型测试集评测",
+        "# 第一版 GNN 种子模型精确配对评测",
         "",
         "| 方法 | 区域数 | Shortcut | 回退率 | 平均耗时变化 | P95 变化 | 展开节点变化 | 正确率 |",
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",

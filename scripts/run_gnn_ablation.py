@@ -19,11 +19,13 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT_DIR = ROOT_DIR / "results" / "gnn_ablation"
 TRAIN_SCRIPT = ROOT_DIR / "scripts" / "train_gnn_seed_model.py"
 EVALUATE_SCRIPT = ROOT_DIR / "scripts" / "evaluate_gnn_seed_model.py"
+NON_LEARNING_SCORE_SCRIPT = ROOT_DIR / "scripts" / "generate_non_learning_seed_scores.py"
 
 
 @dataclass(frozen=True, slots=True)
 class AblationVariant:
     name: str
+    score_source: str = "gnn"
     model_type: str = "graph_sage"
     target_mode: str = "midpoint"
     excluded_features: tuple[str, ...] = field(default_factory=tuple)
@@ -77,6 +79,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--random-seeds", type=int, nargs="+", default=[1, 2, 3, 4, 5])
     parser.add_argument("--workers", type=int, default=min(10, os.cpu_count() or 1))
     parser.add_argument("--chunk-size", type=int, default=500)
+    parser.add_argument(
+        "--evaluation-split",
+        choices=("validation", "test"),
+        default="validation",
+    )
     parser.add_argument("--epochs", type=int, default=200)
     parser.add_argument("--patience", type=int, default=30)
     parser.add_argument("--gnn-region-count", type=int, default=85)
@@ -86,7 +93,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--suite",
         choices=("core", "comprehensive"),
-        default="comprehensive",
+        default="core",
     )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--restart", action="store_true")
@@ -97,7 +104,11 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     variants = _variants(args.suite, args.candidate_limit)
-    runs = [(variant, seed) for variant in variants for seed in args.random_seeds]
+    runs = [
+        (variant, seed)
+        for variant in variants
+        for seed in (args.random_seeds if variant.score_source == "gnn" else [None])
+    ]
     print(
         f"suite={args.suite} variants={len(variants)} "
         f"seeds={len(args.random_seeds)} total_runs={len(runs)}",
@@ -105,7 +116,8 @@ def main() -> None:
     )
     if args.dry_run:
         for variant, seed in runs:
-            print(f"{variant.name} seed={seed}", flush=True)
+            seed_label = seed if seed is not None else "deterministic"
+            print(f"{variant.name} seed={seed_label}", flush=True)
         return
 
     if args.restart and args.output_dir.exists():
@@ -119,7 +131,7 @@ def main() -> None:
 
     failures: list[str] = []
     reference_dir = args.output_dir / "reference"
-    if not _evaluation_complete(reference_dir):
+    if not _evaluation_complete(reference_dir, args.evaluation_split):
         reference_dir.mkdir(parents=True, exist_ok=True)
         reference_command = [
             sys.executable,
@@ -137,6 +149,8 @@ def main() -> None:
             str(args.workers),
             "--chunk-size",
             str(args.chunk_size),
+            "--evaluation-split",
+            args.evaluation_split,
         ]
         if not _run_command(
             reference_command,
@@ -151,21 +165,25 @@ def main() -> None:
         progress.message("skip completed reference baselines")
 
     for index, (variant, seed) in enumerate(runs, start=1):
-        run_id = f"{variant.name}__seed{seed}"
+        run_id = (
+            f"{variant.name}__seed{seed}"
+            if seed is not None
+            else variant.name
+        )
         run_dir = args.output_dir / "runs" / run_id
         run_dir.mkdir(parents=True, exist_ok=True)
         if not progress.enabled:
             print(f"[{index}/{len(runs)}] {run_id}", flush=True)
-        training_summary = run_dir / "training_summary.json"
-        if not training_summary.is_file():
-            train_command = _training_command(args, variant, seed, run_dir)
+        preparation_summary = _preparation_summary_path(variant, run_dir)
+        if not preparation_summary.is_file():
+            train_command = _preparation_command(args, variant, seed, run_dir)
             if not _run_command(
                 train_command,
                 run_dir / "run.log",
                 progress,
                 index - 1,
                 run_id,
-                "GPU训练",
+                "GPU训练" if variant.score_source == "gnn" else "生成解析分数",
             ):
                 failures.append(f"{run_id}:train")
                 progress.message(f"failed training: {run_id}")
@@ -173,7 +191,7 @@ def main() -> None:
         else:
             progress.message(f"skip completed training: {run_id}")
 
-        if not _evaluation_complete(run_dir):
+        if not _evaluation_complete(run_dir, args.evaluation_split):
             evaluate_command = _evaluation_command(args, variant, run_dir)
             if not _run_command(
                 evaluate_command,
@@ -188,11 +206,11 @@ def main() -> None:
                 continue
         else:
             progress.message(f"skip completed evaluation: {run_id}")
-        _rebuild_aggregate(args.output_dir, variants)
+        _rebuild_aggregate(args.output_dir, variants, args.evaluation_split)
         progress.update(index, run_id, "完成并落盘", 0.0)
 
     progress.clear()
-    _rebuild_aggregate(args.output_dir, variants)
+    _rebuild_aggregate(args.output_dir, variants, args.evaluation_split)
     if failures:
         failure_path = args.output_dir / "failed_runs.txt"
         failure_path.write_text("\n".join(failures) + "\n", encoding="utf-8")
@@ -204,6 +222,13 @@ def main() -> None:
 def _variants(suite: str, default_candidate_limit: int) -> list[AblationVariant]:
     core_variants = [
         AblationVariant("full"),
+        AblationVariant("risk_only", score_source="risk_only"),
+        AblationVariant("proxy_only", score_source="proxy_only"),
+        AblationVariant(
+            "gnn_only_no_endpoint_risk",
+            endpoint_penalty=0.0,
+            region_risk_penalty=0.0,
+        ),
         AblationVariant("mlp_no_message_passing", model_type="mlp"),
         AblationVariant(
             "no_diffused_demand_features",
@@ -283,12 +308,31 @@ def _variants(suite: str, default_candidate_limit: int) -> list[AblationVariant]
     return variants
 
 
-def _training_command(
+def _preparation_command(
     args: argparse.Namespace,
     variant: AblationVariant,
-    seed: int,
+    seed: int | None,
     run_dir: Path,
 ) -> list[str]:
+    if variant.score_source != "gnn":
+        return [
+            sys.executable,
+            str(NON_LEARNING_SCORE_SCRIPT),
+            "--output-dir",
+            str(run_dir),
+            "--score-source",
+            variant.score_source,
+            "--target-mode",
+            variant.target_mode,
+            "--diffusion-steps",
+            str(variant.diffusion_steps),
+            "--diffusion-restart",
+            str(variant.diffusion_restart),
+            "--endpoint-penalty",
+            str(variant.endpoint_penalty),
+        ]
+    if seed is None:
+        raise ValueError("GNN 实验必须提供随机种子。")
     command = [
         sys.executable,
         str(TRAIN_SCRIPT),
@@ -326,6 +370,15 @@ def _training_command(
     return command
 
 
+def _preparation_summary_path(variant: AblationVariant, run_dir: Path) -> Path:
+    filename = (
+        "training_summary.json"
+        if variant.score_source == "gnn"
+        else "scoring_summary.json"
+    )
+    return run_dir / filename
+
+
 def _evaluation_command(
     args: argparse.Namespace,
     variant: AblationVariant,
@@ -352,6 +405,8 @@ def _evaluation_command(
         str(args.workers),
         "--chunk-size",
         str(args.chunk_size),
+        "--evaluation-split",
+        args.evaluation_split,
     ]
 
 
@@ -396,12 +451,13 @@ def _format_duration(seconds: float) -> str:
     return f"{minutes:02d}:{remaining_seconds:02d}"
 
 
-def _evaluation_complete(output_dir: Path) -> bool:
+def _evaluation_complete(output_dir: Path, evaluation_split: str) -> bool:
     summary_path = output_dir / "evaluation_summary.csv"
     if not summary_path.is_file():
         return False
     with summary_path.open("r", encoding="utf-8", newline="") as file:
-        return next(csv.DictReader(file), None) is not None
+        row = next(csv.DictReader(file), None)
+        return row is not None and row.get("evaluation_split") == evaluation_split
 
 
 def _write_manifest(
@@ -412,7 +468,10 @@ def _write_manifest(
     payload = {
         "python": sys.executable,
         "random_seeds": args.random_seeds,
-        "run_count": len(variants) * len(args.random_seeds),
+        "run_count": sum(
+            len(args.random_seeds) if variant.score_source == "gnn" else 1
+            for variant in variants
+        ),
         "workers": args.workers,
         "epochs": args.epochs,
         "patience": args.patience,
@@ -420,29 +479,39 @@ def _write_manifest(
         "region_count": args.region_count,
         "region_size": args.region_size,
         "candidate_limit": args.candidate_limit,
+        "evaluation_split": args.evaluation_split,
         "suite": args.suite,
         "variants": [asdict(variant) for variant in variants],
     }
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def _rebuild_aggregate(output_dir: Path, variants: list[AblationVariant]) -> None:
+def _rebuild_aggregate(
+    output_dir: Path,
+    variants: list[AblationVariant],
+    evaluation_split: str,
+) -> None:
     variant_by_name = {variant.name: variant for variant in variants}
     rows: list[dict[str, object]] = []
     runs_dir = output_dir / "runs"
     if not runs_dir.is_dir():
         return
     for run_dir in sorted(path for path in runs_dir.iterdir() if path.is_dir()):
-        if "__seed" not in run_dir.name or not _evaluation_complete(run_dir):
+        if not _evaluation_complete(run_dir, evaluation_split):
             continue
-        variant_name, seed_text = run_dir.name.rsplit("__seed", 1)
+        if "__seed" in run_dir.name:
+            variant_name, seed_text = run_dir.name.rsplit("__seed", 1)
+            random_seed: int | str = int(seed_text)
+        else:
+            variant_name = run_dir.name
+            random_seed = ""
         variant = variant_by_name.get(variant_name)
         if variant is None:
             continue
-        training_path = run_dir / "training_summary.json"
-        if not training_path.is_file():
+        preparation_path = _preparation_summary_path(variant, run_dir)
+        if not preparation_path.is_file():
             continue
-        training = json.loads(training_path.read_text(encoding="utf-8"))
+        preparation = json.loads(preparation_path.read_text(encoding="utf-8"))
         with (run_dir / "evaluation_summary.csv").open(
             "r", encoding="utf-8", newline=""
         ) as file:
@@ -451,7 +520,8 @@ def _rebuild_aggregate(output_dir: Path, variants: list[AblationVariant]) -> Non
             {
                 "run_id": run_dir.name,
                 "variant": variant_name,
-                "seed": int(seed_text),
+                "seed": random_seed,
+                "score_source": variant.score_source,
                 "model_type": variant.model_type,
                 "target_mode": variant.target_mode,
                 "excluded_features": ";".join(variant.excluded_features),
@@ -460,10 +530,10 @@ def _rebuild_aggregate(output_dir: Path, variants: list[AblationVariant]) -> Non
                 "endpoint_penalty": variant.endpoint_penalty,
                 "region_risk_penalty": variant.region_risk_penalty,
                 "candidate_limit": variant.candidate_limit,
-                "best_epoch": training["best_epoch"],
-                "test_correlation": training["test_correlation"],
-                "gpu_training_seconds": training["gpu_training_seconds"],
-                "peak_gpu_memory_mb": training["peak_gpu_memory_mb"],
+                "best_epoch": preparation.get("best_epoch", ""),
+                "test_correlation": preparation["test_correlation"],
+                "gpu_training_seconds": preparation.get("gpu_training_seconds", 0.0),
+                "peak_gpu_memory_mb": preparation.get("peak_gpu_memory_mb", 0.0),
                 **evaluation,
             }
         )
