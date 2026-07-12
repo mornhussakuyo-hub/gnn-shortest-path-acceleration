@@ -56,6 +56,7 @@ def parse_args() -> argparse.Namespace:
         default=[],
     )
     parser.add_argument("--diffusion-steps", type=int, default=3)
+    parser.add_argument("--diffusion-restart", type=float, default=0.4)
     parser.add_argument("--endpoint-penalty", type=float, default=2.0)
     parser.add_argument("--region-count", type=int, default=100)
     parser.add_argument("--region-size", type=int, default=512)
@@ -96,6 +97,7 @@ def main() -> None:
         validation_queries,
         test_queries,
         diffusion_steps=args.diffusion_steps,
+        diffusion_restart=args.diffusion_restart,
         endpoint_penalty=args.endpoint_penalty,
         target_mode=args.target_mode,
     )
@@ -266,6 +268,7 @@ def main() -> None:
         "region_endpoint_risk_penalty": args.region_endpoint_risk_penalty,
         "endpoint_penalty": args.endpoint_penalty,
         "diffusion_steps": args.diffusion_steps,
+        "diffusion_restart": args.diffusion_restart,
         "model_type": args.model_type,
         "target_mode": args.target_mode,
         "feature_names": list(selected_feature_names),

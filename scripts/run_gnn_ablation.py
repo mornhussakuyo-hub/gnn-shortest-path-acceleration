@@ -28,8 +28,10 @@ class AblationVariant:
     target_mode: str = "midpoint"
     excluded_features: tuple[str, ...] = field(default_factory=tuple)
     diffusion_steps: int = 3
+    diffusion_restart: float = 0.4
     endpoint_penalty: float = 2.0
     region_risk_penalty: float = 200.0
+    candidate_limit: int = 80_000
 
 
 @dataclass(slots=True)
@@ -81,6 +83,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--region-count", type=int, default=100)
     parser.add_argument("--region-size", type=int, default=512)
     parser.add_argument("--candidate-limit", type=int, default=80_000)
+    parser.add_argument(
+        "--suite",
+        choices=("core", "comprehensive"),
+        default="comprehensive",
+    )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--restart", action="store_true")
     parser.add_argument("--no-progress", action="store_true")
@@ -89,10 +96,11 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    variants = _variants()
+    variants = _variants(args.suite, args.candidate_limit)
     runs = [(variant, seed) for variant in variants for seed in args.random_seeds]
     print(
-        f"variants={len(variants)} seeds={len(args.random_seeds)} total_runs={len(runs)}",
+        f"suite={args.suite} variants={len(variants)} "
+        f"seeds={len(args.random_seeds)} total_runs={len(runs)}",
         flush=True,
     )
     if args.dry_run:
@@ -193,8 +201,8 @@ def main() -> None:
     print("all ablation runs completed", flush=True)
 
 
-def _variants() -> list[AblationVariant]:
-    return [
+def _variants(suite: str, default_candidate_limit: int) -> list[AblationVariant]:
+    core_variants = [
         AblationVariant("full"),
         AblationVariant("mlp_no_message_passing", model_type="mlp"),
         AblationVariant(
@@ -215,6 +223,64 @@ def _variants() -> list[AblationVariant]:
         AblationVariant("region_risk_penalty_100", region_risk_penalty=100.0),
         AblationVariant("region_risk_penalty_400", region_risk_penalty=400.0),
     ]
+    if suite == "core":
+        return core_variants
+
+    extended_variants = [
+        AblationVariant("diffusion_steps_8", diffusion_steps=8),
+        AblationVariant("diffusion_steps_12", diffusion_steps=12),
+        AblationVariant("diffusion_steps_20", diffusion_steps=20),
+        AblationVariant("diffusion_restart_0", diffusion_restart=0.0),
+        AblationVariant("diffusion_restart_0_2", diffusion_restart=0.2),
+        AblationVariant("diffusion_restart_0_6", diffusion_restart=0.6),
+        AblationVariant("diffusion_restart_0_8", diffusion_restart=0.8),
+        AblationVariant(
+            "no_coordinates",
+            excluded_features=("longitude", "latitude"),
+        ),
+        AblationVariant(
+            "no_degree_features",
+            excluded_features=("log_out_degree", "log_in_degree"),
+        ),
+        AblationVariant(
+            "no_mean_edge_length",
+            excluded_features=("mean_out_edge_length",),
+        ),
+        AblationVariant("endpoint_penalty_0_5", endpoint_penalty=0.5),
+        AblationVariant("endpoint_penalty_1", endpoint_penalty=1.0),
+        AblationVariant("endpoint_penalty_4", endpoint_penalty=4.0),
+        AblationVariant("endpoint_penalty_8", endpoint_penalty=8.0),
+        AblationVariant("region_risk_penalty_800", region_risk_penalty=800.0),
+        AblationVariant("candidate_limit_20000", candidate_limit=20_000),
+        AblationVariant("candidate_limit_40000", candidate_limit=40_000),
+        AblationVariant("candidate_limit_120000", candidate_limit=120_000),
+    ]
+    for diffusion_steps in (5, 8, 12, 20):
+        for diffusion_restart in (0.2, 0.6):
+            extended_variants.append(
+                AblationVariant(
+                    f"diffusion_steps_{diffusion_steps}_restart_"
+                    f"{str(diffusion_restart).replace('.', '_')}",
+                    diffusion_steps=diffusion_steps,
+                    diffusion_restart=diffusion_restart,
+                )
+            )
+    variants = core_variants + extended_variants
+    if default_candidate_limit != 80_000:
+        variants = [
+            AblationVariant(
+                **{
+                    **asdict(variant),
+                    "candidate_limit": (
+                        default_candidate_limit
+                        if variant.candidate_limit == 80_000
+                        else variant.candidate_limit
+                    ),
+                }
+            )
+            for variant in variants
+        ]
+    return variants
 
 
 def _training_command(
@@ -234,6 +300,8 @@ def _training_command(
         variant.target_mode,
         "--diffusion-steps",
         str(variant.diffusion_steps),
+        "--diffusion-restart",
+        str(variant.diffusion_restart),
         "--endpoint-penalty",
         str(variant.endpoint_penalty),
         "--region-endpoint-risk-penalty",
@@ -243,7 +311,7 @@ def _training_command(
         "--region-size",
         str(args.region_size),
         "--candidate-limit",
-        str(args.candidate_limit),
+        str(variant.candidate_limit),
         "--epochs",
         str(args.epochs),
         "--patience",
@@ -277,7 +345,7 @@ def _evaluation_command(
         "--region-size",
         str(args.region_size),
         "--candidate-limit",
-        str(args.candidate_limit),
+        str(variant.candidate_limit),
         "--region-endpoint-risk-penalty",
         str(variant.region_risk_penalty),
         "--workers",
@@ -352,6 +420,7 @@ def _write_manifest(
         "region_count": args.region_count,
         "region_size": args.region_size,
         "candidate_limit": args.candidate_limit,
+        "suite": args.suite,
         "variants": [asdict(variant) for variant in variants],
     }
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -387,8 +456,10 @@ def _rebuild_aggregate(output_dir: Path, variants: list[AblationVariant]) -> Non
                 "target_mode": variant.target_mode,
                 "excluded_features": ";".join(variant.excluded_features),
                 "diffusion_steps": variant.diffusion_steps,
+                "diffusion_restart": variant.diffusion_restart,
                 "endpoint_penalty": variant.endpoint_penalty,
                 "region_risk_penalty": variant.region_risk_penalty,
+                "candidate_limit": variant.candidate_limit,
                 "best_epoch": training["best_epoch"],
                 "test_correlation": training["test_correlation"],
                 "gpu_training_seconds": training["gpu_training_seconds"],

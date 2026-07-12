@@ -44,11 +44,14 @@ def build_gnn_data(
     validation_queries: list[Query],
     test_queries: list[Query],
     diffusion_steps: int = 3,
+    diffusion_restart: float = 0.4,
     endpoint_penalty: float = 2.0,
     target_mode: str = "midpoint",
 ) -> GnnData:
     if target_mode not in {"midpoint", "demand_overlap"}:
         raise ValueError(f"不支持的代理目标模式: {target_mode}")
+    if not 0.0 <= diffusion_restart <= 1.0:
+        raise ValueError("扩散重启系数必须位于 0 到 1 之间。")
     nodes = tuple(graph.adjacency)
     node_to_index = {node: index for index, node in enumerate(nodes)}
     edge_source, edge_target = _build_undirected_edges(graph, node_to_index)
@@ -65,6 +68,7 @@ def build_gnn_data(
         edge_target,
         target_degree,
         diffusion_steps,
+        diffusion_restart,
     )
     diffused_destination = _diffuse(
         _density_signal(destination_counts, len(train_queries)),
@@ -72,6 +76,7 @@ def build_gnn_data(
         edge_target,
         target_degree,
         diffusion_steps,
+        diffusion_restart,
     )
     endpoint_risk = _unit_scale(
         np.log1p(diffused_origin) + np.log1p(diffused_destination)
@@ -95,6 +100,7 @@ def build_gnn_data(
         edge_target,
         target_degree,
         diffusion_steps,
+        diffusion_restart,
         endpoint_penalty,
         target_mode,
     )
@@ -108,6 +114,7 @@ def build_gnn_data(
         edge_target,
         target_degree,
         diffusion_steps,
+        diffusion_restart,
         endpoint_penalty,
         target_mode,
     )
@@ -121,6 +128,7 @@ def build_gnn_data(
         edge_target,
         target_degree,
         diffusion_steps,
+        diffusion_restart,
         endpoint_penalty,
         target_mode,
     )
@@ -240,6 +248,7 @@ def _proxy_target(
     edge_target: np.ndarray,
     target_degree: np.ndarray,
     diffusion_steps: int,
+    diffusion_restart: float,
     endpoint_penalty: float,
     target_mode: str,
 ) -> np.ndarray:
@@ -255,6 +264,7 @@ def _proxy_target(
             edge_target,
             target_degree,
             diffusion_steps,
+            diffusion_restart,
         )
         diffused_destination = _diffuse(
             _density_signal(destination_counts, len(queries)),
@@ -262,6 +272,7 @@ def _proxy_target(
             edge_target,
             target_degree,
             diffusion_steps,
+            diffusion_restart,
         )
         overlap_value = _unit_scale(
             np.log1p(np.sqrt(diffused_origin * diffused_destination))
@@ -289,6 +300,7 @@ def _proxy_target(
         edge_target,
         target_degree,
         diffusion_steps,
+        diffusion_restart,
     )
     midpoint_value = _unit_scale(np.log1p(midpoint_density))
     target = midpoint_value / (1.0 + endpoint_penalty * endpoint_risk)
