@@ -1,0 +1,220 @@
+{
+  "python": "/home/xixiangtang/AIC/.venv-gnn/bin/python",
+  "random_seeds": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "run_count": 72,
+  "workers": 10,
+  "epochs": 200,
+  "patience": 30,
+  "gnn_region_count": 85,
+  "region_count": 100,
+  "region_size": 512,
+  "candidate_limit": 80000,
+  "evaluation_split": "validation",
+  "suite": "core",
+  "variants": [
+    {
+      "name": "full",
+      "score_source": "gnn",
+      "model_type": "graph_sage",
+      "target_mode": "midpoint",
+      "excluded_features": [],
+      "diffusion_steps": 3,
+      "diffusion_restart": 0.4,
+      "endpoint_penalty": 2.0,
+      "region_risk_penalty": 200.0,
+      "candidate_limit": 80000
+    },
+    {
+      "name": "risk_only",
+      "score_source": "risk_only",
+      "model_type": "graph_sage",
+      "target_mode": "midpoint",
+      "excluded_features": [],
+      "diffusion_steps": 3,
+      "diffusion_restart": 0.4,
+      "endpoint_penalty": 2.0,
+      "region_risk_penalty": 200.0,
+      "candidate_limit": 80000
+    },
+    {
+      "name": "proxy_only",
+      "score_source": "proxy_only",
+      "model_type": "graph_sage",
+      "target_mode": "midpoint",
+      "excluded_features": [],
+      "diffusion_steps": 3,
+      "diffusion_restart": 0.4,
+      "endpoint_penalty": 2.0,
+      "region_risk_penalty": 200.0,
+      "candidate_limit": 80000
+    },
+    {
+      "name": "gnn_only_no_endpoint_risk",
+      "score_source": "gnn",
+      "model_type": "graph_sage",
+      "target_mode": "midpoint",
+      "excluded_features": [],
+      "diffusion_steps": 3,
+      "diffusion_restart": 0.4,
+      "endpoint_penalty": 0.0,
+      "region_risk_penalty": 0.0,
+      "candidate_limit": 80000
+    },
+    {
+      "name": "mlp_no_message_passing",
+      "score_source": "gnn",
+      "model_type": "mlp",
+      "target_mode": "midpoint",
+      "excluded_features": [],
+      "diffusion_steps": 3,
+      "diffusion_restart": 0.4,
+      "endpoint_penalty": 2.0,
+      "region_risk_penalty": 200.0,
+      "candidate_limit": 80000
+    },
+    {
+      "name": "no_diffused_demand_features",
+      "score_source": "gnn",
+      "model_type": "graph_sage",
+      "target_mode": "midpoint",
+      "excluded_features": [
+        "diffused_origin_demand",
+        "diffused_destination_demand"
+      ],
+      "diffusion_steps": 3,
+      "diffusion_restart": 0.4,
+      "endpoint_penalty": 2.0,
+      "region_risk_penalty": 200.0,
+      "candidate_limit": 80000
+    },
+    {
+      "name": "no_raw_endpoint_frequency",
+      "score_source": "gnn",
+      "model_type": "graph_sage",
+      "target_mode": "midpoint",
+      "excluded_features": [
+        "origin_frequency",
+        "destination_frequency"
+      ],
+      "diffusion_steps": 3,
+      "diffusion_restart": 0.4,
+      "endpoint_penalty": 2.0,
+      "region_risk_penalty": 200.0,
+      "candidate_limit": 80000
+    },
+    {
+      "name": "no_endpoint_proxy_penalty",
+      "score_source": "gnn",
+      "model_type": "graph_sage",
+      "target_mode": "midpoint",
+      "excluded_features": [],
+      "diffusion_steps": 3,
+      "diffusion_restart": 0.4,
+      "endpoint_penalty": 0.0,
+      "region_risk_penalty": 200.0,
+      "candidate_limit": 80000
+    },
+    {
+      "name": "demand_overlap_target",
+      "score_source": "gnn",
+      "model_type": "graph_sage",
+      "target_mode": "demand_overlap",
+      "excluded_features": [],
+      "diffusion_steps": 3,
+      "diffusion_restart": 0.4,
+      "endpoint_penalty": 2.0,
+      "region_risk_penalty": 200.0,
+      "candidate_limit": 80000
+    },
+    {
+      "name": "diffusion_steps_0",
+      "score_source": "gnn",
+      "model_type": "graph_sage",
+      "target_mode": "midpoint",
+      "excluded_features": [],
+      "diffusion_steps": 0,
+      "diffusion_restart": 0.4,
+      "endpoint_penalty": 2.0,
+      "region_risk_penalty": 200.0,
+      "candidate_limit": 80000
+    },
+    {
+      "name": "diffusion_steps_1",
+      "score_source": "gnn",
+      "model_type": "graph_sage",
+      "target_mode": "midpoint",
+      "excluded_features": [],
+      "diffusion_steps": 1,
+      "diffusion_restart": 0.4,
+      "endpoint_penalty": 2.0,
+      "region_risk_penalty": 200.0,
+      "candidate_limit": 80000
+    },
+    {
+      "name": "diffusion_steps_5",
+      "score_source": "gnn",
+      "model_type": "graph_sage",
+      "target_mode": "midpoint",
+      "excluded_features": [],
+      "diffusion_steps": 5,
+      "diffusion_restart": 0.4,
+      "endpoint_penalty": 2.0,
+      "region_risk_penalty": 200.0,
+      "candidate_limit": 80000
+    },
+    {
+      "name": "region_risk_penalty_0",
+      "score_source": "gnn",
+      "model_type": "graph_sage",
+      "target_mode": "midpoint",
+      "excluded_features": [],
+      "diffusion_steps": 3,
+      "diffusion_restart": 0.4,
+      "endpoint_penalty": 2.0,
+      "region_risk_penalty": 0.0,
+      "candidate_limit": 80000
+    },
+    {
+      "name": "region_risk_penalty_50",
+      "score_source": "gnn",
+      "model_type": "graph_sage",
+      "target_mode": "midpoint",
+      "excluded_features": [],
+      "diffusion_steps": 3,
+      "diffusion_restart": 0.4,
+      "endpoint_penalty": 2.0,
+      "region_risk_penalty": 50.0,
+      "candidate_limit": 80000
+    },
+    {
+      "name": "region_risk_penalty_100",
+      "score_source": "gnn",
+      "model_type": "graph_sage",
+      "target_mode": "midpoint",
+      "excluded_features": [],
+      "diffusion_steps": 3,
+      "diffusion_restart": 0.4,
+      "endpoint_penalty": 2.0,
+      "region_risk_penalty": 100.0,
+      "candidate_limit": 80000
+    },
+    {
+      "name": "region_risk_penalty_400",
+      "score_source": "gnn",
+      "model_type": "graph_sage",
+      "target_mode": "midpoint",
+      "excluded_features": [],
+      "diffusion_steps": 3,
+      "diffusion_restart": 0.4,
+      "endpoint_penalty": 2.0,
+      "region_risk_penalty": 400.0,
+      "candidate_limit": 80000
+    }
+  ]
+}

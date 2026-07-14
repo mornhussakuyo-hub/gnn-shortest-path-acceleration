@@ -20,7 +20,7 @@ sys.path.insert(0, str(ROOT_DIR))
 
 from src.compression_index import CompressionIndex, build_compression_index
 from src.graph_io import load_porto_graph
-from src.indexed_query import indexed_bidirectional_dijkstra_distance
+from src.indexed_query import EndpointAccessCache, indexed_bidirectional_dijkstra_distance
 from src.regions import build_hotspot_regions, build_random_regions
 from src.shortest_path import bidirectional_dijkstra_distance
 from src.workloads import load_porto_queries
@@ -33,6 +33,7 @@ DEFAULT_OUTPUT_DIR = ROOT_DIR / "results" / "regions"
 
 _WORKER_GRAPH = None
 _WORKER_INDEX: CompressionIndex | None = None
+_WORKER_ENDPOINT_CACHE: EndpointAccessCache | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,6 +46,12 @@ class PairedVerificationRow:
     compressed_edge_count: int
     fallback_query_count: int
     fallback_rate_pct: float
+    endpoint_access_query_count: int
+    endpoint_access_rate_pct: float
+    endpoint_cache_capacity: int
+    endpoint_cache_hits: int
+    endpoint_cache_misses: int
+    endpoint_cache_hit_rate_pct: float
     preprocessing_seconds: float
     baseline_avg_ms: float
     indexed_avg_ms: float
@@ -54,6 +61,8 @@ class PairedVerificationRow:
     p95_change_pct: float
     baseline_avg_expanded: float
     indexed_avg_expanded: float
+    indexed_avg_access_expanded: float
+    indexed_avg_graph_expanded: float
     expanded_change_pct: float
     faster_query_rate_pct: float
     median_delta_ms: float
@@ -71,6 +80,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--workers", type=int, default=os.cpu_count() or 1)
     parser.add_argument("--chunk-size", type=int, default=500)
+    parser.add_argument("--endpoint-cache-capacity", type=int, default=4096)
+    parser.add_argument("--no-details", action="store_true")
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     return parser.parse_args()
 
@@ -95,9 +106,14 @@ def main() -> None:
             index.requires_original_graph(query.origin, query.destination)
             for query in queries
         )
+        endpoint_access_query_count = sum(
+            index.requires_endpoint_access(query.origin, query.destination)
+            for query in queries
+        )
         print(
             f"paired evaluation {method}: workers={args.workers}, "
-            f"fallback={fallback_query_count:,}/{len(queries):,}",
+            f"fallback={fallback_query_count:,}/{len(queries):,}, "
+            f"endpoint_access={endpoint_access_query_count:,}/{len(queries):,}",
             flush=True,
         )
         metrics, details = evaluate_paired(
@@ -107,6 +123,8 @@ def main() -> None:
             method,
             args.workers,
             args.chunk_size,
+            collect_details=not args.no_details,
+            endpoint_cache_capacity=args.endpoint_cache_capacity,
         )
         all_details.extend(details)
         row = PairedVerificationRow(
@@ -118,6 +136,14 @@ def main() -> None:
             compressed_edge_count=index.compressed_graph.edge_count,
             fallback_query_count=fallback_query_count,
             fallback_rate_pct=fallback_query_count / len(queries) * 100.0,
+            endpoint_access_query_count=endpoint_access_query_count,
+            endpoint_access_rate_pct=(
+                endpoint_access_query_count / len(queries) * 100.0
+            ),
+            endpoint_cache_capacity=args.endpoint_cache_capacity,
+            endpoint_cache_hits=sum(metrics["endpoint_cache_hits"]),
+            endpoint_cache_misses=sum(metrics["endpoint_cache_misses"]),
+            endpoint_cache_hit_rate_pct=_cache_hit_rate(metrics),
             preprocessing_seconds=preprocessing_seconds,
             baseline_avg_ms=_mean(metrics["baseline_elapsed"]),
             indexed_avg_ms=_mean(metrics["indexed_elapsed"]),
@@ -133,6 +159,8 @@ def main() -> None:
             ),
             baseline_avg_expanded=_mean(metrics["baseline_expanded"]),
             indexed_avg_expanded=_mean(metrics["indexed_expanded"]),
+            indexed_avg_access_expanded=_mean(metrics["indexed_access_expanded"]),
+            indexed_avg_graph_expanded=_mean(metrics["indexed_graph_expanded"]),
             expanded_change_pct=_change_pct(
                 _mean(metrics["indexed_expanded"]),
                 _mean(metrics["baseline_expanded"]),
@@ -160,10 +188,12 @@ def main() -> None:
     details_path = args.output_dir / f"{suffix}_details.csv"
     report_path = args.output_dir / f"{suffix}_final_report.md"
     write_summary(summary_path, summaries)
-    write_details(details_path, all_details)
+    if not args.no_details:
+        write_details(details_path, all_details)
     write_report(report_path, summaries)
     print(f"summary={_display_path(summary_path)}")
-    print(f"details={_display_path(details_path)}")
+    if not args.no_details:
+        print(f"details={_display_path(details_path)}")
     print(f"report={_display_path(report_path)}")
 
 
@@ -175,11 +205,14 @@ def evaluate_paired(
     workers: int,
     chunk_size: int,
     collect_details: bool = True,
+    endpoint_cache_capacity: int = 0,
 ) -> tuple[dict[str, list], list[dict[str, str]]]:
+    if endpoint_cache_capacity < 0:
+        raise ValueError("endpoint cache capacity must be non-negative")
     chunks = list(_chunked(queries, max(1, chunk_size)))
     results = []
     if workers <= 1:
-        _init_worker(graph, index)
+        _init_worker(graph, index, endpoint_cache_capacity)
         results = [
             _evaluate_pair_chunk(method, chunk, collect_details)
             for chunk in chunks
@@ -188,7 +221,7 @@ def evaluate_paired(
         with ProcessPoolExecutor(
             max_workers=workers,
             initializer=_init_worker,
-            initargs=(graph, index),
+            initargs=(graph, index, endpoint_cache_capacity),
             mp_context=_process_context(),
         ) as pool:
             futures = [
@@ -206,6 +239,10 @@ def evaluate_paired(
         "elapsed_deltas": [],
         "baseline_expanded": [],
         "indexed_expanded": [],
+        "indexed_access_expanded": [],
+        "indexed_graph_expanded": [],
+        "endpoint_cache_hits": [],
+        "endpoint_cache_misses": [],
         "correct_values": [],
     }
     details: list[dict[str, str]] = []
@@ -216,10 +253,15 @@ def evaluate_paired(
     return metrics, details
 
 
-def _init_worker(graph, index: CompressionIndex) -> None:
-    global _WORKER_GRAPH, _WORKER_INDEX
+def _init_worker(
+    graph,
+    index: CompressionIndex,
+    endpoint_cache_capacity: int = 0,
+) -> None:
+    global _WORKER_GRAPH, _WORKER_INDEX, _WORKER_ENDPOINT_CACHE
     _WORKER_GRAPH = graph
     _WORKER_INDEX = index
+    _WORKER_ENDPOINT_CACHE = EndpointAccessCache(endpoint_cache_capacity)
 
 
 def _evaluate_pair_chunk(method: str, queries, collect_details: bool = True) -> dict[str, list]:
@@ -232,13 +274,21 @@ def _evaluate_pair_chunk(method: str, queries, collect_details: bool = True) -> 
         "elapsed_deltas": [],
         "baseline_expanded": [],
         "indexed_expanded": [],
+        "indexed_access_expanded": [],
+        "indexed_graph_expanded": [],
+        "endpoint_cache_hits": [],
+        "endpoint_cache_misses": [],
         "correct_values": [],
         "details": [],
     }
     for query in queries:
         if query.query_id % 2 == 0:
             indexed = indexed_bidirectional_dijkstra_distance(
-                _WORKER_GRAPH, _WORKER_INDEX, query.origin, query.destination
+                _WORKER_GRAPH,
+                _WORKER_INDEX,
+                query.origin,
+                query.destination,
+                endpoint_cache=_WORKER_ENDPOINT_CACHE,
             )
             baseline = bidirectional_dijkstra_distance(
                 _WORKER_GRAPH, query.origin, query.destination
@@ -249,7 +299,11 @@ def _evaluate_pair_chunk(method: str, queries, collect_details: bool = True) -> 
                 _WORKER_GRAPH, query.origin, query.destination
             )
             indexed = indexed_bidirectional_dijkstra_distance(
-                _WORKER_GRAPH, _WORKER_INDEX, query.origin, query.destination
+                _WORKER_GRAPH,
+                _WORKER_INDEX,
+                query.origin,
+                query.destination,
+                endpoint_cache=_WORKER_ENDPOINT_CACHE,
             )
             order = "baseline_first"
 
@@ -260,6 +314,12 @@ def _evaluate_pair_chunk(method: str, queries, collect_details: bool = True) -> 
         output["elapsed_deltas"].append(delta)
         output["baseline_expanded"].append(baseline.expanded_nodes)
         output["indexed_expanded"].append(indexed.expanded_nodes)
+        output["indexed_access_expanded"].append(
+            indexed.endpoint_access_expanded_nodes
+        )
+        output["indexed_graph_expanded"].append(indexed.graph_search_expanded_nodes)
+        output["endpoint_cache_hits"].append(indexed.endpoint_cache_hits)
+        output["endpoint_cache_misses"].append(indexed.endpoint_cache_misses)
         output["correct_values"].append(int(correct))
         if collect_details:
             output["details"].append(
@@ -269,8 +329,11 @@ def _evaluate_pair_chunk(method: str, queries, collect_details: bool = True) -> 
                     "origin": str(query.origin),
                     "destination": str(query.destination),
                     "query_graph": (
-                        "original"
-                        if _WORKER_INDEX.requires_original_graph(query.origin, query.destination)
+                        "compressed_with_endpoint_access"
+                        if _WORKER_INDEX.requires_endpoint_access(
+                            query.origin,
+                            query.destination,
+                        )
                         else "compressed"
                     ),
                     "execution_order": order,
@@ -279,6 +342,12 @@ def _evaluate_pair_chunk(method: str, queries, collect_details: bool = True) -> 
                     "delta_ms": f"{delta:.6f}",
                     "baseline_expanded": str(baseline.expanded_nodes),
                     "indexed_expanded": str(indexed.expanded_nodes),
+                    "indexed_access_expanded": str(
+                        indexed.endpoint_access_expanded_nodes
+                    ),
+                    "indexed_graph_expanded": str(indexed.graph_search_expanded_nodes),
+                    "endpoint_cache_hits": str(indexed.endpoint_cache_hits),
+                    "endpoint_cache_misses": str(indexed.endpoint_cache_misses),
                     "correct": str(correct),
                 }
             )
@@ -313,14 +382,19 @@ def write_report(path: Path, rows: list[PairedVerificationRow]) -> None:
         "",
         f"结论：{'物化压缩图确实减少了平均在线查询开销' if success else '物化压缩图尚未减少平均在线查询开销'}。",
         "",
-        "| 方法 | 基线平均耗时 | 压缩平均耗时 | 平均耗时变化 | P95 变化 | 展开节点变化 | 查询加速比例 | 正确率 |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| 方法 | 缓存容量/进程 | 缓存命中率 | 端点接入率 | 整图回退率 | 基线平均耗时 | 压缩平均耗时 | 平均耗时变化 | P95 变化 | 展开节点变化 | 平均接入展开 | 查询加速比例 | 正确率 |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for row in rows:
         lines.append(
-            f"| {row.method} | {row.baseline_avg_ms:.3f} ms | {row.indexed_avg_ms:.3f} ms | "
-            f"{row.elapsed_change_pct:.2f}% | {row.p95_change_pct:.2f}% | "
-            f"{row.expanded_change_pct:.2f}% | {row.faster_query_rate_pct:.2f}% | "
+            f"| {row.method} | {row.endpoint_cache_capacity} | "
+            f"{row.endpoint_cache_hit_rate_pct:.2f}% | "
+            f"{row.endpoint_access_rate_pct:.2f}% | "
+            f"{row.fallback_rate_pct:.2f}% | {row.baseline_avg_ms:.3f} ms | "
+            f"{row.indexed_avg_ms:.3f} ms | {row.elapsed_change_pct:.2f}% | "
+            f"{row.p95_change_pct:.2f}% | {row.expanded_change_pct:.2f}% | "
+            f"{row.indexed_avg_access_expanded:.2f} | "
+            f"{row.faster_query_rate_pct:.2f}% | "
             f"{row.correctness_rate:.6f} |"
         )
     lines.extend(
@@ -368,6 +442,13 @@ def _percentile(values: list[float], percentile: float) -> float:
 
 def _change_pct(new_value: float, old_value: float) -> float:
     return (new_value - old_value) / old_value * 100.0 if old_value else 0.0
+
+
+def _cache_hit_rate(metrics: dict[str, list]) -> float:
+    hits = sum(metrics["endpoint_cache_hits"])
+    misses = sum(metrics["endpoint_cache_misses"])
+    total = hits + misses
+    return hits / total * 100.0 if total else 0.0
 
 
 def _display_path(path: Path) -> Path:

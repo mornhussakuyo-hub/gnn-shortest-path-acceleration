@@ -46,6 +46,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--od-limit", type=int, default=100_000)
     parser.add_argument("--force", action="store_true", help="Redownload and rebuild existing outputs.")
     parser.add_argument("--skip-road-plot", action="store_true", help="Skip the OSM road-background heatmap.")
+    parser.add_argument(
+        "--skip-dependency-install",
+        action="store_true",
+        help="Use the existing virtual environment without running pip.",
+    )
     parser.add_argument("--uci-url", default=DEFAULT_UCI_URL)
     parser.add_argument("--osm-url", default=DEFAULT_OSM_URL)
     return parser.parse_args()
@@ -140,7 +145,13 @@ def run_processing(python_path: Path, od_limit: int, force: bool, skip_road_plot
 
 def main() -> None:
     args = parse_args()
-    python_path = ensure_venv(args.venv, args.python)
+    if args.skip_dependency_install:
+        python_path = venv_python(args.venv)
+        if not python_path.is_file():
+            raise SystemExit(f"existing virtual environment Python not found: {python_path}")
+        log(f"using existing Python environment at {python_path}")
+    else:
+        python_path = ensure_venv(args.venv, args.python)
     download_file(args.uci_url, UCI_ZIP, args.force)
     extract_train_zip(args.force)
     download_file(args.osm_url, OSM_PBF, args.force)

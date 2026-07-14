@@ -30,6 +30,8 @@ class CompressionIndex:
     shortcuts: tuple[ShortcutEdge, ...]
     compressed_graph: WeightedDiGraph
     node_states: dict[NodeId, int]
+    node_regions: dict[NodeId, int]
+    regions_by_id: dict[int, Region]
     build_seconds: float
 
     @property
@@ -45,19 +47,37 @@ class CompressionIndex:
         return sum(state == NODE_INTERNAL for state in self.node_states.values())
 
     def requires_original_graph(self, source: NodeId, target: NodeId) -> bool:
+        del source, target
+        return False
+
+    def requires_endpoint_access(self, source: NodeId, target: NodeId) -> bool:
         return (
             self.node_states.get(source) == NODE_INTERNAL
             or self.node_states.get(target) == NODE_INTERNAL
         )
+
+    def region_for_node(self, node: NodeId) -> Region | None:
+        region_id = self.node_regions.get(node)
+        return self.regions_by_id.get(region_id) if region_id is not None else None
 
 
 def build_compression_index(graph: WeightedDiGraph, regions: list[Region]) -> CompressionIndex:
     start = time.perf_counter()
     shortcuts: list[ShortcutEdge] = []
     node_states = {node: NODE_OUTSIDE for node in graph.adjacency}
+    node_regions: dict[NodeId, int] = {}
+    regions_by_id: dict[int, Region] = {}
 
     for region in regions:
         region_nodes = set(region.nodes)
+        if region.region_id in regions_by_id:
+            raise ValueError(f"duplicate region id: {region.region_id}")
+        overlapping_nodes = region_nodes & node_regions.keys()
+        if overlapping_nodes:
+            overlapping_node = min(overlapping_nodes)
+            raise ValueError(f"compression regions overlap at node {overlapping_node}")
+        regions_by_id[region.region_id] = region
+        node_regions.update({node: region.region_id for node in region_nodes})
         boundary_nodes = sorted(region.boundary_nodes)
         boundary_set = set(boundary_nodes)
         for node in boundary_nodes:
@@ -80,6 +100,8 @@ def build_compression_index(graph: WeightedDiGraph, regions: list[Region]) -> Co
         shortcuts=tuple(shortcuts),
         compressed_graph=compressed_graph,
         node_states=node_states,
+        node_regions=node_regions,
+        regions_by_id=regions_by_id,
         build_seconds=time.perf_counter() - start,
     )
 

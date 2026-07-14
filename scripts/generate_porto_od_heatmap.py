@@ -9,7 +9,8 @@ import os
 import zipfile
 from pathlib import Path
 
-os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib-codex")
+ROOT_DIR = Path(__file__).resolve().parents[1]
+os.environ.setdefault("MPLCONFIGDIR", str(ROOT_DIR / ".cache" / "matplotlib"))
 
 import matplotlib
 
@@ -25,8 +26,11 @@ DEFAULT_OD_OUT = Path("data/processed/porto/波尔图起终点样本_10万.csv")
 DEFAULT_PLOT_OUT = Path("data/plots/波尔图起终点热力图_10万.png")
 
 
-def setup_chinese_font() -> None:
+def setup_chinese_font() -> bool:
+    windows_fonts = Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts"
     font_paths = [
+        windows_fonts / "msyh.ttc",
+        windows_fonts / "simhei.ttf",
         Path("/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc"),
         Path("/usr/share/fonts/todesk/NotoSansCJK-Regular.ttc"),
     ]
@@ -34,8 +38,10 @@ def setup_chinese_font() -> None:
         if font_path.exists():
             font_manager.fontManager.addfont(str(font_path))
             plt.rcParams["font.family"] = font_manager.FontProperties(fname=str(font_path)).get_name()
-            break
+            plt.rcParams["axes.unicode_minus"] = False
+            return True
     plt.rcParams["axes.unicode_minus"] = False
+    return False
 
 
 def parse_args() -> argparse.Namespace:

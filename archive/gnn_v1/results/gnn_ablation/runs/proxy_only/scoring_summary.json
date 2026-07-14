@@ -1,0 +1,14 @@
+{
+  "score_source": "proxy_only",
+  "graph_node_count": 133839,
+  "graph_edge_count": 221589,
+  "train_query_count": 68657,
+  "validation_query_count": 14712,
+  "test_query_count": 14713,
+  "test_correlation": 0.8626578241554809,
+  "diffusion_steps": 3,
+  "diffusion_restart": 0.4,
+  "endpoint_penalty": 2.0,
+  "target_mode": "midpoint",
+  "scoring_seconds": 3.271108375978656
+}

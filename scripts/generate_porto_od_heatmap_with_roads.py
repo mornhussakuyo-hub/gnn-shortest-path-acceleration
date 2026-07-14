@@ -7,7 +7,8 @@ import csv
 import os
 from pathlib import Path
 
-os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib-codex")
+ROOT_DIR = Path(__file__).resolve().parents[1]
+os.environ.setdefault("MPLCONFIGDIR", str(ROOT_DIR / ".cache" / "matplotlib"))
 
 import matplotlib
 
@@ -41,8 +42,11 @@ ROAD_TYPES = {
 }
 
 
-def setup_chinese_font() -> None:
+def setup_chinese_font() -> bool:
+    windows_fonts = Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts"
     font_paths = [
+        windows_fonts / "msyh.ttc",
+        windows_fonts / "simhei.ttf",
         Path("/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc"),
         Path("/usr/share/fonts/todesk/NotoSansCJK-Regular.ttc"),
     ]
@@ -50,8 +54,10 @@ def setup_chinese_font() -> None:
         if font_path.exists():
             font_manager.fontManager.addfont(str(font_path))
             plt.rcParams["font.family"] = font_manager.FontProperties(fname=str(font_path)).get_name()
-            break
+            plt.rcParams["axes.unicode_minus"] = False
+            return True
     plt.rcParams["axes.unicode_minus"] = False
+    return False
 
 
 def parse_args() -> argparse.Namespace:
@@ -132,6 +138,7 @@ def draw_plot(
     xlim: tuple[float, float],
     ylim: tuple[float, float],
     plot_out: Path,
+    use_chinese_labels: bool,
 ) -> None:
     in_bounds = (
         (o_lon >= xlim[0])
@@ -147,10 +154,24 @@ def draw_plot(
     d_lon, d_lat = d_lon[in_bounds], d_lat[in_bounds]
 
     fig, axes = plt.subplots(1, 2, figsize=(15, 6.5), constrained_layout=True)
-    panels = [
-        (axes[0], o_lon, o_lat, "波尔图出租车起点热力图"),
-        (axes[1], d_lon, d_lat, "波尔图出租车终点热力图"),
-    ]
+    if use_chinese_labels:
+        panels = [
+            (axes[0], o_lon, o_lat, "波尔图出租车起点热力图"),
+            (axes[1], d_lon, d_lat, "波尔图出租车终点热力图"),
+        ]
+        x_label = "经度"
+        y_label = "纬度"
+        colorbar_label = "log10(行程数)"
+        figure_title = f"基于 {len(o_lon):,} 条有效行程，底图来自本地 OSM PBF"
+    else:
+        panels = [
+            (axes[0], o_lon, o_lat, "Porto taxi origins"),
+            (axes[1], d_lon, d_lat, "Porto taxi destinations"),
+        ]
+        x_label = "longitude"
+        y_label = "latitude"
+        colorbar_label = "log10(trip count)"
+        figure_title = f"OD heatmap from {len(o_lon):,} valid trips on local OSM roads"
 
     for ax, lon, lat, title in panels:
         if roads:
@@ -159,15 +180,15 @@ def draw_plot(
 
         heatmap = ax.hexbin(lon, lat, gridsize=120, bins="log", mincnt=1, cmap="inferno", alpha=0.86)
         ax.set_title(title)
-        ax.set_xlabel("经度")
-        ax.set_ylabel("纬度")
+        ax.set_xlabel(x_label)
+        ax.set_ylabel(y_label)
         ax.set_xlim(*xlim)
         ax.set_ylim(*ylim)
         ax.set_aspect("equal", adjustable="box")
         ax.grid(True, color="#d8d8d8", linewidth=0.35, alpha=0.45)
-        fig.colorbar(heatmap, ax=ax, label="log10(行程数)")
+        fig.colorbar(heatmap, ax=ax, label=colorbar_label)
 
-    fig.suptitle(f"基于 {len(o_lon):,} 条有效行程，底图来自本地 OSM PBF")
+    fig.suptitle(figure_title)
     plot_out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(plot_out, dpi=220)
     plt.close(fig)
@@ -175,7 +196,7 @@ def draw_plot(
 
 def main() -> None:
     args = parse_args()
-    setup_chinese_font()
+    use_chinese_labels = setup_chinese_font()
     o_lon, o_lat, d_lon, d_lat = read_od_csv(args.od_input)
 
     all_lon = np.concatenate([o_lon, d_lon])
@@ -184,7 +205,17 @@ def main() -> None:
     ylim = robust_bounds(all_lat)
 
     roads = extract_roads(args.osm_input, xlim, ylim)
-    draw_plot(roads, o_lon, o_lat, d_lon, d_lat, xlim, ylim, args.plot_out)
+    draw_plot(
+        roads,
+        o_lon,
+        o_lat,
+        d_lon,
+        d_lat,
+        xlim,
+        ylim,
+        args.plot_out,
+        use_chinese_labels,
+    )
 
     print(f"road_segments={len(roads)}")
     print(f"heatmap={args.plot_out}")
