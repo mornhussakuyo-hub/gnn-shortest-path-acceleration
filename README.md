@@ -34,13 +34,15 @@ GNN 位于第 4 步。它不替代 Dijkstra，而是根据道路拓扑和历史 
 | 1. 数据与评测框架 | 已完成 | 构建 Porto 道路图和 98,082 条可用 OD；实现 Dijkstra、双向 Dijkstra、逐查询明细和正确性评测。 |
 | 2. 传统压缩与物化查询 | 已完成 | 实现随机、OD 热点区域；离线构建节点三态表、shortcut 和压缩图；全量配对实验正确率 100%，在线耗时下降。 |
 | 3. 参数与预算扫描 | 已完成 | 完成 42 组全量控制变量实验，全部正确率 100%；推荐区域数 100、区域大小 512，并以约 3.8～4 万条 shortcut 作为第一版公平预算。 |
-| 4. 可学习双向需求场 | 进行中，第一版已完成 | 完成 GPU GraphSAGE 节点打分、区域风险修正和核心 72 组验证集消融；第二版已冻结为“真实区域收益驱动的有向双向需求传播”，先完成端点局部接入，再训练传播方法。 |
+| 4. 可学习双向需求场 | 进行中，第一版与阶段 0 已完成 | 完成 GPU GraphSAGE 节点打分和核心 72 组验证集消融；第二版已冻结为“真实区域收益驱动的有向双向需求传播”，精确端点局部接入、有限 LRU 缓存和 98,082 条 OD 全量配对均已完成。 |
 | 5. 最终对比实验 | 未开始 | 需要在相同预算下比较 GNN、随机区域和 OD 热点区域，并完成消融、稳定性和跨城市实验。 |
 
 各阶段的目标、成果、证据、遗留问题和完成标准统一记录在
 [`reports/`](reports/README.md) 中。
 第二版的冻结研究主线与实施顺序见
 [`reports/阶段四_GNN第二版实施计划.md`](reports/阶段四_GNN第二版实施计划.md)。
+第二版到批量持续学习的版本边界见
+[`reports/阶段四_持续学习闭环演进路线.md`](reports/阶段四_持续学习闭环演进路线.md)。
 
 当前物化压缩图的全量配对结果：
 
@@ -87,11 +89,13 @@ taxi 数据集和 Geofabrik Portugal OSM PBF，然后生成：
 python scripts/prepare_porto_data.py --od-limit 10000
 python scripts/prepare_porto_data.py --force
 python scripts/prepare_porto_data.py --skip-road-plot
+python scripts/prepare_porto_data.py --skip-dependency-install
 ```
 
 - `--od-limit 10000`：只抽取 1 万条 OD 样本，适合快速测试。
 - `--force`：重新下载并重新生成已有结果。
 - `--skip-road-plot`：跳过道路底图热力图，减少运行时间。
+- `--skip-dependency-install`：复用已有 `.venv`，不执行 pip，适合离线复查现有数据。
 
 完整数据准备预计占用数 GB 磁盘空间。数据来源包括 UCI Taxi Service
 Trajectory Prediction Challenge, ECML PKDD 2015 和 Geofabrik Portugal OSM
@@ -281,92 +285,16 @@ CSV 包含每组配置的实际区域数、shortcut 数、压缩图规模、回�
 平均在线耗时降低 13.21%，平均展开节点数降低 15.80%。完整分析见
 [`reports/阶段三_参数与预算扫描.md`](reports/阶段三_参数与预算扫描.md)。
 
-## 训练与评测第一版 GNN
+## 第一版 GNN 归档
 
-第一版使用 CUDA GPU 训练，不会自动回退到 CPU。安装独立训练依赖：
+第一版 GPU GraphSAGE、解析基线、评测脚本、72 组核心消融证据和两份结果报告已经冻结
+到 [`archive/gnn_v1/`](archive/gnn_v1/README.md)。这些文件不再占用当前 `src/`、
+`scripts/`、`tests/` 和 `results/` 的主线入口；需要复核旧实验时按归档说明创建独立
+PyTorch/CUDA 环境。
 
-Linux / macOS：
-
-```bash
-python3 -m venv .venv-gnn
-.venv-gnn/bin/python -m pip install -r requirements-gnn.txt
-```
-
-Windows（PowerShell）：
-
-```powershell
-py -m venv .venv-gnn
-.\.venv-gnn\Scripts\python.exe -m pip install -r requirements-gnn.txt
-```
-
-运行 GPU 训练：
-
-```bash
-.venv-gnn/bin/python scripts/train_gnn_seed_model.py
-```
-
-训练完成后运行测试期 OD 精确配对评测：
-
-```bash
-python scripts/evaluate_gnn_seed_model.py
-```
-
-Windows 将命令中的 Python 入口替换为 `py` 或 `.\.venv-gnn\Scripts\python.exe`。
-第一版完整设计、训练环境、结果与限制见
-[`reports/阶段四_GNN第一版训练与结果.md`](reports/阶段四_GNN第一版训练与结果.md)。
-
-## 运行第一版 GNN 大型消融实验
-
-大型实验固定使用统一脚本，不手工逐组运行。默认核心套件包含 14 个学习变体、5 个
-随机种子，以及 `risk-only`、`proxy-only` 两个确定性基线，共 72 组配置：
-
-```bash
-.venv-gnn/bin/python scripts/run_gnn_ablation.py --dry-run
-```
-
-核心套件完成后，如确有必要，可以增加 `--suite comprehensive` 运行 202 组扩展套件，
-已经完成的同名实验会直接复用。大型消融默认在验证集上比较，不能根据验证结果反复
-查看测试集；最终配置冻结后才使用 `--evaluation-split test` 做最终报告。扩展套件额外
-覆盖扩散步数 `8、12、20`，重启系数 `0、0.2、0.6、0.8`，步数与
-重启系数交互、道路结构特征、节点端点惩罚强度、候选池规模和更高区域风险惩罚。
-
-如果通过 PVE、SSH 或服务器图形化终端观察实验，建议前台运行：
-
-```bash
-.venv-gnn/bin/python scripts/run_gnn_ablation.py --workers 10
-```
-
-交互终端会显示总体组数进度条、当前变体、`GPU训练`、`生成解析分数` 或
-`选区与精确评测` 阶段以及当前阶段耗时。按 `Ctrl+C` 中断后重新执行同一命令即可续跑。使用 `--no-progress` 可以
-关闭进度条。
-
-Linux 服务器上使用 `nohup` 后台启动：
-
-```bash
-mkdir -p results/gnn_ablation
-nohup .venv-gnn/bin/python scripts/run_gnn_ablation.py \
-  > results/gnn_ablation/runner.log 2>&1 &
-```
-
-命令返回的任务编号可以用来查看进程。查看总体进度：
-
-```bash
-tail -f results/gnn_ablation/runner.log
-```
-
-查看某个实验组的详细日志：
-
-```bash
-tail -f results/gnn_ablation/runs/full__seed1/run.log
-```
-
-脚本每完成一组就更新 `results/gnn_ablation/ablation_runs.csv`。服务器或进程中断后，
-重新执行同一条后台命令即可从未完成的训练或评测继续；已完成部分会自动跳过。只有明确
-需要清空全部结果时才添加 `--restart`。默认使用当前 Python 解释器，因此必须通过
-`.venv-gnn/bin/python` 启动，以保证 CUDA PyTorch 环境正确。
-
-实验设计、控制变量矩阵、指标和完成标准见
-[`reports/阶段四_GNN第一版大型消融实验报告.md`](reports/阶段四_GNN第一版大型消融实验报告.md)。
+第一版的正式结论保留为：历史 OD 能指导区域选择，但 GraphSAGE 相对 MLP 的独立贡献
+没有成立，主要收益来自端点风险与几何 Proxy。因此当前主线不会继续扩大第一版代理目标
+的消融矩阵。
 
 ## 第二版：可学习双向需求场
 
@@ -374,10 +302,17 @@ tail -f results/gnn_ablation/runs/full__seed1/run.log
 只使用历史 OD 起终点和有向道路图，能否根据后续时间窗口中的真实区域压缩收益，学习
 起点需求的正向传播与终点需求的反向传播。
 
-第二版先完成内部端点局部接入，消除整图回退对区域价值的偏置；随后固定候选区域，
+第二版已完成内部端点局部接入，消除了整图回退对区域价值的偏置；下一步固定候选区域，
 用精确查询工作量差生成无路径监督的区域收益标签。损失从区域价值预测头反向传播到
 双向需求场，学习边注意力、传播门控和不同传播深度的组合。核心对比必须包括原始频率、
 第一版固定扩散、单向需求场、无向传播和无消息传递 MLP。
 
+端点局部接入专项实现、全量正确性、缓存命中率和同进程缓存配对结果见
+[`reports/阶段四_精确端点局部接入.md`](reports/阶段四_精确端点局部接入.md)。
+
 完整设计、监督边界、阶段门和暂缓项见
 [`reports/阶段四_GNN第二版实施计划.md`](reports/阶段四_GNN第二版实施计划.md)。
+
+当前主线明确隔离查询层、需求传播层、成本与标签层、部署反馈层。端点局部接入属于精确
+查询算法，不作为 GNN 的局部输入特征；持续学习按 OD 批次更新，不为单条查询重训模型
+或重建索引。

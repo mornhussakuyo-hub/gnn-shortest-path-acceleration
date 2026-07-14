@@ -16,6 +16,10 @@ class ShortestPathResult:
     expanded_nodes: int
     elapsed_ms: float
     reachable: bool
+    endpoint_access_expanded_nodes: int = 0
+    graph_search_expanded_nodes: int = 0
+    endpoint_cache_hits: int = 0
+    endpoint_cache_misses: int = 0
 
 
 def dijkstra_distance(graph: WeightedDiGraph, source: NodeId, target: NodeId) -> ShortestPathResult:
@@ -61,13 +65,53 @@ def bidirectional_dijkstra_distance(
     if source == target:
         return ShortestPathResult(0.0, 1, _elapsed_ms(start), True)
 
-    forward_distances: dict[NodeId, float] = {source: 0.0}
-    backward_distances: dict[NodeId, float] = {target: 0.0}
-    forward_queue: list[tuple[float, NodeId]] = [(0.0, source)]
-    backward_queue: list[tuple[float, NodeId]] = [(0.0, target)]
+    return bidirectional_dijkstra_from_frontiers(
+        graph,
+        {source: 0.0},
+        {target: 0.0},
+        _start_time=start,
+    )
+
+
+def bidirectional_dijkstra_from_frontiers(
+    graph: WeightedDiGraph,
+    forward_distances: dict[NodeId, float],
+    backward_distances: dict[NodeId, float],
+    *,
+    _start_time: float | None = None,
+) -> ShortestPathResult:
+    start = time.perf_counter() if _start_time is None else _start_time
+    forward_distances = {
+        node: distance
+        for node, distance in forward_distances.items()
+        if graph.has_node(node) and math.isfinite(distance)
+    }
+    backward_distances = {
+        node: distance
+        for node, distance in backward_distances.items()
+        if graph.has_node(node) and math.isfinite(distance)
+    }
+    if not forward_distances or not backward_distances:
+        return ShortestPathResult(math.inf, 0, _elapsed_ms(start), False)
+    if any(distance < 0 for distance in forward_distances.values()):
+        raise ValueError("forward frontier distances must be non-negative")
+    if any(distance < 0 for distance in backward_distances.values()):
+        raise ValueError("backward frontier distances must be non-negative")
+
+    forward_queue = [(distance, node) for node, distance in forward_distances.items()]
+    backward_queue = [(distance, node) for node, distance in backward_distances.items()]
+    heapq.heapify(forward_queue)
+    heapq.heapify(backward_queue)
     forward_settled: set[NodeId] = set()
     backward_settled: set[NodeId] = set()
-    best = math.inf
+    shared_nodes = forward_distances.keys() & backward_distances.keys()
+    best = min(
+        (
+            forward_distances[node] + backward_distances[node]
+            for node in shared_nodes
+        ),
+        default=math.inf,
+    )
 
     while forward_queue and backward_queue:
         if forward_queue[0][0] + backward_queue[0][0] >= best:
@@ -103,7 +147,13 @@ def bidirectional_dijkstra_distance(
                     best = min(best, new_distance + forward_distances[neighbor])
 
     expanded = len(forward_settled) + len(backward_settled)
-    return ShortestPathResult(best, expanded, _elapsed_ms(start), math.isfinite(best))
+    return ShortestPathResult(
+        best,
+        expanded,
+        _elapsed_ms(start),
+        math.isfinite(best),
+        graph_search_expanded_nodes=expanded,
+    )
 
 
 def _elapsed_ms(start: float) -> float:
