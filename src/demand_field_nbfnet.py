@@ -1,0 +1,250 @@
+"""CUDA-capable OD-conditioned bidirectional Neural Bellman-Ford network."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Iterable
+
+import torch
+from torch import nn
+from torch.nn import functional as functional
+
+
+@dataclass(frozen=True, slots=True)
+class NBFNetConfig:
+    hidden_dim: int = 32
+    propagation_layers: int = 6
+    learning_rate: float = 0.001
+    weight_decay: float = 0.0001
+    huber_delta: float = 1.0
+    prototype_batch_size: int = 4
+    max_epochs: int = 100
+    patience: int = 20
+    min_improvement: float = 0.0001
+    mixed_precision: bool = True
+
+    def validate(self) -> None:
+        if self.hidden_dim <= 0:
+            raise ValueError("hidden_dim must be positive")
+        if self.propagation_layers <= 0:
+            raise ValueError("propagation_layers must be positive")
+        if self.learning_rate <= 0.0 or self.weight_decay < 0.0:
+            raise ValueError("learning rate must be positive and weight decay non-negative")
+        if self.huber_delta <= 0.0:
+            raise ValueError("huber_delta must be positive")
+        if self.prototype_batch_size <= 0:
+            raise ValueError("prototype_batch_size must be positive")
+        if self.max_epochs <= 0 or self.patience <= 0:
+            raise ValueError("max_epochs and patience must be positive")
+
+
+class _DirectionalLayer(nn.Module):
+    def __init__(self, hidden_dim: int, edge_dim: int) -> None:
+        super().__init__()
+        self.message = nn.Sequential(
+            nn.Linear(hidden_dim + edge_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+        )
+        self.gate = nn.Sequential(
+            nn.Linear(hidden_dim * 2 + edge_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, 1),
+        )
+        self.update = nn.Sequential(
+            nn.Linear(hidden_dim * 2, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+        )
+        self.update_gate = nn.Linear(hidden_dim * 2, hidden_dim)
+
+    def forward(
+        self,
+        state: torch.Tensor,
+        sender_index: torch.Tensor,
+        receiver_index: torch.Tensor,
+        edge_features: torch.Tensor,
+        receiver_normalizer: torch.Tensor,
+    ) -> torch.Tensor:
+        batch_size, node_count, hidden_dim = state.shape
+        sender = state[:, sender_index, :]
+        receiver = state[:, receiver_index, :]
+        repeated_edges = edge_features.unsqueeze(0).expand(batch_size, -1, -1)
+        message = self.message(torch.cat((sender, repeated_edges), dim=-1))
+        gate_input = torch.cat((sender, receiver, repeated_edges), dim=-1)
+        message = message * torch.sigmoid(self.gate(gate_input))
+
+        batch_offsets = (
+            torch.arange(batch_size, device=state.device, dtype=receiver_index.dtype)
+            * node_count
+        )
+        flat_receivers = (receiver_index.unsqueeze(0) + batch_offsets[:, None]).reshape(-1)
+        aggregate = state.new_zeros((batch_size * node_count, hidden_dim))
+        aggregate.index_add_(0, flat_receivers, message.reshape(-1, hidden_dim))
+        aggregate = aggregate.reshape(batch_size, node_count, hidden_dim)
+        aggregate = aggregate / receiver_normalizer.to(dtype=aggregate.dtype).unsqueeze(
+            0
+        ).unsqueeze(-1)
+
+        update_input = torch.cat((state, aggregate), dim=-1)
+        candidate = self.update(update_input)
+        update_gate = torch.sigmoid(self.update_gate(update_input))
+        return update_gate * candidate + (1.0 - update_gate) * state
+
+
+class BidirectionalNBFNet(nn.Module):
+    """Predict candidate-region value from weighted OD demand prototypes.
+
+    The forward pass accepts a batch of prototype-specific origin and destination
+    fields. Each field is propagated on the shared directed graph, pooled over
+    candidate regions, and returned as one score per prototype and region.
+    """
+
+    def __init__(
+        self,
+        node_feature_dim: int,
+        region_feature_dim: int,
+        edge_type_count: int,
+        config: NBFNetConfig,
+    ) -> None:
+        super().__init__()
+        config.validate()
+        if min(node_feature_dim, region_feature_dim, edge_type_count) <= 0:
+            raise ValueError("feature dimensions and edge_type_count must be positive")
+        self.config = config
+        self.hidden_dim = config.hidden_dim
+        self.edge_dim = edge_type_count + 1
+        self.origin_encoder = self._encoder(node_feature_dim + 1, config.hidden_dim)
+        self.destination_encoder = self._encoder(node_feature_dim + 1, config.hidden_dim)
+        self.origin_layers = nn.ModuleList(
+            _DirectionalLayer(config.hidden_dim, self.edge_dim)
+            for _ in range(config.propagation_layers)
+        )
+        self.destination_layers = nn.ModuleList(
+            _DirectionalLayer(config.hidden_dim, self.edge_dim)
+            for _ in range(config.propagation_layers)
+        )
+        self.depth_logits = nn.Parameter(torch.zeros(config.propagation_layers + 1))
+        pooled_dim = config.hidden_dim * 8
+        self.prediction_head = nn.Sequential(
+            nn.Linear(pooled_dim + region_feature_dim, config.hidden_dim * 2),
+            nn.ReLU(),
+            nn.Linear(config.hidden_dim * 2, config.hidden_dim),
+            nn.ReLU(),
+            nn.Linear(config.hidden_dim, 1),
+        )
+
+    @staticmethod
+    def _encoder(input_dim: int, hidden_dim: int) -> nn.Sequential:
+        return nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+        )
+
+    def forward(
+        self,
+        node_features: torch.Tensor,
+        edge_source: torch.Tensor,
+        edge_target: torch.Tensor,
+        edge_features: torch.Tensor,
+        origin_fields: torch.Tensor,
+        destination_fields: torch.Tensor,
+        region_nodes: torch.Tensor,
+        region_features: torch.Tensor,
+        receiver_normalizer_forward: torch.Tensor,
+        receiver_normalizer_reverse: torch.Tensor,
+    ) -> torch.Tensor:
+        if origin_fields.shape != destination_fields.shape:
+            raise ValueError("origin and destination field shapes must match")
+        if origin_fields.ndim != 2 or origin_fields.shape[1] != node_features.shape[0]:
+            raise ValueError("prototype fields must have shape (batch, node_count)")
+        expanded_features = node_features.unsqueeze(0).expand(origin_fields.shape[0], -1, -1)
+        origin_state = self.origin_encoder(
+            torch.cat((expanded_features, origin_fields.unsqueeze(-1)), dim=-1)
+        )
+        destination_state = self.destination_encoder(
+            torch.cat((expanded_features, destination_fields.unsqueeze(-1)), dim=-1)
+        )
+        origin_states = [origin_state]
+        destination_states = [destination_state]
+        for origin_layer, destination_layer in zip(
+            self.origin_layers, self.destination_layers
+        ):
+            origin_state = origin_layer(
+                origin_state,
+                edge_source,
+                edge_target,
+                edge_features,
+                receiver_normalizer_forward,
+            )
+            destination_state = destination_layer(
+                destination_state,
+                edge_target,
+                edge_source,
+                edge_features,
+                receiver_normalizer_reverse,
+            )
+            origin_states.append(origin_state)
+            destination_states.append(destination_state)
+
+        depth_weights = torch.softmax(self.depth_logits, dim=0)
+        fused = origin_states[0].new_zeros(
+            (origin_state.shape[0], origin_state.shape[1], self.hidden_dim * 4)
+        )
+        for weight, origin, destination in zip(
+            depth_weights, origin_states, destination_states
+        ):
+            depth_features = torch.cat(
+                (origin, destination, origin * destination, torch.abs(origin - destination)),
+                dim=-1,
+            )
+            fused = fused + weight * depth_features
+
+        pooled = self._pool_regions(fused, region_nodes)
+        expanded_region_features = region_features.unsqueeze(0).expand(pooled.shape[0], -1, -1)
+        prediction_input = torch.cat((pooled, expanded_region_features), dim=-1)
+        return self.prediction_head(prediction_input).squeeze(-1)
+
+    @staticmethod
+    def _pool_regions(node_states: torch.Tensor, region_nodes: torch.Tensor) -> torch.Tensor:
+        values = node_states[:, region_nodes, :]
+        return torch.cat((values.mean(dim=2), values.amax(dim=2)), dim=-1)
+
+
+def build_edge_features(
+    edge_length: torch.Tensor,
+    edge_type: torch.Tensor,
+    edge_type_count: int,
+) -> torch.Tensor:
+    if edge_length.ndim != 1 or edge_type.shape != edge_length.shape:
+        raise ValueError("edge_length and edge_type must be equal one-dimensional tensors")
+    if torch.any(edge_type < 0) or torch.any(edge_type >= edge_type_count):
+        raise ValueError("edge_type contains an index outside edge_type_count")
+    return torch.cat(
+        (
+            edge_length.unsqueeze(-1),
+            functional.one_hot(edge_type.long(), num_classes=edge_type_count).to(
+                dtype=edge_length.dtype
+            ),
+        ),
+        dim=-1,
+    )
+
+
+def build_receiver_normalizers(
+    receiver_index: torch.Tensor,
+    node_count: int,
+) -> torch.Tensor:
+    if receiver_index.ndim != 1:
+        raise ValueError("receiver_index must be one-dimensional")
+    degree = torch.zeros(node_count, device=receiver_index.device, dtype=torch.float32)
+    degree.index_add_(0, receiver_index, torch.ones_like(receiver_index, dtype=torch.float32))
+    return degree.clamp_min(1.0)
+
+
+def iter_slices(size: int, batch_size: int) -> Iterable[slice]:
+    if size < 0 or batch_size <= 0:
+        raise ValueError("size must be non-negative and batch_size must be positive")
+    for start in range(0, size, batch_size):
+        yield slice(start, min(start + batch_size, size))

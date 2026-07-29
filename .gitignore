@@ -14,3 +14,4 @@ archive/gnn_v1/results/gnn_ablation/**/node_scores.csv
 archive/gnn_v1/results/gnn_ablation/**/selected_regions.csv
 archive/gnn_v1/results/gnn_ablation/**/training_history.csv
 archive/gnn_v1/results/gnn_ablation/**/evaluation_regions.csv
+results/gnn_v2/nbfnet_smoke*/
