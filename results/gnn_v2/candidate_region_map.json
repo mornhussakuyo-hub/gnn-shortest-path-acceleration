@@ -1,0 +1,48 @@
+{
+  "schema": "aic.gnn_v2.candidate_region_visualization.v1",
+  "candidate_sha256": "40d7d8babf74381b5f7088de22edc0f48181bec9c78a53fb039c9e8e7c20f71c",
+  "graph": {
+    "node_count": 133839,
+    "edge_count": 221589,
+    "width_km": 15.958316999999994,
+    "height_km": 17.250395999999995
+  },
+  "candidates": {
+    "count": 1200,
+    "nodes_per_candidate": 512,
+    "selection_method_counts": {
+      "fixed_random_bfs": 1200
+    },
+    "total_node_memberships": 614400,
+    "bbox_diagonal_km": {
+      "min": 0.9581291340409038,
+      "p10": 1.356303102532416,
+      "median": 1.8276598390256038,
+      "p90": 2.725729389558122,
+      "max": 7.4718923113924
+    },
+    "convex_hull_area_km2": {
+      "min": 0.2967703598624212,
+      "p10": 0.5566039013716363,
+      "median": 1.057234139886532,
+      "p90": 1.915448133724932,
+      "max": 11.191112273130784
+    },
+    "equivalent_diameter_km": {
+      "min": 0.6147029834660961,
+      "p10": 0.8418373323526368,
+      "median": 1.1602207912228109,
+      "p90": 1.5616732254835384,
+      "max": 3.77478035065898
+    }
+  },
+  "coverage": {
+    "unique_covered_nodes": 130604,
+    "covered_node_fraction": 0.975829167880812,
+    "mean_memberships_all_nodes": 4.590590186716876,
+    "mean_memberships_covered_nodes": 4.704296958745521,
+    "p90_memberships_covered_nodes": 8.0,
+    "p99_memberships_covered_nodes": 12.0,
+    "max_memberships": 18
+  }
+}

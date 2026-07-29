@@ -1,0 +1,86 @@
+{
+  "analysis_type": "all_candidates_screening_sample",
+  "labeled_candidate_count": 1200,
+  "manifest_candidate_count": 1200,
+  "history_query_count": 34328,
+  "label_query_count": 500,
+  "top_k": 120,
+  "correctness_min": 1.0,
+  "label_distribution": {
+    "min": 0.282,
+    "p10": 3.8526000000000002,
+    "median": 26.611,
+    "p90": 146.88019999999997,
+    "max": 194.666,
+    "mean": 54.281925,
+    "std": 54.8686742129275,
+    "positive_rate_pct": 100.0
+  },
+  "selection_method_distribution": {
+    "fixed_random_bfs": {
+      "count": 771,
+      "mean_gain": 32.663872892347605,
+      "median_gain": 19.676
+    },
+    "history_hotspot_bfs": {
+      "count": 326,
+      "mean_gain": 120.11294478527607,
+      "median_gain": 133.00400000000002
+    },
+    "spatial_uniform_bfs": {
+      "count": 103,
+      "mean_gain": 7.744116504854369,
+      "median_gain": 7.878
+    }
+  },
+  "rankings": {
+    "raw_endpoint_frequency": {
+      "spearman": 0.9182373247507268,
+      "ndcg_at_k": 0.9373233770441338,
+      "top_k_mean_gain": 155.17143333333334,
+      "all_mean_gain": 54.281925
+    },
+    "v1_midpoint_proxy_mean": {
+      "spearman": 0.9346268366107209,
+      "ndcg_at_k": 0.9455938427809135,
+      "top_k_mean_gain": 155.11593333333334,
+      "all_mean_gain": 54.281925
+    },
+    "oracle": {
+      "top_k_mean_gain": 162.36935,
+      "ndcg_at_k": 1.0,
+      "spearman": 1.0
+    }
+  },
+  "stage_gate": {
+    "correctness_100_percent": true,
+    "non_constant_labels": true,
+    "oracle_minus_proxy_top_k_mean": 7.253416666666652,
+    "status": "screening_only"
+  },
+  "label_stability": {
+    "common_candidate_count": 1200,
+    "spearman": 0.9847266290108742,
+    "mae": 4.492435,
+    "top_k_overlap_count": 109,
+    "top_k_overlap_rate": 0.9083333333333333
+  },
+  "cross_sample_selection": {
+    "v1_midpoint_proxy_mean": {
+      "first_oracle_on_second_mean_gain": 168.08138333333332,
+      "fixed_on_second_mean_gain": 159.53755,
+      "first_to_second_gain_gap": 8.54383333333331,
+      "second_oracle_on_first_mean_gain": 161.68036666666666,
+      "fixed_on_first_mean_gain": 155.11593333333334,
+      "second_to_first_gain_gap": 6.564433333333312
+    },
+    "raw_endpoint_frequency": {
+      "first_oracle_on_second_mean_gain": 168.08138333333332,
+      "fixed_on_second_mean_gain": 160.91528333333332,
+      "first_to_second_gain_gap": 7.1661,
+      "second_oracle_on_first_mean_gain": 161.68036666666666,
+      "fixed_on_first_mean_gain": 155.17143333333334,
+      "second_to_first_gain_gap": 6.508933333333317
+    }
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "analysis_type": "candidate_subset_pilot",
+  "labeled_candidate_count": 120,
+  "manifest_candidate_count": 1200,
+  "history_query_count": 34328,
+  "top_k": 12,
+  "correctness_min": 1.0,
+  "label_distribution": {
+    "min": 0.5645,
+    "p10": 3.3590999999999998,
+    "median": 48.14875,
+    "p90": 150.58635,
+    "max": 177.1585,
+    "mean": 65.21329583333333,
+    "std": 56.536862734321986,
+    "positive_rate_pct": 100.0
+  },
+  "selection_method_distribution": {
+    "fixed_random_bfs": {
+      "count": 67,
+      "mean_gain": 34.01177611940299,
+      "median_gain": 20.826
+    },
+    "history_hotspot_bfs": {
+      "count": 47,
+      "mean_gain": 117.75829787234044,
+      "median_gain": 129.4975
+    },
+    "spatial_uniform_bfs": {
+      "count": 6,
+      "mean_gain": 2.02775,
+      "median_gain": 1.8482500000000002
+    }
+  },
+  "rankings": {
+    "raw_endpoint_frequency": {
+      "spearman": 0.9200151415612413,
+      "ndcg_at_k": 0.910139207411532,
+      "top_k_mean_gain": 145.7225,
+      "all_mean_gain": 65.21329583333333
+    },
+    "v1_midpoint_proxy_mean": {
+      "spearman": 0.9513122539261423,
+      "ndcg_at_k": 0.8875407006298949,
+      "top_k_mean_gain": 147.25183333333334,
+      "all_mean_gain": 65.21329583333333
+    },
+    "oracle": {
+      "top_k_mean_gain": 160.536875,
+      "ndcg_at_k": 1.0,
+      "spearman": 1.0
+    }
+  },
+  "stage_gate": {
+    "correctness_100_percent": true,
+    "non_constant_labels": true,
+    "oracle_minus_proxy_top_k_mean": 13.285041666666672,
+    "status": "pilot_only"
+  }
+}

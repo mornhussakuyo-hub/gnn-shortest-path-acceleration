@@ -1,0 +1,51 @@
+{
+  "analysis_type": "formal_sampled_labels",
+  "labeled_candidate_count": 1200,
+  "manifest_candidate_count": 1200,
+  "history_query_count": 34328,
+  "label_query_count": 2000,
+  "top_k": 120,
+  "correctness_min": 1.0,
+  "label_distribution": {
+    "min": 0.2,
+    "p10": 4.298150000000001,
+    "median": 25.8995,
+    "p90": 104.05529999999986,
+    "max": 183.414,
+    "mean": 39.6948975,
+    "std": 40.85325242135862,
+    "positive_rate_pct": 100.0
+  },
+  "selection_method_distribution": {
+    "fixed_random_bfs": {
+      "count": 1200,
+      "mean_gain": 39.6948975,
+      "median_gain": 25.8995
+    }
+  },
+  "rankings": {
+    "raw_endpoint_frequency": {
+      "spearman": 0.8661494491058984,
+      "ndcg_at_k": 0.9366151998738678,
+      "top_k_mean_gain": 126.03722083333334,
+      "all_mean_gain": 39.6948975
+    },
+    "v1_midpoint_proxy_mean": {
+      "spearman": 0.9017419618387218,
+      "ndcg_at_k": 0.97302864745797,
+      "top_k_mean_gain": 133.16085833333332,
+      "all_mean_gain": 39.6948975
+    },
+    "oracle": {
+      "top_k_mean_gain": 134.90752083333334,
+      "ndcg_at_k": 1.0,
+      "spearman": 1.0
+    }
+  },
+  "stage_gate": {
+    "correctness_100_percent": true,
+    "non_constant_labels": true,
+    "oracle_minus_proxy_top_k_mean": 1.7466625000000136,
+    "status": "ready_for_modeling"
+  }
+}
