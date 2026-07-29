@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import unittest
 
 try:
@@ -8,6 +9,7 @@ try:
     from src.demand_field_nbfnet import (
         BidirectionalNBFNet,
         NBFNetConfig,
+        _DirectionalLayer,
         build_edge_features,
         build_receiver_normalizers,
     )
@@ -56,3 +58,136 @@ class BidirectionalNBFNetTest(unittest.TestCase):
     def test_config_rejects_invalid_batch_size(self) -> None:
         with self.assertRaises(ValueError):
             NBFNetConfig(prototype_batch_size=0).validate()
+
+    def test_zero_state_does_not_create_messages(self) -> None:
+        layer = _DirectionalLayer(hidden_dim=4, edge_dim=3)
+        state = torch.zeros(2, 5, 4)
+        edge_source = torch.tensor([0, 1, 2, 3], dtype=torch.long)
+        edge_target = torch.tensor([1, 2, 3, 4], dtype=torch.long)
+        result = layer(
+            state,
+            edge_source,
+            edge_target,
+            torch.randn(4, 3),
+            build_receiver_normalizers(edge_target, 5),
+        )
+        self.assertTrue(torch.equal(result, torch.zeros_like(result)))
+
+    def test_prototype_condition_changes_prediction(self) -> None:
+        torch.manual_seed(42)
+        config = NBFNetConfig(hidden_dim=4, propagation_layers=2, max_epochs=1)
+        model = BidirectionalNBFNet(3, 2, 2, config)
+        edge_source = torch.tensor([0, 1, 2, 3, 1], dtype=torch.long)
+        edge_target = torch.tensor([1, 2, 3, 4, 0], dtype=torch.long)
+        common = {
+            "node_features": torch.randn(5, 3),
+            "edge_source": edge_source,
+            "edge_target": edge_target,
+            "edge_features": build_edge_features(
+                torch.tensor([0.2, 0.3, 0.4, 0.5, 0.6]),
+                torch.tensor([0, 1, 0, 1, 0]),
+                2,
+            ),
+            "region_nodes": torch.tensor([[0, 1, 2], [2, 3, 4]]),
+            "region_features": torch.zeros(2, 2),
+            "receiver_normalizer_forward": build_receiver_normalizers(
+                edge_target, 5
+            ),
+            "receiver_normalizer_reverse": build_receiver_normalizers(
+                edge_source, 5
+            ),
+        }
+        first = model(
+            origin_fields=torch.tensor([[1.0, 0.0, 0.0, 0.0, 0.0]]),
+            destination_fields=torch.tensor([[0.0, 0.0, 0.0, 0.0, 1.0]]),
+            **common,
+        )
+        second = model(
+            origin_fields=torch.tensor([[0.0, 0.0, 1.0, 0.0, 0.0]]),
+            destination_fields=torch.tensor([[0.0, 1.0, 0.0, 0.0, 0.0]]),
+            **common,
+        )
+        self.assertFalse(torch.allclose(first, second))
+
+    def test_chunked_two_pass_gradient_matches_full_mixture(self) -> None:
+        torch.manual_seed(7)
+        config = NBFNetConfig(
+            hidden_dim=4,
+            propagation_layers=1,
+            rank_weight=0.0,
+            max_epochs=1,
+        )
+        direct_model = BidirectionalNBFNet(3, 2, 2, config)
+        chunked_model = copy.deepcopy(direct_model)
+        edge_source = torch.tensor([0, 1, 2, 3, 1], dtype=torch.long)
+        edge_target = torch.tensor([1, 2, 3, 4, 0], dtype=torch.long)
+        origin_fields = torch.tensor(
+            [[1.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.5, 0.0, 0.0]]
+        )
+        destination_fields = torch.tensor(
+            [[0.0, 0.0, 0.0, 0.0, 1.0], [0.0, 1.0, 0.0, 0.0, 0.0]]
+        )
+        prototype_weight = torch.tensor([0.3, 0.7])
+        target = torch.tensor([0.4, -0.2])
+        common = {
+            "node_features": torch.randn(5, 3),
+            "edge_source": edge_source,
+            "edge_target": edge_target,
+            "edge_features": build_edge_features(
+                torch.tensor([0.2, 0.3, 0.4, 0.5, 0.6]),
+                torch.tensor([0, 1, 0, 1, 0]),
+                2,
+            ),
+            "region_nodes": torch.tensor([[0, 1, 2], [2, 3, 4]]),
+            "region_features": torch.randn(2, 2),
+            "receiver_normalizer_forward": build_receiver_normalizers(
+                edge_target, 5
+            ),
+            "receiver_normalizer_reverse": build_receiver_normalizers(
+                edge_source, 5
+            ),
+        }
+        direct_prediction = direct_model(
+            origin_fields=origin_fields,
+            destination_fields=destination_fields,
+            **common,
+        )
+        direct_mixture = (direct_prediction * prototype_weight[:, None]).sum(0)
+        torch.nn.functional.huber_loss(direct_mixture, target).backward()
+
+        with torch.no_grad():
+            mixture_value = (
+                chunked_model(
+                    origin_fields=origin_fields,
+                    destination_fields=destination_fields,
+                    **common,
+                )
+                * prototype_weight[:, None]
+            ).sum(0)
+        mixture_leaf = mixture_value.detach().requires_grad_(True)
+        leaf_loss = torch.nn.functional.huber_loss(mixture_leaf, target)
+        mixture_gradient = torch.autograd.grad(leaf_loss, mixture_leaf)[0]
+        for prototype_id in range(2):
+            chunk_prediction = chunked_model(
+                origin_fields=origin_fields[prototype_id : prototype_id + 1],
+                destination_fields=destination_fields[prototype_id : prototype_id + 1],
+                **common,
+            )[0]
+            surrogate = (
+                chunk_prediction * prototype_weight[prototype_id] * mixture_gradient
+            ).sum()
+            surrogate.backward()
+
+        for direct_parameter, chunked_parameter in zip(
+            direct_model.parameters(), chunked_model.parameters()
+        ):
+            self.assertIsNotNone(direct_parameter.grad)
+            self.assertIsNotNone(chunked_parameter.grad)
+            self.assertTrue(
+                torch.allclose(
+                    direct_parameter.grad,
+                    chunked_parameter.grad,
+                    atol=1e-6,
+                    rtol=1e-5,
+                )
+            )

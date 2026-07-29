@@ -8,28 +8,36 @@ from typing import Iterable
 import torch
 from torch import nn
 from torch.nn import functional as functional
+from torch.utils.checkpoint import checkpoint
 
 
 @dataclass(frozen=True, slots=True)
 class NBFNetConfig:
     hidden_dim: int = 32
     propagation_layers: int = 6
+    demand_scale: float = 1000.0
     learning_rate: float = 0.001
     weight_decay: float = 0.0001
+    rank_weight: float = 0.20
     huber_delta: float = 1.0
-    prototype_batch_size: int = 4
+    prototype_batch_size: int = 1
     max_epochs: int = 100
     patience: int = 20
     min_improvement: float = 0.0001
     mixed_precision: bool = True
+    gradient_checkpointing: bool = True
 
     def validate(self) -> None:
         if self.hidden_dim <= 0:
             raise ValueError("hidden_dim must be positive")
         if self.propagation_layers <= 0:
             raise ValueError("propagation_layers must be positive")
+        if self.demand_scale <= 0.0:
+            raise ValueError("demand_scale must be positive")
         if self.learning_rate <= 0.0 or self.weight_decay < 0.0:
             raise ValueError("learning rate must be positive and weight decay non-negative")
+        if self.rank_weight < 0.0:
+            raise ValueError("rank_weight must be non-negative")
         if self.huber_delta <= 0.0:
             raise ValueError("huber_delta must be positive")
         if self.prototype_batch_size <= 0:
@@ -41,21 +49,18 @@ class NBFNetConfig:
 class _DirectionalLayer(nn.Module):
     def __init__(self, hidden_dim: int, edge_dim: int) -> None:
         super().__init__()
-        self.message = nn.Sequential(
-            nn.Linear(hidden_dim + edge_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim),
+        self.message_state = nn.Linear(hidden_dim, hidden_dim, bias=False)
+        self.message_edge_gate = nn.Sequential(
+            nn.Linear(edge_dim, hidden_dim),
+            nn.Sigmoid(),
         )
         self.gate = nn.Sequential(
             nn.Linear(hidden_dim * 2 + edge_dim, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, 1),
         )
-        self.update = nn.Sequential(
-            nn.Linear(hidden_dim * 2, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim),
-        )
+        self.update_state = nn.Linear(hidden_dim, hidden_dim, bias=False)
+        self.update_aggregate = nn.Linear(hidden_dim, hidden_dim, bias=False)
         self.update_gate = nn.Linear(hidden_dim * 2, hidden_dim)
 
     def forward(
@@ -70,7 +75,7 @@ class _DirectionalLayer(nn.Module):
         sender = state[:, sender_index, :]
         receiver = state[:, receiver_index, :]
         repeated_edges = edge_features.unsqueeze(0).expand(batch_size, -1, -1)
-        message = self.message(torch.cat((sender, repeated_edges), dim=-1))
+        message = self.message_state(sender) * self.message_edge_gate(repeated_edges)
         gate_input = torch.cat((sender, receiver, repeated_edges), dim=-1)
         message = message * torch.sigmoid(self.gate(gate_input))
 
@@ -79,7 +84,7 @@ class _DirectionalLayer(nn.Module):
             * node_count
         )
         flat_receivers = (receiver_index.unsqueeze(0) + batch_offsets[:, None]).reshape(-1)
-        aggregate = state.new_zeros((batch_size * node_count, hidden_dim))
+        aggregate = message.new_zeros((batch_size * node_count, hidden_dim))
         aggregate.index_add_(0, flat_receivers, message.reshape(-1, hidden_dim))
         aggregate = aggregate.reshape(batch_size, node_count, hidden_dim)
         aggregate = aggregate / receiver_normalizer.to(dtype=aggregate.dtype).unsqueeze(
@@ -87,7 +92,9 @@ class _DirectionalLayer(nn.Module):
         ).unsqueeze(-1)
 
         update_input = torch.cat((state, aggregate), dim=-1)
-        candidate = self.update(update_input)
+        candidate = functional.relu(
+            self.update_state(state) + self.update_aggregate(aggregate)
+        )
         update_gate = torch.sigmoid(self.update_gate(update_input))
         return update_gate * candidate + (1.0 - update_gate) * state
 
@@ -114,8 +121,12 @@ class BidirectionalNBFNet(nn.Module):
         self.config = config
         self.hidden_dim = config.hidden_dim
         self.edge_dim = edge_type_count + 1
-        self.origin_encoder = self._encoder(node_feature_dim + 1, config.hidden_dim)
-        self.destination_encoder = self._encoder(node_feature_dim + 1, config.hidden_dim)
+        self.origin_encoder = self._encoder(node_feature_dim, config.hidden_dim)
+        self.destination_encoder = self._encoder(node_feature_dim, config.hidden_dim)
+        self.origin_token = nn.Parameter(torch.empty(config.hidden_dim))
+        self.destination_token = nn.Parameter(torch.empty(config.hidden_dim))
+        nn.init.normal_(self.origin_token, std=config.hidden_dim**-0.5)
+        nn.init.normal_(self.destination_token, std=config.hidden_dim**-0.5)
         self.origin_layers = nn.ModuleList(
             _DirectionalLayer(config.hidden_dim, self.edge_dim)
             for _ in range(config.propagation_layers)
@@ -159,26 +170,37 @@ class BidirectionalNBFNet(nn.Module):
             raise ValueError("origin and destination field shapes must match")
         if origin_fields.ndim != 2 or origin_fields.shape[1] != node_features.shape[0]:
             raise ValueError("prototype fields must have shape (batch, node_count)")
-        expanded_features = node_features.unsqueeze(0).expand(origin_fields.shape[0], -1, -1)
-        origin_state = self.origin_encoder(
-            torch.cat((expanded_features, origin_fields.unsqueeze(-1)), dim=-1)
+        origin_seed = self.origin_encoder(node_features)
+        destination_seed = self.destination_encoder(node_features)
+        origin_seed = origin_seed + self.origin_token.to(dtype=origin_seed.dtype)
+        destination_seed = destination_seed + self.destination_token.to(
+            dtype=destination_seed.dtype
         )
-        destination_state = self.destination_encoder(
-            torch.cat((expanded_features, destination_fields.unsqueeze(-1)), dim=-1)
+        origin_strength = torch.log1p(
+            origin_fields * self.config.demand_scale
+        ).to(dtype=origin_seed.dtype)
+        destination_strength = torch.log1p(
+            destination_fields * self.config.demand_scale
+        ).to(dtype=destination_seed.dtype)
+        origin_state = origin_seed.unsqueeze(0) * origin_strength.unsqueeze(-1)
+        destination_state = destination_seed.unsqueeze(0) * destination_strength.unsqueeze(
+            -1
         )
         origin_states = [origin_state]
         destination_states = [destination_state]
         for origin_layer, destination_layer in zip(
             self.origin_layers, self.destination_layers
         ):
-            origin_state = origin_layer(
+            origin_state = self._run_directional_layer(
+                origin_layer,
                 origin_state,
                 edge_source,
                 edge_target,
                 edge_features,
                 receiver_normalizer_forward,
             )
-            destination_state = destination_layer(
+            destination_state = self._run_directional_layer(
+                destination_layer,
                 destination_state,
                 edge_target,
                 edge_source,
@@ -205,6 +227,33 @@ class BidirectionalNBFNet(nn.Module):
         expanded_region_features = region_features.unsqueeze(0).expand(pooled.shape[0], -1, -1)
         prediction_input = torch.cat((pooled, expanded_region_features), dim=-1)
         return self.prediction_head(prediction_input).squeeze(-1)
+
+    def _run_directional_layer(
+        self,
+        layer: _DirectionalLayer,
+        state: torch.Tensor,
+        sender_index: torch.Tensor,
+        receiver_index: torch.Tensor,
+        edge_features: torch.Tensor,
+        receiver_normalizer: torch.Tensor,
+    ) -> torch.Tensor:
+        if self.config.gradient_checkpointing and self.training and torch.is_grad_enabled():
+            return checkpoint(
+                layer,
+                state,
+                sender_index,
+                receiver_index,
+                edge_features,
+                receiver_normalizer,
+                use_reentrant=False,
+            )
+        return layer(
+            state,
+            sender_index,
+            receiver_index,
+            edge_features,
+            receiver_normalizer,
+        )
 
     @staticmethod
     def _pool_regions(node_states: torch.Tensor, region_nodes: torch.Tensor) -> torch.Tensor:

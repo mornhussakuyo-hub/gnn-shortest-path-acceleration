@@ -34,7 +34,7 @@ from src.demand_field_torch_model import cuda_environment, require_cuda
 DEFAULT_DATASET = ROOT_DIR / "results" / "gnn_v2" / "demand_field_dataset.npz"
 DEFAULT_DATASET_MANIFEST = ROOT_DIR / "results" / "gnn_v2" / "demand_field_dataset.json"
 DEFAULT_OUTPUT_DIR = ROOT_DIR / "results" / "gnn_v2" / "nbfnet_base"
-EXPERIMENT_SCHEMA = "aic.gnn_v2.od_conditioned_bidirectional_nbfnet.v1"
+EXPERIMENT_SCHEMA = "aic.gnn_v2.od_conditioned_bidirectional_nbfnet.v2"
 
 
 def parse_args() -> argparse.Namespace:
@@ -47,14 +47,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seeds", default="42,43,44,45,46")
     parser.add_argument("--hidden-dim", type=int, default=32)
     parser.add_argument("--layers", type=int, default=6)
+    parser.add_argument("--demand-scale", type=float, default=1000.0)
     parser.add_argument("--learning-rate", type=float, default=0.001)
     parser.add_argument("--weight-decay", type=float, default=0.0001)
+    parser.add_argument("--rank-weight", type=float, default=0.20)
     parser.add_argument("--huber-delta", type=float, default=1.0)
-    parser.add_argument("--prototype-batch-size", type=int, default=4)
+    parser.add_argument("--prototype-batch-size", type=int, default=1)
     parser.add_argument("--max-epochs", type=int, default=100)
     parser.add_argument("--patience", type=int, default=20)
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--no-mixed-precision", action="store_true")
+    parser.add_argument("--no-gradient-checkpointing", action="store_true")
     return parser.parse_args()
 
 
@@ -64,13 +67,16 @@ def main() -> None:
     config = NBFNetConfig(
         hidden_dim=args.hidden_dim,
         propagation_layers=args.layers,
+        demand_scale=args.demand_scale,
         learning_rate=args.learning_rate,
         weight_decay=args.weight_decay,
+        rank_weight=args.rank_weight,
         huber_delta=args.huber_delta,
         prototype_batch_size=args.prototype_batch_size,
         max_epochs=args.max_epochs,
         patience=args.patience,
         mixed_precision=not args.no_mixed_precision,
+        gradient_checkpointing=not args.no_gradient_checkpointing,
     )
     config.validate()
     device = require_cuda(args.device)
@@ -119,10 +125,11 @@ def main() -> None:
             "prototype_count": int(dataset.prototype_weight.size),
             "prototype_batch_size": config.prototype_batch_size,
             "training_objective": (
-                "Each prototype batch first averages scores using its frozen weights, "
-                "then compares the batch-level region score with the region-value label. "
-                "Evaluation averages all prototype scores using frozen prototype weights."
+                "Two-pass exact full-mixture gradient: the first pass evaluates the "
+                "weighted score of all frozen prototypes; the second recomputes one "
+                "memory chunk at a time and accumulates its exact gradient contribution."
             ),
+            "batch_size_affects_objective": False,
         },
         "runs": runs,
         "aggregate": _aggregate_runs(runs),
@@ -267,34 +274,52 @@ def _train_one_seed(
 
     for epoch in range(1, config.max_epochs + 1):
         model.train()
-        prototype_order = torch.randperm(
-            dataset.prototype_weight.size, generator=generator, device=device
+        optimizer.zero_grad(set_to_none=True)
+        with torch.no_grad():
+            full_train_prediction = _predict_weighted(
+                model,
+                tensors,
+                train_indices,
+                config.prototype_batch_size,
+                amp_enabled,
+            )
+        train_target = tensors["labels"][train_indices]
+        prediction_leaf = full_train_prediction.detach().requires_grad_(True)
+        train_huber = functional.huber_loss(
+            prediction_leaf,
+            train_target,
+            reduction="mean",
+            delta=config.huber_delta,
         )
-        train_loss_total = 0.0
-        train_weight_total = 0.0
-        for prototype_slice in iter_slices(len(prototype_order), config.prototype_batch_size):
-            prototype_ids = prototype_order[prototype_slice]
-            prototype_weight = tensors["prototype_weight"][prototype_ids]
-            optimizer.zero_grad(set_to_none=True)
+        train_rank = _sampled_pairwise_loss(
+            prediction_leaf, train_target, generator
+        )
+        train_loss = train_huber + config.rank_weight * train_rank
+        prediction_gradient = torch.autograd.grad(train_loss, prediction_leaf)[0].detach()
+
+        prototype_count = tensors["prototype_weight"].size(0)
+        for prototype_slice in iter_slices(
+            prototype_count, config.prototype_batch_size
+        ):
+            prototype_ids = torch.arange(
+                prototype_slice.start,
+                prototype_slice.stop,
+                device=device,
+            )
             with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=amp_enabled):
                 prediction = _forward_batch(model, tensors, prototype_ids, train_indices)
-                target = tensors["labels"][train_indices].unsqueeze(0).expand_as(prediction)
-                weighted_prediction = (prediction * prototype_weight[:, None]).sum(
-                    dim=0
-                ) / prototype_weight.sum()
-                loss = functional.huber_loss(
-                    weighted_prediction,
-                    target[0],
-                    reduction="mean",
-                    delta=config.huber_delta,
-                )
-            gradient_scaler.scale(loss).backward()
-            gradient_scaler.unscale_(optimizer)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-            gradient_scaler.step(optimizer)
-            gradient_scaler.update()
-            train_loss_total += float(loss.detach() * prototype_weight.sum())
-            train_weight_total += float(prototype_weight.sum())
+                weighted_contribution = (
+                    prediction
+                    * tensors["prototype_weight"][prototype_ids, None]
+                ).sum(dim=0)
+                gradient_surrogate = (
+                    weighted_contribution * prediction_gradient
+                ).sum()
+            gradient_scaler.scale(gradient_surrogate).backward()
+        gradient_scaler.unscale_(optimizer)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        gradient_scaler.step(optimizer)
+        gradient_scaler.update()
 
         model.eval()
         with torch.no_grad():
@@ -302,13 +327,10 @@ def _train_one_seed(
                 model, tensors, validation_indices, config.prototype_batch_size, amp_enabled
             )
             validation_target = tensors["labels"][validation_indices]
-            validation_loss = float(
-                functional.huber_loss(
-                    validation_prediction,
-                    validation_target,
-                    reduction="mean",
-                    delta=config.huber_delta,
-                ).item()
+            validation_loss, validation_huber, validation_rank = _evaluation_loss(
+                validation_prediction,
+                validation_target,
+                config,
             )
             validation_unscaled = _unscale_prediction(validation_prediction, scalers)
             validation_metrics = regression_metrics(
@@ -318,8 +340,12 @@ def _train_one_seed(
         history.append(
             {
                 "epoch": float(epoch),
-                "train_prototype_huber": train_loss_total / train_weight_total,
-                "validation_huber": validation_loss,
+                "train_loss": float(train_loss.detach()),
+                "train_huber": float(train_huber.detach()),
+                "train_rank": float(train_rank.detach()),
+                "validation_loss": validation_loss,
+                "validation_huber": validation_huber,
+                "validation_rank": validation_rank,
                 "validation_spearman": validation_metrics["spearman"],
             }
         )
@@ -410,6 +436,61 @@ def _predict_weighted(
             prediction = _forward_batch(model, tensors, prototype_ids, region_indices)
         aggregate += (prediction.float() * tensors["prototype_weight"][prototype_ids, None]).sum(dim=0)
     return aggregate
+
+
+def _sampled_pairwise_loss(
+    prediction: torch.Tensor,
+    target: torch.Tensor,
+    generator: torch.Generator,
+) -> torch.Tensor:
+    pair_count = max(1, len(prediction))
+    left = torch.randint(
+        len(prediction),
+        (pair_count,),
+        generator=generator,
+        device=prediction.device,
+    )
+    right = torch.randint(
+        len(prediction),
+        (pair_count,),
+        generator=generator,
+        device=prediction.device,
+    )
+    valid = target[left] != target[right]
+    left = left[valid]
+    right = right[valid]
+    if not len(left):
+        return prediction.sum() * 0.0
+    sign = torch.sign(target[left] - target[right])
+    margin = sign * (prediction[left] - prediction[right])
+    return functional.softplus(-margin).mean()
+
+
+def _evaluation_loss(
+    prediction: torch.Tensor,
+    target: torch.Tensor,
+    config: NBFNetConfig,
+) -> tuple[float, float, float]:
+    huber = functional.huber_loss(
+        prediction,
+        target,
+        reduction="mean",
+        delta=config.huber_delta,
+    )
+    left, right = torch.triu_indices(
+        len(target), len(target), offset=1, device=prediction.device
+    )
+    valid = target[left] != target[right]
+    left = left[valid]
+    right = right[valid]
+    if len(left):
+        sign = torch.sign(target[left] - target[right])
+        margin = sign * (prediction[left] - prediction[right])
+        rank = functional.softplus(-margin).mean()
+    else:
+        rank = prediction.sum() * 0.0
+    total = huber + config.rank_weight * rank
+    return float(total.item()), float(huber.item()), float(rank.item())
 
 
 def _unscale_prediction(
