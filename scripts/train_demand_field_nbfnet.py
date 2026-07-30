@@ -273,6 +273,7 @@ def _train_one_seed(
     started = time.perf_counter()
 
     for epoch in range(1, config.max_epochs + 1):
+        epoch_started = time.perf_counter()
         model.train()
         optimizer.zero_grad(set_to_none=True)
         with torch.no_grad():
@@ -359,11 +360,38 @@ def _train_one_seed(
             epochs_without_improvement = 0
         else:
             epochs_without_improvement += 1
+        elapsed_seconds = time.perf_counter() - started
+        epoch_seconds = time.perf_counter() - epoch_started
+        estimated_remaining_seconds = (
+            elapsed_seconds / epoch * (config.max_epochs - epoch)
+        )
+        print(
+            f"seed={seed} epoch={epoch:03d}/{config.max_epochs} "
+            f"train_loss={float(train_loss.detach()):.6f} "
+            f"validation_loss={validation_loss:.6f} "
+            f"validation_spearman={validation_metrics['spearman']:.4f} "
+            f"best_epoch={best_epoch:03d} "
+            f"patience={epochs_without_improvement:02d}/{config.patience} "
+            f"epoch_time={_format_duration(epoch_seconds)} "
+            f"elapsed={_format_duration(elapsed_seconds)} "
+            f"eta_to_max={_format_duration(estimated_remaining_seconds)}",
+            flush=True,
+        )
         if epochs_without_improvement >= config.patience:
+            print(
+                f"seed={seed} early_stop epoch={epoch} "
+                f"best_epoch={best_epoch} "
+                f"best_validation_loss={best_validation_loss:.6f}",
+                flush=True,
+            )
             break
 
     if best_state is None:
         raise RuntimeError("NBFNet training did not produce a finite validation checkpoint")
+    print(
+        f"seed={seed} evaluating_best_checkpoint best_epoch={best_epoch}",
+        flush=True,
+    )
     model.load_state_dict(best_state)
     model.to(device)
     model.eval()
@@ -593,6 +621,17 @@ def _display_path(path: Path) -> str:
         return str(path.relative_to(ROOT_DIR))
     except ValueError:
         return str(path)
+
+
+def _format_duration(seconds: float) -> str:
+    total_seconds = max(0, round(seconds))
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if hours:
+        return f"{hours:d}h{minutes:02d}m{seconds:02d}s"
+    if minutes:
+        return f"{minutes:d}m{seconds:02d}s"
+    return f"{seconds:d}s"
 
 
 if __name__ == "__main__":
