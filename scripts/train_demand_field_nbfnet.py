@@ -20,9 +20,12 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT_DIR))
 
 from src.demand_field_data import SPLIT_NAMES, DemandFieldDataset, load_demand_field_dataset
-from src.demand_field_model import regression_metrics
+from src.demand_field_model import ranking_metrics_at_k, regression_metrics
 from src.demand_field_nbfnet import (
+    DOUBLING_PROPAGATION_VARIANTS,
     NBFNET_VARIANTS,
+    PROPAGATION_ONLY_VARIANTS,
+    RESIDUAL_PROPAGATION_VARIANTS,
     BidirectionalNBFNet,
     NBFNetConfig,
     build_edge_features,
@@ -35,7 +38,7 @@ from src.demand_field_torch_model import cuda_environment, require_cuda
 DEFAULT_DATASET = ROOT_DIR / "results" / "gnn_v2" / "demand_field_dataset.npz"
 DEFAULT_DATASET_MANIFEST = ROOT_DIR / "results" / "gnn_v2" / "demand_field_dataset.json"
 DEFAULT_OUTPUT_DIR = ROOT_DIR / "results" / "gnn_v2" / "nbfnet_base"
-EXPERIMENT_SCHEMA = "aic.gnn_v2.od_conditioned_bidirectional_nbfnet.v2"
+EXPERIMENT_SCHEMA = "aic.gnn_v2.od_conditioned_bidirectional_nbfnet.v3"
 
 
 def parse_args() -> argparse.Namespace:
@@ -133,12 +136,13 @@ def main() -> None:
         "config": asdict(config),
         "seeds": seeds,
         "selected_seed": selected_seed,
-        "selection_rule": "highest validation Spearman; holdout is not used",
+        "selection_rule": "highest validation Spearman; holdout is never used",
+        "architecture": _architecture_metadata(config),
         "split": dataset.manifest["split"],
         "input_policy": dataset.manifest["model_input_policy"],
         "ablation": ablation_metadata,
         "prototype_batching": {
-            "prototype_count": int(dataset.prototype_weight.size),
+            "prototype_count": int(tensors["prototype_weight"].size(0)),
             "prototype_batch_size": config.prototype_batch_size,
             "training_objective": (
                 "Two-pass exact full-mixture gradient: the first pass evaluates the "
@@ -209,14 +213,20 @@ def _prepare_tensors(
     )
     edge_type = torch.as_tensor(edge_type_values, device=device, dtype=torch.long)
     prototype_origins, prototype_destinations = _build_prototype_fields(dataset, device)
+    prototype_weight = torch.as_tensor(dataset.prototype_weight, device=device)
     destination_permutation: list[int] | None = None
+    shuffled_od_metadata: dict[str, object] | None = None
     if variant == "shuffled_od":
-        destination_permutation = np.random.default_rng(
-            randomization_seed
-        ).permutation(dataset.prototype_weight.size).tolist()
-        prototype_destinations = prototype_destinations[
-            torch.as_tensor(destination_permutation, device=device, dtype=torch.long)
-        ]
+        (
+            prototype_origins,
+            prototype_destinations,
+            prototype_weight,
+            shuffled_od_metadata,
+        ) = _marginal_preserving_od_shuffle(
+            prototype_origins,
+            prototype_destinations,
+            prototype_weight,
+        )
     edge_features = build_edge_features(edge_length, edge_type, edge_type_count)
     if variant == "no_edge_features":
         edge_features = torch.zeros_like(edge_features)
@@ -227,7 +237,7 @@ def _prepare_tensors(
         "edge_features": edge_features,
         "origin_fields": prototype_origins,
         "destination_fields": prototype_destinations,
-        "prototype_weight": torch.as_tensor(dataset.prototype_weight, device=device),
+        "prototype_weight": prototype_weight,
         "region_nodes": torch.as_tensor(dataset.region_nodes, device=device, dtype=torch.long),
         "region_features": torch.as_tensor(
             (dataset.region_features - feature_mean) / feature_scale,
@@ -261,6 +271,7 @@ def _prepare_tensors(
             "edge_features_zeroed": variant == "no_edge_features",
             "destination_prototypes_permuted": variant == "shuffled_od",
             "destination_permutation": destination_permutation,
+            "shuffled_od_coupling": shuffled_od_metadata,
             "note": (
                 "degree_rewired preserves exact directed in/out degree sequences "
                 "by permuting edge targets; parallel edges and self-loops are retained "
@@ -268,6 +279,77 @@ def _prepare_tensors(
                 if variant == "degree_rewired"
                 else None
             ),
+        },
+    )
+
+
+def _marginal_preserving_od_shuffle(
+    origin_fields: torch.Tensor,
+    destination_fields: torch.Tensor,
+    prototype_weight: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, dict[str, object]]:
+    """Break OD pairing with a half-cycle coupling while preserving both marginals."""
+
+    weights = prototype_weight.detach().double().cpu().numpy()
+    if (
+        origin_fields.shape != destination_fields.shape
+        or len(origin_fields) != len(weights)
+        or np.any(weights <= 0.0)
+    ):
+        raise ValueError("prototype fields and positive weights must align")
+    weights = weights / weights.sum()
+    cumulative = np.cumsum(weights)
+    shift = 0.5
+    shifted_boundaries = np.mod(cumulative - shift, 1.0)
+    boundaries = np.unique(
+        np.concatenate(([0.0, 1.0], cumulative[:-1], shifted_boundaries))
+    )
+    origin_indices: list[int] = []
+    destination_indices: list[int] = []
+    coupling_weights: list[float] = []
+    for start, end in zip(boundaries[:-1], boundaries[1:]):
+        if end - start <= 1e-12:
+            continue
+        midpoint = (start + end) / 2.0
+        origin_index = int(np.searchsorted(cumulative, midpoint, side="right"))
+        shifted_midpoint = (midpoint + shift) % 1.0
+        destination_index = int(
+            np.searchsorted(cumulative, shifted_midpoint, side="right")
+        )
+        origin_indices.append(origin_index)
+        destination_indices.append(destination_index)
+        coupling_weights.append(end - start)
+    origin_index_tensor = torch.as_tensor(
+        origin_indices, device=origin_fields.device, dtype=torch.long
+    )
+    destination_index_tensor = torch.as_tensor(
+        destination_indices, device=destination_fields.device, dtype=torch.long
+    )
+    coupling = torch.as_tensor(
+        coupling_weights,
+        device=prototype_weight.device,
+        dtype=prototype_weight.dtype,
+    )
+    coupling = coupling / coupling.sum()
+    same_pair_mass = sum(
+        weight
+        for origin_index, destination_index, weight in zip(
+            origin_indices, destination_indices, coupling_weights
+        )
+        if origin_index == destination_index
+    )
+    return (
+        origin_fields[origin_index_tensor],
+        destination_fields[destination_index_tensor],
+        coupling,
+        {
+            "method": "half_cycle_measure_preserving_coupling",
+            "original_prototype_count": len(weights),
+            "coupled_prototype_count": len(coupling_weights),
+            "shift": shift,
+            "same_pair_mass": same_pair_mass,
+            "preserves_origin_marginal": True,
+            "preserves_destination_marginal": True,
         },
     )
 
@@ -383,7 +465,7 @@ def _train_one_seed(
     validation_indices = torch.as_tensor(
         np.flatnonzero(dataset.split_mask("validation")), device=device, dtype=torch.long
     )
-    best_validation_loss = float("inf")
+    best_validation_spearman = float("-inf")
     best_state: dict[str, torch.Tensor] | None = None
     best_epoch = 0
     epochs_without_improvement = 0
@@ -471,8 +553,11 @@ def _train_one_seed(
                 "validation_spearman": validation_metrics["spearman"],
             }
         )
-        if validation_loss < best_validation_loss - config.min_improvement:
-            best_validation_loss = validation_loss
+        if (
+            validation_metrics["spearman"]
+            > best_validation_spearman + config.min_improvement
+        ):
+            best_validation_spearman = validation_metrics["spearman"]
             best_state = {
                 name: value.detach().cpu().clone()
                 for name, value in model.state_dict().items()
@@ -502,7 +587,7 @@ def _train_one_seed(
             print(
                 f"seed={seed} early_stop epoch={epoch} "
                 f"best_epoch={best_epoch} "
-                f"best_validation_loss={best_validation_loss:.6f}",
+                f"best_validation_spearman={best_validation_spearman:.6f}",
                 flush=True,
             )
             break
@@ -533,13 +618,8 @@ def _train_one_seed(
         "training_seconds": time.perf_counter() - started,
         "peak_allocated_bytes": int(torch.cuda.max_memory_allocated(device)),
         "peak_reserved_bytes": int(torch.cuda.max_memory_reserved(device)),
-        "metrics": {
-            name: regression_metrics(
-                unscaled_prediction[dataset.split_mask(name)],
-                dataset.labels[dataset.split_mask(name)],
-            )
-            for name in SPLIT_NAMES
-        },
+        "parameter_count": sum(parameter.numel() for parameter in model.parameters()),
+        "metrics": _all_split_metrics(dataset, unscaled_prediction),
         "prediction": unscaled_prediction,
         "history": history,
         "model_state": best_state,
@@ -649,6 +729,43 @@ def _unscale_prediction(
         prediction.detach().float().cpu().numpy() * float(scalers["label_scale"])
         + float(scalers["label_mean"])
     )
+
+
+def _all_split_metrics(
+    dataset: DemandFieldDataset,
+    prediction: np.ndarray,
+) -> dict[str, dict]:
+    metrics: dict[str, dict] = {}
+    for name in SPLIT_NAMES:
+        mask = dataset.split_mask(name)
+        split_prediction = prediction[mask]
+        split_target = dataset.labels[mask]
+        values = regression_metrics(split_prediction, split_target)
+        values["ranking_at_k"] = ranking_metrics_at_k(
+            split_prediction,
+            split_target,
+            (5, 10, 18),
+            region_nodes=dataset.region_nodes[mask],
+        )
+        metrics[name] = values
+    return metrics
+
+
+def _architecture_metadata(config: NBFNetConfig) -> dict[str, object]:
+    propagation_only = config.variant in PROPAGATION_ONLY_VARIANTS
+    doubling = config.variant in DOUBLING_PROPAGATION_VARIANTS
+    residual = config.variant in RESIDUAL_PROPAGATION_VARIANTS
+    readout_depths = BidirectionalNBFNet._readout_depths(config)
+    return {
+        "propagation_only": propagation_only,
+        "uses_direct_region_features": not propagation_only,
+        "uses_layer_zero_readout": 0 in readout_depths,
+        "residual_propagation": residual,
+        "doubling_scale_readout": doubling,
+        "readout_depths": list(readout_depths),
+        "maximum_hop_depth": config.propagation_layers,
+        "materializes_multi_hop_edges": False,
+    }
 
 
 def _write_history(path: Path, history: list[dict[str, float]]) -> None:

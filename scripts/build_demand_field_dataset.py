@@ -39,6 +39,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--split-seed", type=int, default=42)
     parser.add_argument("--train-fraction", type=float, default=0.70)
     parser.add_argument("--validation-fraction", type=float, default=0.15)
+    parser.add_argument("--overlap-group-threshold", type=float, default=0.50)
     parser.add_argument("--prototype-count", type=int, default=128)
     parser.add_argument("--prototype-seed", type=int, default=42)
     return parser.parse_args()
@@ -56,6 +57,7 @@ def main() -> None:
         split_seed=args.split_seed,
         train_fraction=args.train_fraction,
         validation_fraction=args.validation_fraction,
+        overlap_group_threshold=args.overlap_group_threshold,
         prototype_count=args.prototype_count,
         prototype_seed=args.prototype_seed,
     )

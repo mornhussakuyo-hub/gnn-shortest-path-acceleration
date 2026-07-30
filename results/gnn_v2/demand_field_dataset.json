@@ -1,5 +1,5 @@
 {
-  "schema": "aic.gnn_v2.demand_field_dataset.v1",
+  "schema": "aic.gnn_v2.demand_field_dataset.v2",
   "candidate_sha256": "40d7d8babf74381b5f7088de22edc0f48181bec9c78a53fb039c9e8e7c20f71c",
   "label_schema": "aic.gnn_v2.single_region_labels.v1",
   "source_files": {
@@ -12,7 +12,7 @@
   },
   "source_sha256": {
     "candidate_manifest": "597cde2660a20a6d471c22df96bc18d253f302749ce49b89ea68c0dc947dd1cf",
-    "label_csv": "304b690f7c3c42fa396e556dd37e3a5b9abc10621b1c3d62f7657b6c4cfd9bbd",
+    "label_csv": "557867b5d7ccf83c24d975b2be11dff5f9f0d0ecd3536a2c45e0ac69103a817f",
     "label_manifest": "03aeb4c9ecdbbc3259958a5f8dbbe45b743676f3972e7b9f361a1f62ee6fd49f"
   },
   "history_window": {
@@ -187,6 +187,7 @@
   },
   "split": {
     "axis": "candidate",
+    "strategy": "jaccard_overlap_connected_components",
     "seed": 42,
     "train_fraction": 0.7,
     "validation_fraction": 0.15,
@@ -196,9 +197,14 @@
       "validation": 180,
       "holdout": 180
     },
+    "overlap_group_threshold": 0.5,
+    "overlap_group_count": 521,
+    "largest_overlap_group": 12,
+    "cross_split_max_jaccard_upper_bound": 0.5,
+    "guarantee": "Every candidate pair with Jaccard similarity greater than or equal to the threshold belongs to the same split.",
     "warning": "Candidate holdout measures region generalization within H→Y; it is not the frozen future temporal test."
   },
   "dataset_file": "/home/MornHus/Projects/AIC/results/gnn_v2/demand_field_dataset.npz",
-  "dataset_sha256": "ffcb11cc35a0e8d0a816b7dba98b05c31c1ac880eba9100de03dadebb205f74e",
-  "dataset_file_sha256": "06924a8bb1979684a867e1c8c1b2e67e45309e89f475f9443ba2e9845bfff281"
+  "dataset_sha256": "e9b1bc149a6a94dd744305e41817c3a2b9447cd5e3ba5a17c71fea38db2bf261",
+  "dataset_file_sha256": "adaf7bcba5cc88ee6b6177812528508530204453f2409855d8e434e07ec7e535"
 }

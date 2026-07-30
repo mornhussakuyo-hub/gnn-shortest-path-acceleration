@@ -19,7 +19,7 @@ from .region_labels import chronological_window
 from .workloads import load_porto_queries
 
 
-DEMAND_FIELD_DATASET_SCHEMA = "aic.gnn_v2.demand_field_dataset.v1"
+DEMAND_FIELD_DATASET_SCHEMA = "aic.gnn_v2.demand_field_dataset.v2"
 SPLIT_NAMES = ("train", "validation", "holdout")
 
 
@@ -88,6 +88,7 @@ def build_demand_field_dataset(
     split_seed: int = 42,
     train_fraction: float = 0.70,
     validation_fraction: float = 0.15,
+    overlap_group_threshold: float = 0.50,
     prototype_count: int = 128,
     prototype_seed: int = 42,
 ) -> DemandFieldDataset:
@@ -177,11 +178,13 @@ def build_demand_field_dataset(
         [region.selection_method for region in ordered_regions],
         dtype="U32",
     )
-    split = stratified_candidate_split(
+    split, split_groups = overlap_grouped_candidate_split(
+        region_nodes,
         selection_method,
         seed=split_seed,
         train_fraction=train_fraction,
         validation_fraction=validation_fraction,
+        overlap_threshold=overlap_group_threshold,
     )
     manifest = {
         "schema": DEMAND_FIELD_DATASET_SCHEMA,
@@ -244,6 +247,7 @@ def build_demand_field_dataset(
         },
         "split": {
             "axis": "candidate",
+            "strategy": "jaccard_overlap_connected_components",
             "seed": split_seed,
             "train_fraction": train_fraction,
             "validation_fraction": validation_fraction,
@@ -252,6 +256,14 @@ def build_demand_field_dataset(
                 name: int(np.sum(split == split_id))
                 for split_id, name in enumerate(SPLIT_NAMES)
             },
+            "overlap_group_threshold": overlap_group_threshold,
+            "overlap_group_count": split_groups["group_count"],
+            "largest_overlap_group": split_groups["largest_group"],
+            "cross_split_max_jaccard_upper_bound": overlap_group_threshold,
+            "guarantee": (
+                "Every candidate pair with Jaccard similarity greater than or "
+                "equal to the threshold belongs to the same split."
+            ),
             "warning": (
                 "Candidate holdout measures region generalization within H→Y; "
                 "it is not the frozen future temporal test."
@@ -659,6 +671,84 @@ def stratified_candidate_split(
     if np.any(split < 0):
         raise RuntimeError("candidate split left unassigned rows")
     return split
+
+
+def overlap_grouped_candidate_split(
+    region_nodes: np.ndarray,
+    selection_method: np.ndarray,
+    *,
+    seed: int,
+    train_fraction: float,
+    validation_fraction: float,
+    overlap_threshold: float,
+) -> tuple[np.ndarray, dict[str, int]]:
+    """Keep strongly overlapping candidate components inside one split."""
+
+    _validate_split_fractions(train_fraction, validation_fraction)
+    if region_nodes.ndim != 2 or len(region_nodes) != len(selection_method):
+        raise ValueError("region_nodes and selection_method must align by candidate")
+    if not 0.0 < overlap_threshold <= 1.0:
+        raise ValueError("overlap_threshold must be in (0, 1]")
+    candidate_count = len(region_nodes)
+    parent = list(range(candidate_count))
+
+    def find(index: int) -> int:
+        while parent[index] != index:
+            parent[index] = parent[parent[index]]
+            index = parent[index]
+        return index
+
+    def union(left: int, right: int) -> None:
+        left_root = find(left)
+        right_root = find(right)
+        if left_root != right_root:
+            parent[right_root] = left_root
+
+    memberships: dict[int, list[int]] = defaultdict(list)
+    candidate_sizes = np.empty(candidate_count, dtype=np.int32)
+    for candidate_index, nodes in enumerate(region_nodes):
+        unique_nodes = set(int(node) for node in nodes)
+        candidate_sizes[candidate_index] = len(unique_nodes)
+        for node in unique_nodes:
+            memberships[node].append(candidate_index)
+    pair_intersections: Counter[tuple[int, int]] = Counter()
+    for candidate_indices in memberships.values():
+        for left_position, left in enumerate(candidate_indices):
+            for right in candidate_indices[left_position + 1 :]:
+                pair_intersections[(left, right)] += 1
+    for (left, right), intersection in pair_intersections.items():
+        union_size = int(candidate_sizes[left] + candidate_sizes[right] - intersection)
+        if intersection / union_size >= overlap_threshold:
+            union(left, right)
+
+    components: dict[int, list[int]] = defaultdict(list)
+    for candidate_index in range(candidate_count):
+        components[find(candidate_index)].append(candidate_index)
+    component_list = list(components.values())
+    rng = random.Random(seed)
+    rng.shuffle(component_list)
+    component_list.sort(key=len, reverse=True)
+    split = np.full(candidate_count, -1, dtype=np.int8)
+    target = np.asarray(
+        [
+            candidate_count * train_fraction,
+            candidate_count * validation_fraction,
+            candidate_count * (1.0 - train_fraction - validation_fraction),
+        ],
+        dtype=np.float64,
+    )
+    counts = np.zeros(3, dtype=np.int32)
+    for component in component_list:
+        remaining = target - counts
+        split_id = int(np.argmax(remaining))
+        split[np.asarray(component, dtype=np.int32)] = split_id
+        counts[split_id] += len(component)
+    if np.any(split < 0) or np.any(counts == 0):
+        raise RuntimeError("overlap-grouped split did not populate every split")
+    return split, {
+        "group_count": len(component_list),
+        "largest_group": max(map(len, component_list), default=0),
+    }
 
 
 def _validate_sources(

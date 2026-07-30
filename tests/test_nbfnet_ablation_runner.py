@@ -24,6 +24,10 @@ class NBFNetAblationRunnerTest(unittest.TestCase):
             _parse_variants("origin_only,undirected"),
             ["origin_only", "undirected"],
         )
+        self.assertEqual(
+            _parse_variants("propagation_deep,propagation_residual_doubling"),
+            ["propagation_deep", "propagation_residual_doubling"],
+        )
         with self.assertRaises(ValueError):
             _parse_variants("origin_only,origin_only")
         with self.assertRaises(ValueError):

@@ -19,3 +19,7 @@ results/gnn_v2/nbfnet_ablation/**/logs/
 results/gnn_v2/nbfnet_ablation/**/launcher.log
 results/gnn_v2/nbfnet_ablation/**/runner.pid
 results/gnn_v2/nbfnet_ablation/**/.runner.lock
+results/gnn_v2/nbfnet_propagation/**/logs/
+results/gnn_v2/nbfnet_propagation/**/launcher.log
+results/gnn_v2/nbfnet_propagation/**/runner.pid
+results/gnn_v2/nbfnet_propagation/**/.runner.lock

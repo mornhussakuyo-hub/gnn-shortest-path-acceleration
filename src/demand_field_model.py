@@ -58,6 +58,53 @@ def regression_metrics(
     }
 
 
+def ranking_metrics_at_k(
+    prediction: np.ndarray,
+    target: np.ndarray,
+    k_values: tuple[int, ...],
+    *,
+    region_nodes: np.ndarray | None = None,
+) -> dict[str, dict[str, float | int]]:
+    if prediction.shape != target.shape or prediction.ndim != 1 or not len(target):
+        raise ValueError("prediction and target must be equal non-empty vectors")
+    if not k_values or any(k <= 0 for k in k_values):
+        raise ValueError("k_values must contain positive integers")
+    if region_nodes is not None and (
+        region_nodes.ndim != 2 or len(region_nodes) != len(target)
+    ):
+        raise ValueError("region_nodes must align with prediction and target")
+    predicted_order = np.argsort(-prediction, kind="stable")
+    ideal_order = np.argsort(-target, kind="stable")
+    result: dict[str, dict[str, float | int]] = {}
+    for requested_k in k_values:
+        k = min(requested_k, len(target))
+        selected = predicted_order[:k]
+        ideal = ideal_order[:k]
+        ideal_dcg = _dcg(target[ideal])
+        values: dict[str, float | int] = {
+            "k": int(k),
+            "ndcg": _dcg(target[selected]) / ideal_dcg if ideal_dcg else 0.0,
+            "mean_gain": float(np.mean(target[selected])),
+            "oracle_mean_gain": float(np.mean(target[ideal])),
+        }
+        if region_nodes is not None:
+            membership_count = int(region_nodes[selected].size)
+            unique_node_count = len(set(region_nodes[selected].reshape(-1).tolist()))
+            values.update(
+                {
+                    "membership_count": membership_count,
+                    "unique_node_count": unique_node_count,
+                    "membership_redundancy": (
+                        membership_count / unique_node_count
+                        if unique_node_count
+                        else 0.0
+                    ),
+                }
+            )
+        result[str(requested_k)] = values
+    return result
+
+
 def _huber_loss(prediction: np.ndarray, target: np.ndarray, delta: float) -> float:
     difference = prediction - target
     absolute = np.abs(difference)

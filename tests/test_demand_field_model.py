@@ -10,8 +10,10 @@ from src.demand_field_data import (
     EdgeRecord,
     build_demand_prototypes,
     build_node_features,
+    overlap_grouped_candidate_split,
     stratified_candidate_split,
 )
+from src.demand_field_model import ranking_metrics_at_k
 from src.graph_types import Query
 
 
@@ -65,6 +67,42 @@ class DemandFieldDataTest(unittest.TestCase):
             group = first[methods == method]
             self.assertEqual(set(group.tolist()), {0, 1, 2})
 
+    def test_overlap_grouped_split_keeps_near_duplicates_together(self) -> None:
+        regions = np.asarray(
+            [
+                [0, 1, 2, 3],
+                [0, 1, 2, 4],
+                [5, 6, 7, 8],
+                [5, 6, 7, 9],
+                [10, 11, 12, 13],
+                [14, 15, 16, 17],
+            ],
+            dtype=np.int32,
+        )
+        methods = np.asarray(["random"] * len(regions))
+        first, metadata = overlap_grouped_candidate_split(
+            regions,
+            methods,
+            seed=42,
+            train_fraction=0.50,
+            validation_fraction=0.25,
+            overlap_threshold=0.50,
+        )
+        second, _ = overlap_grouped_candidate_split(
+            regions,
+            methods,
+            seed=42,
+            train_fraction=0.50,
+            validation_fraction=0.25,
+            overlap_threshold=0.50,
+        )
+
+        np.testing.assert_array_equal(first, second)
+        self.assertEqual(first[0], first[1])
+        self.assertEqual(first[2], first[3])
+        self.assertEqual(metadata["group_count"], 4)
+        self.assertEqual(metadata["largest_group"], 2)
+
     def test_demand_prototypes_keep_weighted_origin_and_destination_sets(self) -> None:
         queries = [
             Query(0, 10, 30, count=2, timestamp=1),
@@ -102,6 +140,17 @@ class DemandFieldDataTest(unittest.TestCase):
                 ),
                 1.0,
             )
+
+    def test_multi_k_metrics_report_candidate_redundancy(self) -> None:
+        metrics = ranking_metrics_at_k(
+            np.asarray([3.0, 2.0, 1.0]),
+            np.asarray([30.0, 20.0, 10.0]),
+            (1, 2),
+            region_nodes=np.asarray([[0, 1], [1, 2], [3, 4]]),
+        )
+        self.assertEqual(metrics["1"]["mean_gain"], 30.0)
+        self.assertEqual(metrics["2"]["unique_node_count"], 3)
+        self.assertAlmostEqual(metrics["2"]["membership_redundancy"], 4 / 3)
 
 
 if __name__ == "__main__":

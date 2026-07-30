@@ -7,7 +7,10 @@ import numpy as np
 try:
     import torch
 
-    from scripts.train_demand_field_nbfnet import _transform_edge_arrays
+    from scripts.train_demand_field_nbfnet import (
+        _marginal_preserving_od_shuffle,
+        _transform_edge_arrays,
+    )
     from src.demand_field_nbfnet import (
         NBFNET_VARIANTS,
         BidirectionalNBFNet,
@@ -140,6 +143,63 @@ class NBFNetAblationTest(unittest.TestCase):
     def test_unknown_variant_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             NBFNetConfig(variant="not-a-variant").validate()
+
+    def test_shuffled_od_preserves_both_weighted_marginals(self) -> None:
+        origin = torch.eye(4)
+        destination = torch.roll(torch.eye(4), shifts=1, dims=1)
+        weights = torch.tensor([0.1, 0.2, 0.3, 0.4])
+        shuffled_origin, shuffled_destination, shuffled_weight, metadata = (
+            _marginal_preserving_od_shuffle(origin, destination, weights)
+        )
+        expected_origin = (origin * weights[:, None]).sum(0)
+        expected_destination = (destination * weights[:, None]).sum(0)
+        actual_origin = (shuffled_origin * shuffled_weight[:, None]).sum(0)
+        actual_destination = (
+            shuffled_destination * shuffled_weight[:, None]
+        ).sum(0)
+        self.assertTrue(torch.allclose(actual_origin, expected_origin, atol=1e-6))
+        self.assertTrue(
+            torch.allclose(actual_destination, expected_destination, atol=1e-6)
+        )
+        self.assertAlmostEqual(float(shuffled_weight.sum()), 1.0)
+        self.assertTrue(metadata["preserves_origin_marginal"])
+        self.assertTrue(metadata["preserves_destination_marginal"])
+
+    def test_propagation_variants_exclude_layer_zero_and_region_bypass(self) -> None:
+        expected_depths = {
+            "propagation_deep": (8,),
+            "propagation_residual": tuple(range(1, 9)),
+            "propagation_doubling": (1, 2, 4, 8),
+            "propagation_residual_doubling": (1, 2, 4, 8),
+        }
+        for variant, depths in expected_depths.items():
+            with self.subTest(variant=variant):
+                model = BidirectionalNBFNet(
+                    3,
+                    2,
+                    2,
+                    NBFNetConfig(
+                        hidden_dim=4,
+                        propagation_layers=8,
+                        max_epochs=1,
+                        variant=variant,
+                    ),
+                ).eval()
+                self.assertEqual(model.readout_depths, depths)
+                self.assertNotIn(0, model.readout_depths)
+                first = model(
+                    origin_fields=self.origin,
+                    destination_fields=self.destination,
+                    **self.common,
+                )
+                changed = dict(self.common)
+                changed["region_features"] = self.common["region_features"] + 1000.0
+                second = model(
+                    origin_fields=self.origin,
+                    destination_fields=self.destination,
+                    **changed,
+                )
+                self.assertTrue(torch.equal(first, second))
 
 
 if __name__ == "__main__":

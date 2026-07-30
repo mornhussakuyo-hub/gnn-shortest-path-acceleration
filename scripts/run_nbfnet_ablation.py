@@ -36,6 +36,13 @@ CORE_VARIANTS = (
     "last_layer_only",
     "no_ranking",
 )
+PROPAGATION_VARIANTS = (
+    "propagation_deep",
+    "propagation_residual",
+    "propagation_doubling",
+    "propagation_residual_doubling",
+)
+RUNNER_VARIANTS = CORE_VARIANTS + PROPAGATION_VARIANTS
 FULL_SEEDS = (42, 43, 44, 45, 46)
 SCREENING_SEEDS = (44,)
 
@@ -560,7 +567,7 @@ def _write_json_atomic(path: Path, payload: dict) -> None:
 
 def _parse_variants(value: str) -> list[str]:
     variants = [item.strip() for item in value.split(",") if item.strip()]
-    unknown = sorted(set(variants) - set(CORE_VARIANTS))
+    unknown = sorted(set(variants) - set(RUNNER_VARIANTS))
     if not variants or len(variants) != len(set(variants)):
         raise ValueError("--variants must contain unique variant names")
     if unknown:
