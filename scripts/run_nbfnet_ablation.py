@@ -260,7 +260,9 @@ def _training_command(
 ) -> list[str]:
     prototype_batch_size = _prototype_batch_size(args, variant)
     return [
-        str(args.python.resolve()),
+        # Do not resolve this path: on Linux a venv's python is commonly a
+        # symlink, and resolving it bypasses the venv's site-packages.
+        os.path.abspath(args.python),
         str(TRAIN_SCRIPT),
         "--output-dir",
         str(output_dir),

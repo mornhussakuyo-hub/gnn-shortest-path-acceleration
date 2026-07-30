@@ -14,6 +14,7 @@ from scripts.run_nbfnet_ablation import (
     _prototype_batch_size,
     _load_or_create_manifest,
     _parse_variants,
+    _training_command,
 )
 
 
@@ -77,6 +78,28 @@ class NBFNetAblationRunnerTest(unittest.TestCase):
         self.assertEqual(_prototype_batch_size(args, "undirected"), 4)
         self.assertEqual(_prototype_batch_size(args, "graphsage"), 4)
         self.assertEqual(_prototype_batch_size(args, "origin_only"), 8)
+
+    def test_training_command_preserves_virtualenv_python_path(self) -> None:
+        args = Namespace(
+            python=Path(".venv-gnn") / "bin" / "python",
+            hidden_dim=32,
+            layers=6,
+            prototype_batch_size=8,
+            expanded_graph_batch_size=4,
+            max_epochs=100,
+            patience=20,
+            randomization_seed=20260730,
+        )
+        command = _training_command(
+            args,
+            "origin_only",
+            44,
+            Path("results") / "test-output",
+        )
+        self.assertEqual(
+            command[0],
+            os.path.abspath(args.python),
+        )
 
     def test_manifest_identity_mismatch_requires_force(self) -> None:
         first = {
