@@ -11,6 +11,23 @@ from torch.nn import functional as functional
 from torch.utils.checkpoint import checkpoint
 
 
+NBFNET_VARIANTS = (
+    "base",
+    "origin_only",
+    "destination_only",
+    "shared_parameters",
+    "undirected",
+    "degree_rewired",
+    "shuffled_od",
+    "fixed_diffusion",
+    "graphsage",
+    "no_edge_features",
+    "no_interactions",
+    "last_layer_only",
+    "no_ranking",
+)
+
+
 @dataclass(frozen=True, slots=True)
 class NBFNetConfig:
     hidden_dim: int = 32
@@ -26,6 +43,8 @@ class NBFNetConfig:
     min_improvement: float = 0.0001
     mixed_precision: bool = True
     gradient_checkpointing: bool = True
+    variant: str = "base"
+    randomization_seed: int = 20260730
 
     def validate(self) -> None:
         if self.hidden_dim <= 0:
@@ -44,6 +63,10 @@ class NBFNetConfig:
             raise ValueError("prototype_batch_size must be positive")
         if self.max_epochs <= 0 or self.patience <= 0:
             raise ValueError("max_epochs and patience must be positive")
+        if self.variant not in NBFNET_VARIANTS:
+            raise ValueError(
+                f"variant must be one of {', '.join(NBFNET_VARIANTS)}"
+            )
 
 
 class _DirectionalLayer(nn.Module):
@@ -99,6 +122,37 @@ class _DirectionalLayer(nn.Module):
         return update_gate * candidate + (1.0 - update_gate) * state
 
 
+class _GraphSAGELayer(nn.Module):
+    def __init__(self, hidden_dim: int) -> None:
+        super().__init__()
+        self.self_projection = nn.Linear(hidden_dim, hidden_dim, bias=False)
+        self.neighbor_projection = nn.Linear(hidden_dim, hidden_dim, bias=False)
+
+    def forward(
+        self,
+        state: torch.Tensor,
+        sender_index: torch.Tensor,
+        receiver_index: torch.Tensor,
+        receiver_normalizer: torch.Tensor,
+    ) -> torch.Tensor:
+        batch_size, node_count, hidden_dim = state.shape
+        message = state[:, sender_index, :]
+        batch_offsets = (
+            torch.arange(batch_size, device=state.device, dtype=receiver_index.dtype)
+            * node_count
+        )
+        flat_receivers = (receiver_index.unsqueeze(0) + batch_offsets[:, None]).reshape(-1)
+        aggregate = message.new_zeros((batch_size * node_count, hidden_dim))
+        aggregate.index_add_(0, flat_receivers, message.reshape(-1, hidden_dim))
+        aggregate = aggregate.reshape(batch_size, node_count, hidden_dim)
+        aggregate = aggregate / receiver_normalizer.to(
+            dtype=aggregate.dtype
+        ).unsqueeze(0).unsqueeze(-1)
+        return functional.relu(
+            self.self_projection(state) + self.neighbor_projection(aggregate)
+        )
+
+
 class BidirectionalNBFNet(nn.Module):
     """Predict candidate-region value from weighted OD demand prototypes.
 
@@ -122,19 +176,43 @@ class BidirectionalNBFNet(nn.Module):
         self.hidden_dim = config.hidden_dim
         self.edge_dim = edge_type_count + 1
         self.origin_encoder = self._encoder(node_feature_dim, config.hidden_dim)
-        self.destination_encoder = self._encoder(node_feature_dim, config.hidden_dim)
+        self.destination_encoder = (
+            self.origin_encoder
+            if config.variant == "shared_parameters"
+            else self._encoder(node_feature_dim, config.hidden_dim)
+        )
         self.origin_token = nn.Parameter(torch.empty(config.hidden_dim))
-        self.destination_token = nn.Parameter(torch.empty(config.hidden_dim))
         nn.init.normal_(self.origin_token, std=config.hidden_dim**-0.5)
-        nn.init.normal_(self.destination_token, std=config.hidden_dim**-0.5)
-        self.origin_layers = nn.ModuleList(
-            _DirectionalLayer(config.hidden_dim, self.edge_dim)
-            for _ in range(config.propagation_layers)
-        )
-        self.destination_layers = nn.ModuleList(
-            _DirectionalLayer(config.hidden_dim, self.edge_dim)
-            for _ in range(config.propagation_layers)
-        )
+        if config.variant == "shared_parameters":
+            self.destination_token = self.origin_token
+        else:
+            self.destination_token = nn.Parameter(torch.empty(config.hidden_dim))
+            nn.init.normal_(self.destination_token, std=config.hidden_dim**-0.5)
+        if config.variant == "fixed_diffusion":
+            self.origin_layers = nn.ModuleList()
+            self.destination_layers = nn.ModuleList()
+            self.graphsage_layers = nn.ModuleList()
+        elif config.variant == "graphsage":
+            self.origin_layers = nn.ModuleList()
+            self.destination_layers = nn.ModuleList()
+            self.graphsage_layers = nn.ModuleList(
+                _GraphSAGELayer(config.hidden_dim)
+                for _ in range(config.propagation_layers)
+            )
+        else:
+            self.origin_layers = nn.ModuleList(
+                _DirectionalLayer(config.hidden_dim, self.edge_dim)
+                for _ in range(config.propagation_layers)
+            )
+            self.destination_layers = (
+                self.origin_layers
+                if config.variant == "shared_parameters"
+                else nn.ModuleList(
+                    _DirectionalLayer(config.hidden_dim, self.edge_dim)
+                    for _ in range(config.propagation_layers)
+                )
+            )
+            self.graphsage_layers = nn.ModuleList()
         self.depth_logits = nn.Parameter(torch.zeros(config.propagation_layers + 1))
         pooled_dim = config.hidden_dim * 8
         self.prediction_head = nn.Sequential(
@@ -186,40 +264,74 @@ class BidirectionalNBFNet(nn.Module):
         destination_state = destination_seed.unsqueeze(0) * destination_strength.unsqueeze(
             -1
         )
+        if self.config.variant == "origin_only":
+            destination_state = torch.zeros_like(destination_state)
+        elif self.config.variant == "destination_only":
+            origin_state = torch.zeros_like(origin_state)
         origin_states = [origin_state]
         destination_states = [destination_state]
-        for origin_layer, destination_layer in zip(
-            self.origin_layers, self.destination_layers
-        ):
-            origin_state = self._run_directional_layer(
-                origin_layer,
-                origin_state,
-                edge_source,
-                edge_target,
-                edge_features,
-                receiver_normalizer_forward,
-            )
-            destination_state = self._run_directional_layer(
-                destination_layer,
-                destination_state,
-                edge_target,
-                edge_source,
-                edge_features,
-                receiver_normalizer_reverse,
-            )
+        for layer_index in range(self.config.propagation_layers):
+            if self.config.variant == "fixed_diffusion":
+                origin_state = _fixed_mean_diffusion(
+                    origin_state,
+                    edge_source,
+                    edge_target,
+                    receiver_normalizer_forward,
+                )
+                destination_state = _fixed_mean_diffusion(
+                    destination_state,
+                    edge_target,
+                    edge_source,
+                    receiver_normalizer_reverse,
+                )
+            elif self.config.variant == "graphsage":
+                layer = self.graphsage_layers[layer_index]
+                origin_state = layer(
+                    origin_state,
+                    edge_source,
+                    edge_target,
+                    receiver_normalizer_forward,
+                )
+                destination_state = layer(
+                    destination_state,
+                    edge_target,
+                    edge_source,
+                    receiver_normalizer_reverse,
+                )
+            else:
+                origin_state = self._run_directional_layer(
+                    self.origin_layers[layer_index],
+                    origin_state,
+                    edge_source,
+                    edge_target,
+                    edge_features,
+                    receiver_normalizer_forward,
+                )
+                destination_state = self._run_directional_layer(
+                    self.destination_layers[layer_index],
+                    destination_state,
+                    edge_target,
+                    edge_source,
+                    edge_features,
+                    receiver_normalizer_reverse,
+                )
             origin_states.append(origin_state)
             destination_states.append(destination_state)
 
-        depth_weights = torch.softmax(self.depth_logits, dim=0)
+        if self.config.variant == "last_layer_only":
+            depth_weights = torch.zeros_like(self.depth_logits)
+            depth_weights[-1] = 1.0
+        else:
+            depth_weights = torch.softmax(self.depth_logits, dim=0)
         fused = origin_states[0].new_zeros(
             (origin_state.shape[0], origin_state.shape[1], self.hidden_dim * 4)
         )
         for weight, origin, destination in zip(
             depth_weights, origin_states, destination_states
         ):
-            depth_features = torch.cat(
-                (origin, destination, origin * destination, torch.abs(origin - destination)),
-                dim=-1,
+            depth_features = self._combine_fields(
+                origin,
+                destination,
             )
             fused = fused + weight * depth_features
 
@@ -227,6 +339,28 @@ class BidirectionalNBFNet(nn.Module):
         expanded_region_features = region_features.unsqueeze(0).expand(pooled.shape[0], -1, -1)
         prediction_input = torch.cat((pooled, expanded_region_features), dim=-1)
         return self.prediction_head(prediction_input).squeeze(-1)
+
+    def _combine_fields(
+        self,
+        origin: torch.Tensor,
+        destination: torch.Tensor,
+    ) -> torch.Tensor:
+        zeros = torch.zeros_like(origin)
+        if self.config.variant == "origin_only":
+            return torch.cat((origin, zeros, zeros, zeros), dim=-1)
+        if self.config.variant == "destination_only":
+            return torch.cat((zeros, destination, zeros, zeros), dim=-1)
+        if self.config.variant == "no_interactions":
+            return torch.cat((origin, destination, zeros, zeros), dim=-1)
+        return torch.cat(
+            (
+                origin,
+                destination,
+                origin * destination,
+                torch.abs(origin - destination),
+            ),
+            dim=-1,
+        )
 
     def _run_directional_layer(
         self,
@@ -259,6 +393,28 @@ class BidirectionalNBFNet(nn.Module):
     def _pool_regions(node_states: torch.Tensor, region_nodes: torch.Tensor) -> torch.Tensor:
         values = node_states[:, region_nodes, :]
         return torch.cat((values.mean(dim=2), values.amax(dim=2)), dim=-1)
+
+
+def _fixed_mean_diffusion(
+    state: torch.Tensor,
+    sender_index: torch.Tensor,
+    receiver_index: torch.Tensor,
+    receiver_normalizer: torch.Tensor,
+) -> torch.Tensor:
+    batch_size, node_count, hidden_dim = state.shape
+    message = state[:, sender_index, :]
+    batch_offsets = (
+        torch.arange(batch_size, device=state.device, dtype=receiver_index.dtype)
+        * node_count
+    )
+    flat_receivers = (receiver_index.unsqueeze(0) + batch_offsets[:, None]).reshape(-1)
+    aggregate = message.new_zeros((batch_size * node_count, hidden_dim))
+    aggregate.index_add_(0, flat_receivers, message.reshape(-1, hidden_dim))
+    aggregate = aggregate.reshape(batch_size, node_count, hidden_dim)
+    aggregate = aggregate / receiver_normalizer.to(
+        dtype=aggregate.dtype
+    ).unsqueeze(0).unsqueeze(-1)
+    return 0.5 * (state + aggregate)
 
 
 def build_edge_features(

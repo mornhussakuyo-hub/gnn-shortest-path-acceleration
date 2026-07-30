@@ -22,6 +22,7 @@ sys.path.insert(0, str(ROOT_DIR))
 from src.demand_field_data import SPLIT_NAMES, DemandFieldDataset, load_demand_field_dataset
 from src.demand_field_model import regression_metrics
 from src.demand_field_nbfnet import (
+    NBFNET_VARIANTS,
     BidirectionalNBFNet,
     NBFNetConfig,
     build_edge_features,
@@ -56,6 +57,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-epochs", type=int, default=100)
     parser.add_argument("--patience", type=int, default=20)
     parser.add_argument("--device", default="cuda")
+    parser.add_argument("--variant", choices=NBFNET_VARIANTS, default="base")
+    parser.add_argument("--randomization-seed", type=int, default=20260730)
     parser.add_argument("--no-mixed-precision", action="store_true")
     parser.add_argument("--no-gradient-checkpointing", action="store_true")
     return parser.parse_args()
@@ -64,29 +67,40 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     seeds = _parse_int_list(args.seeds, "--seeds")
+    rank_weight = 0.0 if args.variant == "no_ranking" else args.rank_weight
     config = NBFNetConfig(
         hidden_dim=args.hidden_dim,
         propagation_layers=args.layers,
         demand_scale=args.demand_scale,
         learning_rate=args.learning_rate,
         weight_decay=args.weight_decay,
-        rank_weight=args.rank_weight,
+        rank_weight=rank_weight,
         huber_delta=args.huber_delta,
         prototype_batch_size=args.prototype_batch_size,
         max_epochs=args.max_epochs,
         patience=args.patience,
         mixed_precision=not args.no_mixed_precision,
         gradient_checkpointing=not args.no_gradient_checkpointing,
+        variant=args.variant,
+        randomization_seed=args.randomization_seed,
     )
     config.validate()
     device = require_cuda(args.device)
     dataset = load_demand_field_dataset(args.dataset, args.dataset_manifest)
-    tensors, scalers = _prepare_tensors(dataset, device)
+    tensors, scalers, ablation_metadata = _prepare_tensors(
+        dataset,
+        device,
+        config.variant,
+        config.randomization_seed,
+    )
     args.output_dir.mkdir(parents=True, exist_ok=True)
     runs: list[dict] = []
 
     for seed in seeds:
-        print(f"training NBFNet seed={seed}", flush=True)
+        print(
+            f"training NBFNet variant={config.variant} seed={seed}",
+            flush=True,
+        )
         run = _train_one_seed(dataset, tensors, scalers, config, seed, device)
         seed_dir = args.output_dir / f"seed_{seed}"
         seed_dir.mkdir(parents=True, exist_ok=True)
@@ -111,7 +125,8 @@ def main() -> None:
     ]
     summary = {
         "schema": EXPERIMENT_SCHEMA,
-        "model": "base_od_conditioned_bidirectional_nbfnet",
+        "model": "od_conditioned_bidirectional_nbfnet",
+        "variant": config.variant,
         "execution": cuda_environment(device),
         "dataset_sha256": dataset.manifest["dataset_sha256"],
         "candidate_sha256": dataset.manifest["candidate_sha256"],
@@ -121,6 +136,7 @@ def main() -> None:
         "selection_rule": "highest validation Spearman; holdout is not used",
         "split": dataset.manifest["split"],
         "input_policy": dataset.manifest["model_input_policy"],
+        "ablation": ablation_metadata,
         "prototype_batching": {
             "prototype_count": int(dataset.prototype_weight.size),
             "prototype_batch_size": config.prototype_batch_size,
@@ -147,7 +163,13 @@ def main() -> None:
 def _prepare_tensors(
     dataset: DemandFieldDataset,
     device: torch.device,
-) -> tuple[dict[str, torch.Tensor], dict[str, np.ndarray | float]]:
+    variant: str = "base",
+    randomization_seed: int = 20260730,
+) -> tuple[
+    dict[str, torch.Tensor],
+    dict[str, np.ndarray | float],
+    dict[str, object],
+]:
     train_mask = dataset.split_mask("train")
     feature_mean = dataset.region_features[train_mask].mean(axis=0).astype(np.float32)
     feature_scale = dataset.region_features[train_mask].std(axis=0).astype(np.float32)
@@ -157,16 +179,52 @@ def _prepare_tensors(
     if label_scale < 1e-6:
         label_scale = 1.0
     edge_type_count = len(dataset.manifest["road_types"])
-    edge_source = torch.as_tensor(dataset.edge_source, device=device, dtype=torch.long)
-    edge_target = torch.as_tensor(dataset.edge_target, device=device, dtype=torch.long)
-    edge_length = torch.as_tensor(dataset.edge_length, device=device, dtype=torch.float32)
-    edge_type = torch.as_tensor(dataset.edge_type, device=device, dtype=torch.long)
+    edge_source_values = np.asarray(dataset.edge_source, dtype=np.int64)
+    edge_target_values = np.asarray(dataset.edge_target, dtype=np.int64)
+    edge_length_values = np.asarray(dataset.edge_length, dtype=np.float32)
+    edge_type_values = np.asarray(dataset.edge_type, dtype=np.int64)
+    (
+        edge_source_values,
+        edge_target_values,
+        edge_length_values,
+        edge_type_values,
+        transform,
+    ) = _transform_edge_arrays(
+        edge_source_values,
+        edge_target_values,
+        edge_length_values,
+        edge_type_values,
+        variant,
+        randomization_seed,
+    )
+
+    edge_source = torch.as_tensor(
+        edge_source_values, device=device, dtype=torch.long
+    )
+    edge_target = torch.as_tensor(
+        edge_target_values, device=device, dtype=torch.long
+    )
+    edge_length = torch.as_tensor(
+        edge_length_values, device=device, dtype=torch.float32
+    )
+    edge_type = torch.as_tensor(edge_type_values, device=device, dtype=torch.long)
     prototype_origins, prototype_destinations = _build_prototype_fields(dataset, device)
+    destination_permutation: list[int] | None = None
+    if variant == "shuffled_od":
+        destination_permutation = np.random.default_rng(
+            randomization_seed
+        ).permutation(dataset.prototype_weight.size).tolist()
+        prototype_destinations = prototype_destinations[
+            torch.as_tensor(destination_permutation, device=device, dtype=torch.long)
+        ]
+    edge_features = build_edge_features(edge_length, edge_type, edge_type_count)
+    if variant == "no_edge_features":
+        edge_features = torch.zeros_like(edge_features)
     tensors = {
         "node_features": torch.as_tensor(dataset.node_features, device=device),
         "edge_source": edge_source,
         "edge_target": edge_target,
-        "edge_features": build_edge_features(edge_length, edge_type, edge_type_count),
+        "edge_features": edge_features,
         "origin_fields": prototype_origins,
         "destination_fields": prototype_destinations,
         "prototype_weight": torch.as_tensor(dataset.prototype_weight, device=device),
@@ -186,12 +244,75 @@ def _prepare_tensors(
             edge_source, dataset.node_ids.size
         ),
     }
-    return tensors, {
-        "region_feature_mean": feature_mean,
-        "region_feature_scale": feature_scale,
-        "label_mean": label_mean,
-        "label_scale": label_scale,
-    }
+    return (
+        tensors,
+        {
+            "region_feature_mean": feature_mean,
+            "region_feature_scale": feature_scale,
+            "label_mean": label_mean,
+            "label_scale": label_scale,
+        },
+        {
+            "variant": variant,
+            "randomization_seed": randomization_seed,
+            "graph_transform": transform,
+            "original_edge_count": int(dataset.edge_source.size),
+            "effective_edge_count": int(edge_source_values.size),
+            "edge_features_zeroed": variant == "no_edge_features",
+            "destination_prototypes_permuted": variant == "shuffled_od",
+            "destination_permutation": destination_permutation,
+            "note": (
+                "degree_rewired preserves exact directed in/out degree sequences "
+                "by permuting edge targets; parallel edges and self-loops are retained "
+                "as part of the randomized control."
+                if variant == "degree_rewired"
+                else None
+            ),
+        },
+    )
+
+
+def _transform_edge_arrays(
+    edge_source: np.ndarray,
+    edge_target: np.ndarray,
+    edge_length: np.ndarray,
+    edge_type: np.ndarray,
+    variant: str,
+    randomization_seed: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, str]:
+    if not (
+        edge_source.shape
+        == edge_target.shape
+        == edge_length.shape
+        == edge_type.shape
+    ):
+        raise ValueError("edge arrays must have identical shapes")
+    if variant in {"undirected", "graphsage"}:
+        return (
+            np.concatenate((edge_source, edge_target)),
+            np.concatenate((edge_target, edge_source)),
+            np.concatenate((edge_length, edge_length)),
+            np.concatenate((edge_type, edge_type)),
+            "bidirectional_edge_expansion",
+        )
+    if variant == "degree_rewired":
+        permutation = np.random.default_rng(randomization_seed).permutation(
+            edge_target.size
+        )
+        return (
+            edge_source.copy(),
+            edge_target[permutation],
+            edge_length.copy(),
+            edge_type.copy(),
+            "degree_preserving_target_permutation",
+        )
+    return (
+        edge_source.copy(),
+        edge_target.copy(),
+        edge_length.copy(),
+        edge_type.copy(),
+        "directed_original",
+    )
 
 
 def _build_prototype_fields(
@@ -593,6 +714,7 @@ def _render_report(summary: dict) -> str:
         (
             "# OD 条件化双向 NBFNet 训练结果",
             "",
+            f"- 实验变体：`{summary['variant']}`",
             f"- 数据摘要：`{summary['dataset_sha256']}`",
             f"- 候选摘要：`{summary['candidate_sha256']}`",
             f"- 选定种子：`{summary['selected_seed']}`（仅按验证集 Spearman 选择）",

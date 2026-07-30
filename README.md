@@ -339,3 +339,23 @@ NBFNet 正式结果见
 当前主线明确隔离查询层、需求传播层、成本与标签层、部署反馈层。端点局部接入属于精确
 查询算法，不作为 GNN 的局部输入特征；持续学习按 OD 批次更新，不为单条查询重训模型
 或重建索引。
+
+### 一键运行 NBFNet 核心消融
+
+单种子筛选：
+
+```powershell
+.\scripts\run_nbfnet_ablation.ps1 -Mode screening
+```
+
+服务器正式五种子后台运行：
+
+```powershell
+.\scripts\server_nbfnet_ablation.ps1 -Action start -Mode full
+.\scripts\server_nbfnet_ablation.ps1 -Action status
+```
+
+调度器覆盖单向场、共享参数、无向图、度保持随机重连、打乱 OD、固定扩散、GraphSAGE、
+去边特征、去交汇项、只用最后一层和去排序损失。每个实验有独立日志、原子 manifest、
+自动汇总和断点续跑；重复命令会跳过已经完整落盘且身份匹配的结果。完整说明见
+[`reports/阶段四_NBFNet核心消融执行说明.md`](reports/阶段四_NBFNet核心消融执行说明.md)。

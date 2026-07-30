@@ -15,3 +15,7 @@ archive/gnn_v1/results/gnn_ablation/**/selected_regions.csv
 archive/gnn_v1/results/gnn_ablation/**/training_history.csv
 archive/gnn_v1/results/gnn_ablation/**/evaluation_regions.csv
 results/gnn_v2/nbfnet_smoke*/
+results/gnn_v2/nbfnet_ablation/**/logs/
+results/gnn_v2/nbfnet_ablation/**/launcher.log
+results/gnn_v2/nbfnet_ablation/**/runner.pid
+results/gnn_v2/nbfnet_ablation/**/.runner.lock
