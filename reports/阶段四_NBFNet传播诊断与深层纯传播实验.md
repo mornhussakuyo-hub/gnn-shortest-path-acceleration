@@ -74,6 +74,11 @@ nohup env PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
   > results/gnn_v2/nbfnet_propagation/screening/launcher.log 2>&1 < /dev/null &
 ```
 
+2026-07-31 已在 RTX 4090 D 服务器启动实验 `38bfa5d15809b383`。启动检查时第一组
+`propagation_deep / seed 44` 已进入训练，GPU 利用率 100%，占用显存约 8.7 GiB，父子
+进程均存活且日志没有 traceback、OOM 或 RuntimeError。完整结果仍在运行，当前不填写任何
+效果数字。
+
 ## 额外口径修正
 
 `shuffled_od` 不再简单置换终点原型。新实现用半周期保测度耦合打乱起终点配对，同时严格
