@@ -10,6 +10,48 @@
 - 报告必须跟随当前产物及时更新；训练结果同步回本机后，应统一 README、报告、编号文档及其 PDF 口径。
 - 不得为了迎合结论事后挑选或删除数据。可以依据预先说明的数据质量规则清洗噪声、异常尺寸或近重复样本，并如实记录。
 
+## 服务器连接固定流程
+
+- `.server.env` 中的 `SERVER_SSH_COMMAND` 仍会交互式询问密码；本机没有 `sshpass` 和可用的
+  `ssh-askpass`，不要直接执行它并反复试错。
+- 固定使用系统已有的 `/usr/bin/expect`，从环境变量读取密码；命令和日志都不得输出
+  `SERVER_PASSWORD`。SSH 必须保留 `-F /dev/null`。
+- 在仓库根目录先定义下面的函数，之后所有服务器只读检查、同步和启动都通过
+  `server_ssh '<远端命令>'` 执行：
+
+```bash
+source .server.env
+export SERVER_HOST SERVER_PORT SERVER_USER SERVER_PASSWORD
+
+server_ssh() {
+  REMOTE_COMMAND="$1" expect -c '
+    set timeout 60
+    log_user 0
+    spawn ssh -F /dev/null -o StrictHostKeyChecking=no \
+      -p $env(SERVER_PORT) $env(SERVER_USER)@$env(SERVER_HOST) \
+      $env(REMOTE_COMMAND)
+    expect "*assword:*"
+    send -- "$env(SERVER_PASSWORD)\r"
+    log_user 1
+    expect eof
+    lassign [wait] pid spawnid os_error exit_code
+    exit $exit_code
+  '
+}
+```
+
+- 已验证的连接检查：
+
+```bash
+server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev-parse --short HEAD && nvidia-smi --query-gpu=name,memory.used,memory.total,utilization.gpu --format=csv,noheader'
+```
+
+- 同步前先看服务器 `git status --short`。若训练产物以未跟踪目录阻挡 `git pull`，先移动到
+  `~/aic-training-archive/`，不得删除；随后只允许服务器 fast-forward 拉取本机已推送的
+  `main`。服务器不编辑、不提交、不推送。
+- 后台训练统一用 `nohup env PYTHONUNBUFFERED=1 ... > launcher.log 2>&1 < /dev/null &`，保存
+  PID 后只检查一次进程、`nvidia-smi` 和日志；三者正常即可停止轮询。
+
 ## 第二版已经确定的方向
 
 - 第二版唯一主模型确定为基于 NBFNet 的 OD 条件双向传播网络，目标是研究历史需求如何沿道路图传播并预测候选区域价值。
