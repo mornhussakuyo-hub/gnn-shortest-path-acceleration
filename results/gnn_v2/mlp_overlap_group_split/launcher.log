@@ -1,0 +1,119 @@
+training seed=42
+seed=42 best_epoch=108 holdout_spearman=0.8526 holdout_top_gain=134.813
+training seed=43
+seed=43 best_epoch=278 holdout_spearman=0.8885 holdout_top_gain=137.966
+training seed=44
+seed=44 best_epoch=8 holdout_spearman=0.8395 holdout_top_gain=133.599
+training seed=45
+seed=45 best_epoch=144 holdout_spearman=0.8818 holdout_top_gain=136.297
+training seed=46
+seed=46 best_epoch=126 holdout_spearman=0.8854 holdout_top_gain=141.533
+{
+  "aggregate": {
+    "train": {
+      "mae": {
+        "mean": 4.133975478278736,
+        "std": 1.152802795434469,
+        "min": 3.041979260883446,
+        "max": 6.241872281617814
+      },
+      "huber": {
+        "mean": 14.415496924992201,
+        "std": 7.9344402709259185,
+        "min": 7.687720760903526,
+        "max": 29.259742248307077
+      },
+      "spearman": {
+        "mean": 0.9799393520346211,
+        "std": 0.0156339097793928,
+        "min": 0.9489873234147224,
+        "max": 0.991477848536752
+      },
+      "ndcg_at_k": {
+        "mean": 0.9930143963400637,
+        "std": 0.005968826871474505,
+        "min": 0.9811495983216714,
+        "max": 0.9967360456287943
+      },
+      "top_k_mean_gain": {
+        "mean": 131.09244079589843,
+        "std": 0.6918468584369655,
+        "min": 129.7174530029297,
+        "max": 131.50660705566406
+      }
+    },
+    "validation": {
+      "mae": {
+        "mean": 11.038590035102246,
+        "std": 0.4356455972393465,
+        "min": 10.60339575197742,
+        "max": 11.789891879286541
+      },
+      "huber": {
+        "mean": 70.78065984745908,
+        "std": 3.9839840050952184,
+        "min": 66.52527635060686,
+        "max": 77.78462328743488
+      },
+      "spearman": {
+        "mean": 0.8054680700021606,
+        "std": 0.017760551120025444,
+        "min": 0.7768531950574606,
+        "max": 0.8276140210088788
+      },
+      "ndcg_at_k": {
+        "mean": 0.9833704177580425,
+        "std": 0.008417935438208417,
+        "min": 0.9687072181306687,
+        "max": 0.990775873770184
+      },
+      "top_k_mean_gain": {
+        "mean": 137.98036499023436,
+        "std": 1.9704144019040362,
+        "min": 134.95606994628906,
+        "max": 139.95643615722656
+      }
+    },
+    "holdout": {
+      "mae": {
+        "mean": 12.551898909716073,
+        "std": 0.8743511151190445,
+        "min": 11.262919912165748,
+        "max": 13.627876506105677
+      },
+      "huber": {
+        "mean": 85.64820073238583,
+        "std": 8.17948209161249,
+        "min": 73.91429545900786,
+        "max": 96.62349724819865
+      },
+      "spearman": {
+        "mean": 0.8695515293681904,
+        "std": 0.01973180787116502,
+        "min": 0.8395279689702357,
+        "max": 0.8884759817689847
+      },
+      "ndcg_at_k": {
+        "mean": 0.9592604420037784,
+        "std": 0.014272844127991423,
+        "min": 0.9398596875901489,
+        "max": 0.9830418427966015
+      },
+      "top_k_mean_gain": {
+        "mean": 136.8414306640625,
+        "std": 2.763936592826064,
+        "min": 133.59906005859375,
+        "max": 141.53277587890625
+      }
+    }
+  },
+  "stage_gate": {
+    "all_validation_spearman_positive": true,
+    "all_holdout_spearman_positive": true,
+    "all_holdout_top_k_better_than_mean": true,
+    "status": "ready_for_nbfnet",
+    "interpretation": "Candidate holdout proves learnability within the current H\u2192Y pair; it does not replace the frozen future temporal test."
+  }
+}
+summary=results/gnn_v2/mlp_overlap_group_split/summary.json
+report=results/gnn_v2/mlp_overlap_group_split/report.md

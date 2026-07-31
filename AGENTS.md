@@ -38,6 +38,23 @@ server_ssh() {
     exit $exit_code
   '
 }
+
+server_scp_from() {
+  REMOTE_PATH="$1" LOCAL_PATH="$2" expect -c '
+    set timeout -1
+    log_user 0
+    spawn scp -r -F /dev/null -o StrictHostKeyChecking=no \
+      -P $env(SERVER_PORT) \
+      "$env(SERVER_USER)@$env(SERVER_HOST):$env(REMOTE_PATH)" \
+      $env(LOCAL_PATH)
+    expect "*assword:*"
+    send -- "$env(SERVER_PASSWORD)\r"
+    log_user 1
+    expect eof
+    lassign [wait] pid spawnid os_error exit_code
+    exit $exit_code
+  '
+}
 ```
 
 - 已验证的连接检查：
@@ -51,6 +68,9 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
   `main`。服务器不编辑、不提交、不推送。
 - 后台训练统一用 `nohup env PYTHONUNBUFFERED=1 ... > launcher.log 2>&1 < /dev/null &`，保存
   PID 后只检查一次进程、`nvidia-smi` 和日志；三者正常即可停止轮询。
+- 结果完成后通过
+  `server_scp_from 'gnn-shortest-path-acceleration/<远端产物目录>' '<本机父目录>'`
+  回传；回传后先校验摘要和文件完整性，再在本机更新报告、提交和推送。
 
 ## 第二版已经确定的方向
 
@@ -93,7 +113,7 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
 - 空间隔离新 split 上的四组 32 层纯传播实验全部完成，holdout Spearman 为 `0.9513～0.9594`；模型不能读取 64 维区域特征或第 0 层，因此传播后的历史 OD 表示本身足以预测当前 H→Y 候选区域价值。
 - 结构只按 validation 选择：`propagation_doubling` 为 `0.9400`，高于 deep `0.9334`、residual `0.9342`、residual_doubling `0.9393`，因此正式推荐 `propagation_doubling`。组合模型 holdout 最高的 `0.9594` 不用于反向选型。
 - 所选倍增模型 holdout NDCG@5/10/18 为 `0.9720 / 0.9821 / 0.9882`，收益为 `171.922 / 158.022 / 142.332`；成员冗余为 `1.744 / 1.786 / 1.750`，仍需非重叠集合选择。
-- 本轮仍只有 seed 44，且新 split 尚无同口径 MLP、基础 NBFNet、简单频率和随机拓扑纯传播对照；不能声称纯传播优于无传播基线、正确道路拓扑必要、多种子稳定或未来时间泛化。
+- 新 split 同口径 MLP 五种子已完成：holdout Spearman `0.8696 ± 0.0197`，NDCG@18 `0.9593 ± 0.0143`，Top-18 收益 `136.841 ± 2.764`。所选纯传播 seed 44 的对应值为 `0.9569 / 0.9882 / 142.332`，本轮观察上明显领先，但纯传播仍缺重复种子，不能声称正确道路拓扑必要、多种子稳定或未来时间泛化。
 - 四组前 22 epoch 几乎不更新、第 23 epoch 同步翻转。每次前向本来就执行全部 32 层，这不是传播逐 epoch 到达中部；结合 FP16 `GradScaler`、更新前记录 train loss 和更新后计算 validation，最可能是前 22 次 optimizer step 因梯度溢出被跳过。日志未记录 scale，故这是高置信诊断而非直接观测事实。
 
 ## 服务器训练最终状态
@@ -108,10 +128,11 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
 - 实验已经 `complete`：四组完成、零失败，服务器重启后 GPU 空闲，不需要恢复 runner。
 - 完整产物已同步回本机 `results/gnn_v2/nbfnet_propagation/screening/`，包含 manifest、汇总、日志、checkpoint、预测和训练历史。
 - 本机与服务器的 `report.md` SHA-256 均为 `d0d617fa08e0c909f64a5fcf2dd0dcee6bdf95d1dceed67e8a517170ca1d66dd`；`manifest.json` 均为 `7539a5468bd4f6fed992d352083a18e30b098a1e2dbce11980ebde680a78383e`。
+- 新 split MLP 输出目录为 `results/gnn_v2/mlp_overlap_group_split`；种子 `42～46` 已全部完成，使用 RTX 4090 D CUDA，无报错，完整产物已回传本机。
 
 ## 后续实验顺序
 
-1. 在新 split 上补齐同口径 MLP、基础 NBFNet、简单频率和随机拓扑纯传播。
+1. 在新 split 上补齐基础 NBFNet、端点密度和随机拓扑纯传播；同口径 MLP 与原始频率已完成。
 2. 对正式结构 `propagation_doubling` 扩展重复种子。
 3. 再做真正未来时间窗口、候选非重叠集合选择与精确在线配对评测。
 4. 不再继续堆叠新的传播结构；编号“从零详解”文档本轮按用户要求暂不更新。

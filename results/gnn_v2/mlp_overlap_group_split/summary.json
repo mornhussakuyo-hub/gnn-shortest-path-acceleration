@@ -1,0 +1,462 @@
+{
+  "schema": "aic.gnn_v2.region_mlp_experiment.torch_cuda.v1",
+  "model": "no_message_passing_region_mlp",
+  "execution": {
+    "framework": "pytorch",
+    "torch_version": "2.13.0+cu130",
+    "cuda_version": "13.0",
+    "device_type": "cuda",
+    "device_index": 0,
+    "device_name": "NVIDIA GeForce RTX 4090 D",
+    "device_total_memory_bytes": 25250627584
+  },
+  "dataset_sha256": "e9b1bc149a6a94dd744305e41817c3a2b9447cd5e3ba5a17c71fea38db2bf261",
+  "candidate_sha256": "40d7d8babf74381b5f7088de22edc0f48181bec9c78a53fb039c9e8e7c20f71c",
+  "config": {
+    "hidden_dims": [
+      64,
+      32
+    ],
+    "learning_rate": 0.003,
+    "weight_decay": 0.0001,
+    "rank_weight": 0.2,
+    "huber_delta": 1.0,
+    "batch_size": 64,
+    "max_epochs": 500,
+    "patience": 60
+  },
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "selected_seed": 42,
+  "selection_rule": "highest validation Spearman; holdout is not used",
+  "split": {
+    "axis": "candidate",
+    "strategy": "jaccard_overlap_connected_components",
+    "seed": 42,
+    "train_fraction": 0.7,
+    "validation_fraction": 0.15,
+    "holdout_fraction": 0.15000000000000005,
+    "counts": {
+      "train": 840,
+      "validation": 180,
+      "holdout": 180
+    },
+    "overlap_group_threshold": 0.5,
+    "overlap_group_count": 521,
+    "largest_overlap_group": 12,
+    "cross_split_max_jaccard_upper_bound": 0.5,
+    "guarantee": "Every candidate pair with Jaccard similarity greater than or equal to the threshold belongs to the same split.",
+    "warning": "Candidate holdout measures region generalization within H→Y; it is not the frozen future temporal test."
+  },
+  "input_policy": {
+    "uses_history_od_only": true,
+    "uses_static_road_graph": true,
+    "uses_path_supervision": false,
+    "uses_label_window_as_input": false,
+    "uses_cost_or_query_runtime_features": false,
+    "uses_node_coordinates": false,
+    "coordinates_used_for_prototype_grouping_only": true,
+    "selection_method_is_model_input": false
+  },
+  "raw_frequency_baseline": {
+    "train": {
+      "count": 840,
+      "spearman": 0.8670685526201944,
+      "ndcg_at_k": 0.9434864026599029,
+      "top_k": 84,
+      "top_k_mean_gain": 123.40105983189174,
+      "oracle_top_k_mean_gain": 131.67553611028762,
+      "all_mean_gain": 39.26521848716906
+    },
+    "validation": {
+      "count": 180,
+      "spearman": 0.8940543911095751,
+      "ndcg_at_k": 0.982577309888391,
+      "top_k": 18,
+      "top_k_mean_gain": 138.78833304511176,
+      "oracle_top_k_mean_gain": 140.17686080932617,
+      "all_mean_gain": 40.915988858209715
+    },
+    "holdout": {
+      "count": 180,
+      "spearman": 0.8482243950403533,
+      "ndcg_at_k": 0.9654188680562339,
+      "top_k": 18,
+      "top_k_mean_gain": 137.62169392903647,
+      "oracle_top_k_mean_gain": 143.297666337755,
+      "all_mean_gain": 40.47897489551041
+    }
+  },
+  "runs": [
+    {
+      "seed": 42,
+      "best_epoch": 108,
+      "epochs_ran": 168,
+      "execution": {
+        "framework": "pytorch",
+        "torch_version": "2.13.0+cu130",
+        "cuda_version": "13.0",
+        "device_type": "cuda",
+        "device_index": 0,
+        "device_name": "NVIDIA GeForce RTX 4090 D",
+        "device_total_memory_bytes": 25250627584,
+        "training_seconds": 4.5075673540000025,
+        "peak_allocated_bytes": 18088960,
+        "peak_reserved_bytes": 23068672
+      },
+      "metrics": {
+        "train": {
+          "count": 840,
+          "mae": 3.041979260883446,
+          "huber": 7.741917516356235,
+          "spearman": 0.9846166971935841,
+          "ndcg_at_k": 0.995204894834773,
+          "top_k": 84,
+          "top_k_mean_gain": 131.28822326660156,
+          "oracle_top_k_mean_gain": 131.675537109375,
+          "all_mean_gain": 39.26521682739258
+        },
+        "validation": {
+          "count": 180,
+          "mae": 10.60339575197742,
+          "huber": 66.52527635060686,
+          "spearman": 0.8276140210088788,
+          "ndcg_at_k": 0.98789152706164,
+          "top_k": 18,
+          "top_k_mean_gain": 138.55120849609375,
+          "oracle_top_k_mean_gain": 140.1768798828125,
+          "all_mean_gain": 40.91598892211914
+        },
+        "holdout": {
+          "count": 180,
+          "mae": 13.346225925316007,
+          "huber": 92.4331070854654,
+          "spearman": 0.8526024465775692,
+          "ndcg_at_k": 0.9511045779609955,
+          "top_k": 18,
+          "top_k_mean_gain": 134.8129425048828,
+          "oracle_top_k_mean_gain": 143.29766845703125,
+          "all_mean_gain": 40.47897720336914
+        }
+      }
+    },
+    {
+      "seed": 43,
+      "best_epoch": 278,
+      "epochs_ran": 338,
+      "execution": {
+        "framework": "pytorch",
+        "torch_version": "2.13.0+cu130",
+        "cuda_version": "13.0",
+        "device_type": "cuda",
+        "device_index": 0,
+        "device_name": "NVIDIA GeForce RTX 4090 D",
+        "device_total_memory_bytes": 25250627584,
+        "training_seconds": 8.008272985000076,
+        "peak_allocated_bytes": 18088960,
+        "peak_reserved_bytes": 23068672
+      },
+      "metrics": {
+        "train": {
+          "count": 840,
+          "mae": 3.15105758151794,
+          "huber": 7.687720760903526,
+          "spearman": 0.991477848536752,
+          "ndcg_at_k": 0.9952853635351132,
+          "top_k": 84,
+          "top_k_mean_gain": 131.46595764160156,
+          "oracle_top_k_mean_gain": 131.675537109375,
+          "all_mean_gain": 39.26521682739258
+        },
+        "validation": {
+          "count": 180,
+          "mae": 10.739145639847745,
+          "huber": 69.09122262570187,
+          "spearman": 0.8206096895994732,
+          "ndcg_at_k": 0.9792490641524948,
+          "top_k": 18,
+          "top_k_mean_gain": 136.49835205078125,
+          "oracle_top_k_mean_gain": 140.1768798828125,
+          "all_mean_gain": 40.91598892211914
+        },
+        "holdout": {
+          "count": 180,
+          "mae": 11.942386940840105,
+          "huber": 80.1667646452804,
+          "spearman": 0.8884759817689847,
+          "ndcg_at_k": 0.9599270165332809,
+          "top_k": 18,
+          "top_k_mean_gain": 137.96556091308594,
+          "oracle_top_k_mean_gain": 143.29766845703125,
+          "all_mean_gain": 40.47897720336914
+        }
+      }
+    },
+    {
+      "seed": 44,
+      "best_epoch": 8,
+      "epochs_ran": 68,
+      "execution": {
+        "framework": "pytorch",
+        "torch_version": "2.13.0+cu130",
+        "cuda_version": "13.0",
+        "device_type": "cuda",
+        "device_index": 0,
+        "device_name": "NVIDIA GeForce RTX 4090 D",
+        "device_total_memory_bytes": 25250627584,
+        "training_seconds": 1.6139571189996786,
+        "peak_allocated_bytes": 18088960,
+        "peak_reserved_bytes": 23068672
+      },
+      "metrics": {
+        "train": {
+          "count": 840,
+          "mae": 6.241872281617814,
+          "huber": 29.259742248307077,
+          "spearman": 0.9489873234147224,
+          "ndcg_at_k": 0.9811495983216714,
+          "top_k": 84,
+          "top_k_mean_gain": 129.7174530029297,
+          "oracle_top_k_mean_gain": 131.675537109375,
+          "all_mean_gain": 39.26521682739258
+        },
+        "validation": {
+          "count": 180,
+          "mae": 11.789891879286541,
+          "huber": 77.78462328743488,
+          "spearman": 0.7768531950574606,
+          "ndcg_at_k": 0.9687072181306687,
+          "top_k": 18,
+          "top_k_mean_gain": 134.95606994628906,
+          "oracle_top_k_mean_gain": 140.1768798828125,
+          "all_mean_gain": 40.91598892211914
+        },
+        "holdout": {
+          "count": 180,
+          "mae": 13.627876506105677,
+          "huber": 96.62349724819865,
+          "spearman": 0.8395279689702357,
+          "ndcg_at_k": 0.9398596875901489,
+          "top_k": 18,
+          "top_k_mean_gain": 133.59906005859375,
+          "oracle_top_k_mean_gain": 143.29766845703125,
+          "all_mean_gain": 40.47897720336914
+        }
+      }
+    },
+    {
+      "seed": 45,
+      "best_epoch": 144,
+      "epochs_ran": 204,
+      "execution": {
+        "framework": "pytorch",
+        "torch_version": "2.13.0+cu130",
+        "cuda_version": "13.0",
+        "device_type": "cuda",
+        "device_index": 0,
+        "device_name": "NVIDIA GeForce RTX 4090 D",
+        "device_total_memory_bytes": 25250627584,
+        "training_seconds": 4.829170395999881,
+        "peak_allocated_bytes": 18088960,
+        "peak_reserved_bytes": 23068672
+      },
+      "metrics": {
+        "train": {
+          "count": 840,
+          "mae": 3.9718557834092696,
+          "huber": 12.355303904587188,
+          "spearman": 0.9877950606059546,
+          "ndcg_at_k": 0.9966960793799668,
+          "top_k": 84,
+          "top_k_mean_gain": 131.4839630126953,
+          "oracle_top_k_mean_gain": 131.675537109375,
+          "all_mean_gain": 39.26521682739258
+        },
+        "validation": {
+          "count": 180,
+          "mae": 11.259693770355252,
+          "huber": 72.34653120993752,
+          "spearman": 0.8018580820395691,
+          "ndcg_at_k": 0.9902284056752244,
+          "top_k": 18,
+          "top_k_mean_gain": 139.93975830078125,
+          "oracle_top_k_mean_gain": 140.1768798828125,
+          "all_mean_gain": 40.91598892211914
+        },
+        "holdout": {
+          "count": 180,
+          "mae": 12.580085264152828,
+          "huber": 85.10333922397685,
+          "spearman": 0.8817658981244277,
+          "ndcg_at_k": 0.9623690851378655,
+          "top_k": 18,
+          "top_k_mean_gain": 136.29681396484375,
+          "oracle_top_k_mean_gain": 143.29766845703125,
+          "all_mean_gain": 40.47897720336914
+        }
+      }
+    },
+    {
+      "seed": 46,
+      "best_epoch": 126,
+      "epochs_ran": 186,
+      "execution": {
+        "framework": "pytorch",
+        "torch_version": "2.13.0+cu130",
+        "cuda_version": "13.0",
+        "device_type": "cuda",
+        "device_index": 0,
+        "device_name": "NVIDIA GeForce RTX 4090 D",
+        "device_total_memory_bytes": 25250627584,
+        "training_seconds": 4.429235213000084,
+        "peak_allocated_bytes": 18088960,
+        "peak_reserved_bytes": 23068672
+      },
+      "metrics": {
+        "train": {
+          "count": 840,
+          "mae": 4.263112483965209,
+          "huber": 15.032800194806981,
+          "spearman": 0.986819830422092,
+          "ndcg_at_k": 0.9967360456287943,
+          "top_k": 84,
+          "top_k_mean_gain": 131.50660705566406,
+          "oracle_top_k_mean_gain": 131.675537109375,
+          "all_mean_gain": 39.26521682739258
+        },
+        "validation": {
+          "count": 180,
+          "mae": 10.800823134044267,
+          "huber": 68.1556457636142,
+          "spearman": 0.8004053623054209,
+          "ndcg_at_k": 0.990775873770184,
+          "top_k": 18,
+          "top_k_mean_gain": 139.95643615722656,
+          "oracle_top_k_mean_gain": 140.1768798828125,
+          "all_mean_gain": 40.91598892211914
+        },
+        "holdout": {
+          "count": 180,
+          "mae": 11.262919912165748,
+          "huber": 73.91429545900786,
+          "spearman": 0.8853853513997345,
+          "ndcg_at_k": 0.9830418427966015,
+          "top_k": 18,
+          "top_k_mean_gain": 141.53277587890625,
+          "oracle_top_k_mean_gain": 143.29766845703125,
+          "all_mean_gain": 40.47897720336914
+        }
+      }
+    }
+  ],
+  "aggregate": {
+    "train": {
+      "mae": {
+        "mean": 4.133975478278736,
+        "std": 1.152802795434469,
+        "min": 3.041979260883446,
+        "max": 6.241872281617814
+      },
+      "huber": {
+        "mean": 14.415496924992201,
+        "std": 7.9344402709259185,
+        "min": 7.687720760903526,
+        "max": 29.259742248307077
+      },
+      "spearman": {
+        "mean": 0.9799393520346211,
+        "std": 0.0156339097793928,
+        "min": 0.9489873234147224,
+        "max": 0.991477848536752
+      },
+      "ndcg_at_k": {
+        "mean": 0.9930143963400637,
+        "std": 0.005968826871474505,
+        "min": 0.9811495983216714,
+        "max": 0.9967360456287943
+      },
+      "top_k_mean_gain": {
+        "mean": 131.09244079589843,
+        "std": 0.6918468584369655,
+        "min": 129.7174530029297,
+        "max": 131.50660705566406
+      }
+    },
+    "validation": {
+      "mae": {
+        "mean": 11.038590035102246,
+        "std": 0.4356455972393465,
+        "min": 10.60339575197742,
+        "max": 11.789891879286541
+      },
+      "huber": {
+        "mean": 70.78065984745908,
+        "std": 3.9839840050952184,
+        "min": 66.52527635060686,
+        "max": 77.78462328743488
+      },
+      "spearman": {
+        "mean": 0.8054680700021606,
+        "std": 0.017760551120025444,
+        "min": 0.7768531950574606,
+        "max": 0.8276140210088788
+      },
+      "ndcg_at_k": {
+        "mean": 0.9833704177580425,
+        "std": 0.008417935438208417,
+        "min": 0.9687072181306687,
+        "max": 0.990775873770184
+      },
+      "top_k_mean_gain": {
+        "mean": 137.98036499023436,
+        "std": 1.9704144019040362,
+        "min": 134.95606994628906,
+        "max": 139.95643615722656
+      }
+    },
+    "holdout": {
+      "mae": {
+        "mean": 12.551898909716073,
+        "std": 0.8743511151190445,
+        "min": 11.262919912165748,
+        "max": 13.627876506105677
+      },
+      "huber": {
+        "mean": 85.64820073238583,
+        "std": 8.17948209161249,
+        "min": 73.91429545900786,
+        "max": 96.62349724819865
+      },
+      "spearman": {
+        "mean": 0.8695515293681904,
+        "std": 0.01973180787116502,
+        "min": 0.8395279689702357,
+        "max": 0.8884759817689847
+      },
+      "ndcg_at_k": {
+        "mean": 0.9592604420037784,
+        "std": 0.014272844127991423,
+        "min": 0.9398596875901489,
+        "max": 0.9830418427966015
+      },
+      "top_k_mean_gain": {
+        "mean": 136.8414306640625,
+        "std": 2.763936592826064,
+        "min": 133.59906005859375,
+        "max": 141.53277587890625
+      }
+    }
+  },
+  "stage_gate": {
+    "all_validation_spearman_positive": true,
+    "all_holdout_spearman_positive": true,
+    "all_holdout_top_k_better_than_mean": true,
+    "status": "ready_for_nbfnet",
+    "interpretation": "Candidate holdout proves learnability within the current H→Y pair; it does not replace the frozen future temporal test."
+  }
+}
