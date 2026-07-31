@@ -114,6 +114,7 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
 - 结构只按 validation 选择：`propagation_doubling` 为 `0.9400`，高于 deep `0.9334`、residual `0.9342`、residual_doubling `0.9393`，因此正式推荐 `propagation_doubling`。组合模型 holdout 最高的 `0.9594` 不用于反向选型。
 - 所选倍增模型 holdout NDCG@5/10/18 为 `0.9720 / 0.9821 / 0.9882`，收益为 `171.922 / 158.022 / 142.332`；成员冗余为 `1.744 / 1.786 / 1.750`，仍需非重叠集合选择。
 - 新 split 同口径 MLP 五种子已完成：holdout Spearman `0.8696 ± 0.0197`，NDCG@18 `0.9593 ± 0.0143`，Top-18 收益 `136.841 ± 2.764`。所选纯传播 seed 44 的对应值为 `0.9569 / 0.9882 / 142.332`，本轮观察上明显领先，但纯传播仍缺重复种子，不能声称正确道路拓扑必要、多种子稳定或未来时间泛化。
+- 新 split midpoint Proxy 已在本机 CPU 完成：holdout Spearman `0.8918`，NDCG@5/10/18 `0.9645 / 0.9454 / 0.9830`，收益 `170.043 / 149.592 / 142.332`。它与 `propagation_doubling` 的 Top-18 候选集合完全相同；纯传播主要改善全局排序和 K=5/10，不能声称在 K=18 固定候选预算上超过 Proxy。
 - 四组前 22 epoch 几乎不更新、第 23 epoch 同步翻转。每次前向本来就执行全部 32 层，这不是传播逐 epoch 到达中部；结合 FP16 `GradScaler`、更新前记录 train loss 和更新后计算 validation，最可能是前 22 次 optimizer step 因梯度溢出被跳过。日志未记录 scale，故这是高置信诊断而非直接观测事实。
 
 ## 服务器训练最终状态
@@ -134,7 +135,7 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
 
 ## 后续实验顺序
 
-1. 在新 split 上补齐基础 NBFNet、端点密度和随机拓扑纯传播；同口径 MLP 与原始频率已完成。
+1. 在新 split 上补齐基础 NBFNet、端点密度和随机拓扑纯传播；同口径 MLP、原始频率与 midpoint Proxy 已完成。
 2. 对正式结构 `propagation_doubling` 扩展重复种子。
 3. 再做真正未来时间窗口、候选非重叠集合选择与精确在线配对评测。
 4. 不再继续堆叠新的传播结构；编号“从零详解”文档本轮按用户要求暂不更新。
