@@ -1,0 +1,328 @@
+{
+  "schema": "aic.gnn_v2.od_conditioned_bidirectional_nbfnet.v3",
+  "model": "od_conditioned_bidirectional_nbfnet",
+  "variant": "propagation_deep",
+  "execution": {
+    "framework": "pytorch",
+    "torch_version": "2.13.0+cu130",
+    "cuda_version": "13.0",
+    "device_type": "cuda",
+    "device_index": 0,
+    "device_name": "NVIDIA GeForce RTX 4090 D",
+    "device_total_memory_bytes": 25250627584
+  },
+  "dataset_sha256": "e9b1bc149a6a94dd744305e41817c3a2b9447cd5e3ba5a17c71fea38db2bf261",
+  "candidate_sha256": "40d7d8babf74381b5f7088de22edc0f48181bec9c78a53fb039c9e8e7c20f71c",
+  "config": {
+    "hidden_dim": 32,
+    "propagation_layers": 32,
+    "demand_scale": 1000.0,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001,
+    "rank_weight": 0.2,
+    "huber_delta": 1.0,
+    "prototype_batch_size": 4,
+    "max_epochs": 300,
+    "patience": 60,
+    "min_improvement": 0.0001,
+    "mixed_precision": true,
+    "gradient_checkpointing": true,
+    "variant": "propagation_deep",
+    "randomization_seed": 20260730
+  },
+  "seeds": [
+    44
+  ],
+  "selected_seed": 44,
+  "selection_rule": "highest validation Spearman; holdout is never used",
+  "architecture": {
+    "propagation_only": true,
+    "uses_direct_region_features": false,
+    "uses_layer_zero_readout": false,
+    "residual_propagation": false,
+    "doubling_scale_readout": false,
+    "readout_depths": [
+      32
+    ],
+    "maximum_hop_depth": 32,
+    "materializes_multi_hop_edges": false
+  },
+  "split": {
+    "axis": "candidate",
+    "strategy": "jaccard_overlap_connected_components",
+    "seed": 42,
+    "train_fraction": 0.7,
+    "validation_fraction": 0.15,
+    "holdout_fraction": 0.15000000000000005,
+    "counts": {
+      "train": 840,
+      "validation": 180,
+      "holdout": 180
+    },
+    "overlap_group_threshold": 0.5,
+    "overlap_group_count": 521,
+    "largest_overlap_group": 12,
+    "cross_split_max_jaccard_upper_bound": 0.5,
+    "guarantee": "Every candidate pair with Jaccard similarity greater than or equal to the threshold belongs to the same split.",
+    "warning": "Candidate holdout measures region generalization within H→Y; it is not the frozen future temporal test."
+  },
+  "input_policy": {
+    "uses_history_od_only": true,
+    "uses_static_road_graph": true,
+    "uses_path_supervision": false,
+    "uses_label_window_as_input": false,
+    "uses_cost_or_query_runtime_features": false,
+    "uses_node_coordinates": false,
+    "coordinates_used_for_prototype_grouping_only": true,
+    "selection_method_is_model_input": false
+  },
+  "ablation": {
+    "variant": "propagation_deep",
+    "randomization_seed": 20260730,
+    "graph_transform": "directed_original",
+    "original_edge_count": 221589,
+    "effective_edge_count": 221589,
+    "edge_features_zeroed": false,
+    "destination_prototypes_permuted": false,
+    "destination_permutation": null,
+    "shuffled_od_coupling": null,
+    "note": null
+  },
+  "prototype_batching": {
+    "prototype_count": 128,
+    "prototype_batch_size": 4,
+    "training_objective": "Two-pass exact full-mixture gradient: the first pass evaluates the weighted score of all frozen prototypes; the second recomputes one memory chunk at a time and accumulates its exact gradient contribution.",
+    "batch_size_affects_objective": false
+  },
+  "runs": [
+    {
+      "seed": 44,
+      "best_epoch": 23,
+      "epochs_ran": 83,
+      "training_seconds": 3950.5624291729764,
+      "peak_allocated_bytes": 7634725376,
+      "peak_reserved_bytes": 8694792192,
+      "parameter_count": 418178,
+      "metrics": {
+        "train": {
+          "count": 840,
+          "mae": 29.546470642089844,
+          "huber": 248.7781219482422,
+          "spearman": 0.937832011809177,
+          "ndcg_at_k": 0.9547443833823184,
+          "top_k": 84,
+          "top_k_mean_gain": 126.98628997802734,
+          "oracle_top_k_mean_gain": 131.675537109375,
+          "all_mean_gain": 39.26521682739258,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.900050292260174,
+              "mean_gain": 158.4542999267578,
+              "oracle_mean_gain": 177.17410278320312,
+              "membership_count": 2560,
+              "unique_node_count": 1909,
+              "membership_redundancy": 1.3410162388685176
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.8873454737496664,
+              "mean_gain": 153.33544921875,
+              "oracle_mean_gain": 174.91421508789062,
+              "membership_count": 5120,
+              "unique_node_count": 2819,
+              "membership_redundancy": 1.8162468960624334
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.9282013686601216,
+              "mean_gain": 158.53561401367188,
+              "oracle_mean_gain": 168.4081573486328,
+              "membership_count": 9216,
+              "unique_node_count": 3547,
+              "membership_redundancy": 2.5982520439808288
+            }
+          }
+        },
+        "validation": {
+          "count": 180,
+          "mae": 30.256275177001953,
+          "huber": 255.76853942871094,
+          "spearman": 0.9333888906036194,
+          "ndcg_at_k": 0.9388354280598452,
+          "top_k": 18,
+          "top_k_mean_gain": 135.94180297851562,
+          "oracle_top_k_mean_gain": 140.1768798828125,
+          "all_mean_gain": 40.91598892211914,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.8782474316954615,
+              "mean_gain": 157.01768493652344,
+              "oracle_mean_gain": 170.85610961914062,
+              "membership_count": 2560,
+              "unique_node_count": 1790,
+              "membership_redundancy": 1.4301675977653632
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.9384006933056587,
+              "mean_gain": 153.079345703125,
+              "oracle_mean_gain": 155.20130920410156,
+              "membership_count": 5120,
+              "unique_node_count": 3408,
+              "membership_redundancy": 1.5023474178403755
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.9388354280598452,
+              "mean_gain": 135.94180297851562,
+              "oracle_mean_gain": 140.1768798828125,
+              "membership_count": 9216,
+              "unique_node_count": 6176,
+              "membership_redundancy": 1.4922279792746114
+            }
+          }
+        },
+        "holdout": {
+          "count": 180,
+          "mae": 31.63335418701172,
+          "huber": 269.4818115234375,
+          "spearman": 0.9512742162823955,
+          "ndcg_at_k": 0.9782250867331385,
+          "top_k": 18,
+          "top_k_mean_gain": 142.3323211669922,
+          "oracle_top_k_mean_gain": 143.29766845703125,
+          "all_mean_gain": 40.47897720336914,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.9546789334506226,
+              "mean_gain": 170.04299926757812,
+              "oracle_mean_gain": 176.84671020507812,
+              "membership_count": 2560,
+              "unique_node_count": 1358,
+              "membership_redundancy": 1.8851251840942562
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.9517812328025472,
+              "mean_gain": 153.2248992919922,
+              "oracle_mean_gain": 160.19338989257812,
+              "membership_count": 5120,
+              "unique_node_count": 2903,
+              "membership_redundancy": 1.7636927316569067
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.9782250867331385,
+              "mean_gain": 142.3323211669922,
+              "oracle_mean_gain": 143.29766845703125,
+              "membership_count": 9216,
+              "unique_node_count": 5265,
+              "membership_redundancy": 1.7504273504273504
+            }
+          }
+        }
+      }
+    }
+  ],
+  "aggregate": {
+    "train": {
+      "mae": {
+        "mean": 29.546470642089844,
+        "std": 0.0,
+        "min": 29.546470642089844,
+        "max": 29.546470642089844
+      },
+      "huber": {
+        "mean": 248.7781219482422,
+        "std": 0.0,
+        "min": 248.7781219482422,
+        "max": 248.7781219482422
+      },
+      "spearman": {
+        "mean": 0.937832011809177,
+        "std": 0.0,
+        "min": 0.937832011809177,
+        "max": 0.937832011809177
+      },
+      "ndcg_at_k": {
+        "mean": 0.9547443833823184,
+        "std": 0.0,
+        "min": 0.9547443833823184,
+        "max": 0.9547443833823184
+      },
+      "top_k_mean_gain": {
+        "mean": 126.98628997802734,
+        "std": 0.0,
+        "min": 126.98628997802734,
+        "max": 126.98628997802734
+      }
+    },
+    "validation": {
+      "mae": {
+        "mean": 30.256275177001953,
+        "std": 0.0,
+        "min": 30.256275177001953,
+        "max": 30.256275177001953
+      },
+      "huber": {
+        "mean": 255.76853942871094,
+        "std": 0.0,
+        "min": 255.76853942871094,
+        "max": 255.76853942871094
+      },
+      "spearman": {
+        "mean": 0.9333888906036194,
+        "std": 0.0,
+        "min": 0.9333888906036194,
+        "max": 0.9333888906036194
+      },
+      "ndcg_at_k": {
+        "mean": 0.9388354280598452,
+        "std": 0.0,
+        "min": 0.9388354280598452,
+        "max": 0.9388354280598452
+      },
+      "top_k_mean_gain": {
+        "mean": 135.94180297851562,
+        "std": 0.0,
+        "min": 135.94180297851562,
+        "max": 135.94180297851562
+      }
+    },
+    "holdout": {
+      "mae": {
+        "mean": 31.63335418701172,
+        "std": 0.0,
+        "min": 31.63335418701172,
+        "max": 31.63335418701172
+      },
+      "huber": {
+        "mean": 269.4818115234375,
+        "std": 0.0,
+        "min": 269.4818115234375,
+        "max": 269.4818115234375
+      },
+      "spearman": {
+        "mean": 0.9512742162823955,
+        "std": 0.0,
+        "min": 0.9512742162823955,
+        "max": 0.9512742162823955
+      },
+      "ndcg_at_k": {
+        "mean": 0.9782250867331385,
+        "std": 0.0,
+        "min": 0.9782250867331385,
+        "max": 0.9782250867331385
+      },
+      "top_k_mean_gain": {
+        "mean": 142.3323211669922,
+        "std": 0.0,
+        "min": 142.3323211669922,
+        "max": 142.3323211669922
+      }
+    }
+  }
+}
