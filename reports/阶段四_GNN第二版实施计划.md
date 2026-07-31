@@ -483,75 +483,89 @@ results/gnn_v2/
 第二版完成第 9 步并证明需求传播贡献后，才进入第三版的批量在线反馈、增量训练和索引
 更新实验。持续学习不是当前阶段门的替代品。
 
-## 纯传播稳定性、消融与调参追加计划
+## 纯传播稳定性、训练目标诊断、消融与调参追加计划
 
-2026-07-31 起按以下顺序冻结执行。当前正在运行的 `propagation_doubling` 重复种子不得
-中途更改学习率、初始化、混合精度或损失；先获得原始训练协议的完整稳定性证据，再做消融
-和调参，避免把后验修正混入基线。
+2026-07-31 起按以下顺序执行。保留当前数据、重叠组 split、`propagation_doubling`、双向传播
+和区域池化，不推倒重建模型。当前正在运行的重复种子不得中途改配置，但它们只作为旧训练
+协议的稳定性与异常基线；在训练目标闭合前不启动正式消融，避免把算力花在目标含混的模型上。
 
 | 阶段 | 实验 | 固定规则 | 完成条件 |
 | ---: | --- | --- | --- |
-| A | 完成 `42,43,45,46`，与已有 seed 44 合并 | 当前固定 `lr=1e-3`、无 scheduler、FP16、rank weight 0.20 | 报告五种子均值、标准差、最差值、平台长度和早停 epoch |
-| B | 调参前关键消融 | 完全沿用 A 的训练协议 | 得到正确拓扑、OD 配对、方向和边特征的独立证据 |
-| C | 平台期直接诊断与初始化实验 | 只看 validation，不用 holdout 选方案 | 区分 AMP 跳步、信号衰减和读出反向排序 |
-| D | 学习率与排序损失调参 | 先 seed 42/44 筛选，再五种子确认 | 冻结一个稳定训练协议 |
-| E | 调参后关键消融复核 | 若 C/D 改变正式协议，必须配对复跑 | 新正式模型与消融使用同一训练协议 |
+| A | 完成当前 seed `42,43,45,46`，并合并已有 seed 44 | 保持原始 FP16、`lr=1e-3`、Huber + `0.20` sampled rank loss | 报告 epoch 1、最佳与最终排序、平台长度、最差种子 |
+| B | 平台期和更新路径直接诊断 | CUDA 上使用 seed 42/43/44，不看 holdout 选方案 | 确认每轮是否真实 step，并定位 FP16、梯度或初始化问题 |
+| C | 将训练目标收敛为单一排序任务 | 保留 `propagation_doubling` 架构，主干不再同时优化数值回归 | 训练目标、checkpoint 和主评价均围绕 validation Spearman |
+| D | 初始化、精度和学习率稳定化 | 只用 seed 42/43/44 validation 筛选 | 冻结一个无假平台、无随机正负方向依赖的协议 |
+| E | 新协议五种子确认 | seed `42～46`，配置完全冻结 | 报告均值、标准差、最差值、平台与最佳 epoch |
+| F | 最终协议下关键消融 | 架构与消融条件正交，模型和对照使用同一协议 | 得到正确拓扑、OD 配对、方向和边特征的独立证据 |
+| G | 外部有效性评测 | 不再根据 holdout 修改模型 | 未来窗口、非重叠集合选择和精确在线配对评测 |
 
-### 调参前消融
+### 平台期与异常行为诊断
 
-现有代码用一个互斥 `variant` 同时表示模型结构和消融条件；直接运行 `degree_rewired`、
-`shuffled_od` 等旧 variant 会回到基础 NBFNet，而不是在 `propagation_doubling` 上改变单一
-因素。阶段 B 的实现前置条件是把接口拆成正交的 `architecture=propagation_doubling` 与
-`ablation=<条件>` 两条轴，并添加身份与单元测试；在此之前不得把旧 variant 结果当作所选
-纯传播模型的消融。
+当前日志已经暴露两类不同异常：seed 42/44 初始化 Spearman 约为 `-0.90/-0.95`，seed 43
+却在 epoch 1 得到约 `+0.95`；前三者的绝对值接近但方向相反。seed 43 前 22 轮指标冻结，
+随后 validation loss 下降而 Spearman 小幅下降。这说明必须同时检查 optimizer 是否真正更新、
+随机读出方向以及数值回归与排序目标的冲突，不能把所有现象统一归因于“深层传播难训练”。
 
-1. `degree_rewired`：保持规模及精确有向入出度序列的随机拓扑，回答正确道路连接是否必要。
-2. `shuffled_od`：保持起终点两侧边际需求的保测度耦合，回答 OD 配对是否必要。
-3. `undirected` 与 `no_edge_features`：分别检查方向和道路属性。
-4. `origin_only` 与 `destination_only`：检查双向需求场是否都提供独立信息。
-5. `degree_rewired` 和 `shuffled_od` 使用种子 `42～46` 做正式配对；其余消融先用 seed 44
-   筛选。若 validation Spearman 绝对差异达到 `0.02`，或改变 K=5/10 的排序结论，再扩展
-   到五种子。扩展规则预先固定，不根据 holdout 结果决定。
+阶段 B 必须新增并保存：
 
-### 平台期诊断与初始化
+1. optimizer step 前的 epoch 0 validation 指标，以及每轮参数更新前后的参数差范数；
+2. `GradScaler.get_scale()`、`optimizer_step_skipped`、裁剪前与裁剪后梯度范数、实际学习率；
+3. prediction 的均值、标准差、最小值和最大值，以及 Spearman、完整 pairwise accuracy、
+   Huber 和 pairwise loss 的独立曲线；
+4. 首次有效 optimizer step、首次正 Spearman、最佳 epoch 和早停原因。
 
-当前实现使用 PyTorch 默认 Linear 初始化；传播门初始大约位于 0.5 附近，倍增深度 logits
-全部为零、即六个深度初始等权，预测头方向也随机。32 层非残差传播因此可能同时遇到
-FP16 梯度溢出、跨层信号衰减和初始读出方向相反。初始化可能缩短平台期，但不能代替对
-optimizer step 是否真实发生的记录。
+先对比当前 FP16、较低 initial scale、BF16 和短程 CUDA FP32 诊断。若 BF16 或 CUDA FP32
+从首轮即可稳定更新，平台主要是 AMP 数值路径问题；只有确认 optimizer 正常 step 后，才将
+剩余平台归因于初始化或模型结构。所有神经网络诊断仍在 CUDA 上运行。
 
-下一次复跑必须逐 epoch 保存：`GradScaler.get_scale()`、`optimizer_step_skipped`、裁剪前
-梯度范数、实际学习率、首次有效 optimizer step 和首次正 Spearman。先比较 FP16 当前实现、
-较低 initial scale 与 BF16；若平台主要来自 scaler 跳步，优先修复数值路径，不把它归因于
-模型初始化。
+### 单一排序目标
 
-初始化只做可独立解释的三组实验：
+当前训练目标为标准化标签上的 Huber 加 `0.20 ×` sampled pairwise loss，但 checkpoint 按
+validation Spearman 选择。seed 43 证明“排序几乎正确但数值尺度不准”时，降低 Huber 可以
+同时降低 Spearman，因此这一混合目标不再作为正式协议。
 
-1. **传播保持初始化**：传播矩阵使用正交或近单位初始化，门控 bias 设为轻度正值，使初始
-   消息通过率高于 0.5，检验是否减轻 32 层信号衰减。
-2. **小幅读出初始化**：最终预测层使用接近零但非零的小方差权重、bias 为零，检验是否
-   消除稳定的初始反向排序，同时保证梯度可在首轮进入前层。
-3. **浅层深度先验**：倍增深度 logits 初始偏向 1/2/4 跳，再允许训练学习 8/16/32 跳，
-   检验均匀混合深层噪声是否造成平台；仍禁止第 0 层读出。
+正式候选协议首先采用 rank-first 设计：
 
-三组先分别与默认初始化比较，只有各自 validation 证据明确后才组合，不能一次同时改变后
-只报告组合结果。评价除最终 Spearman 外，还包括平台 epoch 数、有效 step 比例、五种子
-标准差和最差种子。
+1. 主干只优化完整 pairwise logistic ranking loss；840 个训练候选至多产生 `352,380` 对，
+   不再每轮只随机抽约 840 对。
+2. 进入 ranking loss 前将全体训练候选 score 中心化并标准化，去除无意义的平移和尺度自由度；
+   保存未标准化 score 供诊断。
+3. epoch 0 单独保存为未训练基线，不得称为模型训练结果；正式 checkpoint 只在至少发生一次
+   有效 optimizer step 后按 validation Spearman 选择，差异小于 `1e-4` 时保留更早 epoch。
+   若所有已训练 checkpoint 都不及 epoch 0，则该次运行标记为 `initialization_dominant`，协议
+   不通过稳定性阶段门。K=5/10/18 NDCG、收益和冗余继续完整报告，但不反向改变主目标。
+4. 主干训练不再接收 Huber 梯度。若应用需要具体收益值，冻结排序模型后仅在 train 上拟合
+   `prediction = a × score + b`，并约束 `a > 0`；该单调校准不得改变任何候选顺序。
+5. 若完整 pairwise surrogate 仍长期出现 loss 与 Spearman 明显背离，才预先登记并比较一次
+   differentiable soft-rank Spearman；不得再把多个主目标随意加权后挑选有利结果。
 
-### 学习率与损失调参
+### 初始化与优化稳定化
 
-当前 AdamW 学习率固定为 `1e-3`，没有 scheduler。先固定以下最小筛选集，不做无边界网格：
+自定义初始化后移到数值路径诊断之后。小幅随机预测头仍可能产生正负号歧义，不再单独视为
+充分方案。按以下独立实验顺序比较：
 
-1. `1e-3` 固定学习率，作为原始基准。
-2. `3e-4` 固定学习率。
-3. `1e-3` 加门控式 `ReduceLROnPlateau`：首次有效 optimizer step 且 Spearman 转正后才
-   启用，factor `0.3`、patience `10`、最低学习率 `1e-5`。
-4. 在前三项选出的 validation 最优协议上比较 rank weight `0.20` 与 `0.50`。
+1. **读出头预热**：先冻结传播主干，仅用完整 ranking loss 训练读出头，再整体解冻；所有
+   方向判断只使用 train 标签。
+2. **传播保持初始化**：传播矩阵使用正交或近单位初始化，门控 bias 设轻度正值，检查 32 层
+   信号与梯度保持。
+3. **浅层深度先验**：深度 logits 初始偏向 1/2/4 跳，再学习 8/16/32 跳；仍禁止第 0 层读出。
 
-筛选只使用 seed 42 和 seed 44 的 validation：一个代表当前困难初始化，一个代表已有强
-结果。选定协议后重新跑种子 `42～46`；holdout 只作冻结后的描述，不参与学习率、初始化和
-损失权重选择。若正式协议发生变化，阶段 B 的 `degree_rewired` 与 `shuffled_od` 必须按新
-协议重跑五种子，之后才能形成最终拓扑和 OD 配对结论。
+三项先分别比较，只在单项证据明确后组合。优化筛选限制为固定 `1e-3`、固定 `3e-4`，以及
+首次有效 step 后启用的 `ReduceLROnPlateau(mode=max, factor=0.3, patience=10, min_lr=1e-5)`。
+筛选使用 seed 42/43/44，分别覆盖困难负向初始化、幸运正向初始化和已有强结果；holdout 不
+参与精度、初始化、学习率或目标选择。协议冻结后再运行 seed `42～46`。
+
+### 最终协议下消融
+
+消融没有取消，只后移到阶段 F。现有代码用互斥 `variant` 同时表示模型结构和消融条件；必须
+先拆成正交的 `architecture=propagation_doubling` 与 `ablation=<条件>` 两条轴并添加身份与
+单元测试，旧 variant 结果不得冒充新正式模型的消融。
+
+1. `degree_rewired` 与 `shuffled_od` 使用 seed `42～46` 做正式配对。
+2. `undirected`、`no_edge_features`、`origin_only`、`destination_only` 先跑 seed 44；若
+   validation Spearman 绝对差异达到 `0.02`，或改变 K=5/10 结论，再扩展五种子。
+3. 扩展规则预先固定，不依据 holdout 决定；正式模型和全部消融必须使用阶段 E 冻结的同一
+   精度、初始化、学习率和排序目标，因此不再先跑旧协议消融后重复返工。
 
 ## 暂缓到核心闭环之后
 

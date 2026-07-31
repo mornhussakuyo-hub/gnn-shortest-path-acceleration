@@ -131,20 +131,20 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
 - 本机与服务器的 `report.md` SHA-256 均为 `d0d617fa08e0c909f64a5fcf2dd0dcee6bdf95d1dceed67e8a517170ca1d66dd`；`manifest.json` 均为 `7539a5468bd4f6fed992d352083a18e30b098a1e2dbce11980ebde680a78383e`。
 - 新 split MLP 输出目录为 `results/gnn_v2/mlp_overlap_group_split`；种子 `42～46` 已全部完成，使用 RTX 4090 D CUDA，无报错，完整产物已回传本机。
 - 当前正在补跑正式结构 `propagation_doubling` 的重复种子 `42,43,45,46`，输出目录为 `results/gnn_v2/nbfnet_propagation/propagation_doubling_repeats`；配置为 hidden 32、layers 32、prototype batch 4、max epochs 300、patience 60。
-- 本轮 runner 启动 PID 为 `8127`。启动后首次健康检查时进程存活，GPU 利用率 100%、显存约 10.9 GiB；seed 42 第 1 epoch 已完成，日志无 traceback、OOM 或 RuntimeError。PID 可能变化，接续时重新读取输出目录中的 `runner.pid`，不要停止 runner。
+- 本轮 runner 启动 PID 为 `8127`。最近检查时进程存活、GPU 利用率 100%，无 traceback、OOM 或 RuntimeError；seed 42 已早停，最佳 validation Spearman `0.7640`、holdout `0.8622`，seed 43 前 22 轮约 `0.9458` 不变，开始更新后 loss 下降而 Spearman 小幅下降。PID 可能变化，接续时重新读取 `runner.pid`，不要停止 runner。
 
 ## 后续实验顺序
 
-1. 先完成当前 `propagation_doubling` 的 seed `42,43,45,46`，与已有 seed 44 合并为五种子稳定性结果；当前 runner 不中途改配置。
-2. 再用当前固定协议做调参前消融。现有互斥 `variant` 会让 `degree_rewired` 等条件退回基础架构，必须先拆成 `architecture=propagation_doubling` 与正交 `ablation` 两轴并补测试；随后 `degree_rewired`、`shuffled_od` 正式跑五种子，`undirected`、`no_edge_features`、`origin_only`、`destination_only` 先 seed 44，validation 差异达到 `0.02` 或改变 K=5/10 结论时扩展五种子。
-3. 消融完成后才做平台诊断和调参。必须记录 GradScaler scale、step skipped、裁剪前梯度范数、实际学习率、首次有效 step 和首次正 Spearman；比较 FP16、较低 initial scale 与 BF16。
-4. 初始化分别验证传播矩阵正交/近单位加正门 bias、小幅非零预测头、浅层倍增深度先验；三项先独立再考虑组合，仍禁止第 0 层读出。
-5. 调参最小集合：固定 `1e-3`、固定 `3e-4`、转正后启用的 `ReduceLROnPlateau(0.3, patience=10, min_lr=1e-5)`，再比较 rank weight `0.20/0.50`。只用 seed 42/44 validation 筛选，冻结后跑五种子。
-6. 若调参改变正式协议，必须用新协议重新跑 `degree_rewired` 和 `shuffled_od` 五种子，再做未来窗口、非重叠集合选择和精确在线配对评测。
-7. 不再继续堆叠新的传播结构；编号“从零详解”文档本轮按用户要求暂不更新。完整规则见 `reports/阶段四_GNN第二版实施计划.md`。
+1. 先完成当前 `propagation_doubling` 的 seed `42,43,45,46`，与 seed 44 合并为旧协议异常基线；runner 不中途改配置。
+2. 暂缓正式消融，先诊断平台期和更新路径：记录 epoch 0、GradScaler scale、step skipped、裁剪前后梯度范数、参数差范数、实际学习率和 prediction 分布，并比较 FP16、较低 initial scale、BF16 与短程 CUDA FP32。
+3. 保留 `propagation_doubling` 架构，把主训练改成完整 pairwise rank-first：对至多 `352,380` 个训练候选对计算 ranking loss，score 先中心化和标准化，主干不再同时接收 Huber 梯度；epoch 0 单列，正式 checkpoint 必须位于有效 optimizer step 之后并只按 validation Spearman 选择。
+4. 若需要具体收益值，冻结排序模型后只用 train 拟合 `prediction=a×score+b` 且约束 `a>0`，不得改变排序或使用 validation/holdout 校准。
+5. 用 seed 42/43/44 依次筛选读出头预热、传播保持初始化、浅层深度先验、`1e-3/3e-4` 和 `ReduceLROnPlateau`；冻结协议后重跑 seed `42～46`。
+6. 新协议五种子稳定后再做消融。先拆分 `architecture=propagation_doubling` 与正交 `ablation`；`degree_rewired`、`shuffled_od` 五种子，方向、边特征和单侧 OD 消融按预注册阈值扩展。
+7. 最后再做未来窗口、非重叠集合选择和精确在线配对评测；不继续堆叠新传播结构，编号“从零详解”文档本轮不更新。完整规则见 `reports/阶段四_GNN第二版实施计划.md`。
 
 ## 仓库状态交接
 
 - 交接前分支为 `main`。
-- 本次计划修改前最新提交为 `695cb72 补齐空间隔离Proxy基线`。
+- 本次计划修改前最新提交为 `d601c2e 固化纯传播消融与调参计划`。
 - 主要诊断报告：`reports/阶段四_NBFNet传播诊断与深层纯传播实验.md`。
