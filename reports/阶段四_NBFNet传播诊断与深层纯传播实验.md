@@ -109,6 +109,32 @@ validation。若缩放后的梯度含非有限值，`GradScaler` 会跳过 optim
 所以无法在训练结束后把这一机制提升为直接观测事实。它仍是比“模型等待传播到中间”更符合
 代码和日志的解释；若以后复跑，应记录这三个量，并可用更低初始 scale 或 BF16 验证。
 
+### 重复 seed 43：一次有效更新导致的灾难性恶化
+
+重复实验的 seed 43 与上述“前 22 轮没有可见更新”现象相同，但其初始排序恰好为正：epoch 1
+validation Spearman 为 `0.9458`，并在 epoch 1～22 基本不变。它不是一轮内学得高分，而是与
+seed 44 初始约 `-0.9457` 几乎反号的随机读出方向。此后 validation loss 连续下降、Spearman
+缓慢降至约 `0.9384`；但在 epoch 59 出现单次突变：
+
+| epoch | train loss（更新前） | validation Huber | validation rank | validation total | validation Spearman |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 58 | 0.4054 | 0.3018 | 0.6009 | 0.4219 | 0.9384 |
+| 59 | 0.4045 | 0.6841 | 0.6266 | 0.8094 | 0.8004 |
+| 60 | 0.7981 | 0.6931 | 0.6260 | 0.8183 | 0.7988 |
+| 61 | 0.8081 | 0.6940 | 0.6257 | 0.8191 | 0.7968 |
+
+代码在每轮先记录更新前的 train loss、再执行 optimizer step、最后计算 validation。因此 epoch 59
+仍正常的 train loss 与同轮翻倍的 validation loss 共同证明：第 59 次有效更新已经把参数推入
+更坏区域；epoch 60 起 train loss 同步恶化，排除验证抽样噪声或单次评测偶然性。总损失增加
+几乎全部来自 Huber（`0.3018 → 0.6841`），但 pairwise loss 也变坏，Spearman 随之下降 `0.1380`。
+
+这与“Huber 和 Spearman 略有权衡”的平滑现象不同，是数值/优化不稳定的直接证据。由于没有
+记录 scaler、梯度范数、参数差和 Adam 状态，不能在事后把它唯一归因于 FP16；合理候选包括
+边界有限但方向错误的 Adam 更新、深层高曲率和混合精度舍入。若 GradScaler 当轮检测到非有限
+梯度，它会跳过 step 且不应造成该跳变，因此这更像一次未被跳过的有害更新。seed 43 最终在
+epoch 61 早停，best checkpoint 是 epoch 1，holdout Spearman `0.9600`；按新协议它应标为
+`initialization_dominant` 的未训练基线，而不能作为已训练模型的正面证据。
+
 排序翻转本身则更像读出方向穿过零点。四组更新前已经存在稳定但方向相反的候选次序，
 validation Spearman 为 `-0.88～-0.95`，ranking loss 约为随机二分类基准 `log(2)`；第一次
 有效更新只让总验证损失小幅下降，却使主导排序的系数改变符号，于是 Spearman 可以从强负
