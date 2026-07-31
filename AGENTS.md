@@ -129,6 +129,8 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
 - 完整产物已同步回本机 `results/gnn_v2/nbfnet_propagation/screening/`，包含 manifest、汇总、日志、checkpoint、预测和训练历史。
 - 本机与服务器的 `report.md` SHA-256 均为 `d0d617fa08e0c909f64a5fcf2dd0dcee6bdf95d1dceed67e8a517170ca1d66dd`；`manifest.json` 均为 `7539a5468bd4f6fed992d352083a18e30b098a1e2dbce11980ebde680a78383e`。
 - 新 split MLP 输出目录为 `results/gnn_v2/mlp_overlap_group_split`；种子 `42～46` 已全部完成，使用 RTX 4090 D CUDA，无报错，完整产物已回传本机。
+- 当前正在补跑正式结构 `propagation_doubling` 的重复种子 `42,43,45,46`，输出目录为 `results/gnn_v2/nbfnet_propagation/propagation_doubling_repeats`；配置为 hidden 32、layers 32、prototype batch 4、max epochs 300、patience 60。
+- 本轮 runner 启动 PID 为 `8127`。启动后首次健康检查时进程存活，GPU 利用率 100%、显存约 10.9 GiB；seed 42 第 1 epoch 已完成，日志无 traceback、OOM 或 RuntimeError。PID 可能变化，接续时重新读取输出目录中的 `runner.pid`，不要停止 runner。
 
 ## 后续实验顺序
 
