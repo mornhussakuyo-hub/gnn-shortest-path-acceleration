@@ -8,6 +8,7 @@ __pycache__/
 .cache/
 data/compressed/porto/
 .server.env
+.server2.env
 archive/gnn_v1/results/gnn_ablation/**/*.log
 archive/gnn_v1/results/gnn_ablation/**/model.pt
 archive/gnn_v1/results/gnn_ablation/**/node_scores.csv

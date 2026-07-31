@@ -1,0 +1,106 @@
+ablation mode=screening experiment=eddb13197d255c61 runs=1 output=results/gnn_v2/nbfnet_propagation/propagation_doubling_repeats
+[1/1] start propagation_doubling__seed46 log=results/gnn_v2/nbfnet_propagation/propagation_doubling_repeats/logs/propagation_doubling__seed46.log
+training NBFNet variant=propagation_doubling seed=46
+seed=46 epoch=001/300 train_loss=0.528813 validation_loss=0.551921 validation_spearman=0.7860 best_epoch=001 patience=00/60 epoch_time=50s elapsed=50s eta_to_max=4h09m18s
+seed=46 epoch=002/300 train_loss=0.528811 validation_loss=0.551921 validation_spearman=0.7860 best_epoch=001 patience=01/60 epoch_time=50s elapsed=1m40s eta_to_max=4h07m32s
+seed=46 epoch=003/300 train_loss=0.528820 validation_loss=0.551921 validation_spearman=0.7860 best_epoch=001 patience=02/60 epoch_time=50s elapsed=2m29s eta_to_max=4h06m23s
+seed=46 epoch=004/300 train_loss=0.528813 validation_loss=0.551921 validation_spearman=0.7862 best_epoch=004 patience=00/60 epoch_time=50s elapsed=3m19s eta_to_max=4h05m25s
+seed=46 epoch=005/300 train_loss=0.528820 validation_loss=0.551921 validation_spearman=0.7860 best_epoch=004 patience=01/60 epoch_time=50s elapsed=4m09s eta_to_max=4h04m30s
+seed=46 epoch=006/300 train_loss=0.528814 validation_loss=0.551921 validation_spearman=0.7860 best_epoch=004 patience=02/60 epoch_time=50s elapsed=4m58s eta_to_max=4h03m36s
+seed=46 epoch=007/300 train_loss=0.528823 validation_loss=0.551921 validation_spearman=0.7858 best_epoch=004 patience=03/60 epoch_time=50s elapsed=5m48s eta_to_max=4h02m44s
+seed=46 epoch=008/300 train_loss=0.528815 validation_loss=0.551921 validation_spearman=0.7860 best_epoch=004 patience=04/60 epoch_time=50s elapsed=6m38s eta_to_max=4h01m52s
+seed=46 epoch=009/300 train_loss=0.528813 validation_loss=0.551921 validation_spearman=0.7859 best_epoch=004 patience=05/60 epoch_time=50s elapsed=7m27s eta_to_max=4h01m01s
+seed=46 epoch=010/300 train_loss=0.528817 validation_loss=0.551921 validation_spearman=0.7858 best_epoch=004 patience=06/60 epoch_time=50s elapsed=8m17s eta_to_max=4h00m10s
+seed=46 epoch=011/300 train_loss=0.528818 validation_loss=0.551921 validation_spearman=0.7860 best_epoch=004 patience=07/60 epoch_time=50s elapsed=9m07s eta_to_max=3h59m20s
+seed=46 epoch=012/300 train_loss=0.528822 validation_loss=0.551921 validation_spearman=0.7861 best_epoch=004 patience=08/60 epoch_time=50s elapsed=9m56s eta_to_max=3h58m29s
+seed=46 epoch=013/300 train_loss=0.528818 validation_loss=0.551921 validation_spearman=0.7862 best_epoch=004 patience=09/60 epoch_time=50s elapsed=10m46s eta_to_max=3h57m39s
+seed=46 epoch=014/300 train_loss=0.528812 validation_loss=0.551921 validation_spearman=0.7862 best_epoch=004 patience=10/60 epoch_time=50s elapsed=11m36s eta_to_max=3h56m49s
+seed=46 epoch=015/300 train_loss=0.528813 validation_loss=0.551921 validation_spearman=0.7860 best_epoch=004 patience=11/60 epoch_time=50s elapsed=12m25s eta_to_max=3h55m59s
+seed=46 epoch=016/300 train_loss=0.528820 validation_loss=0.551921 validation_spearman=0.7860 best_epoch=004 patience=12/60 epoch_time=50s elapsed=13m15s eta_to_max=3h55m09s
+seed=46 epoch=017/300 train_loss=0.528818 validation_loss=0.551921 validation_spearman=0.7860 best_epoch=004 patience=13/60 epoch_time=50s elapsed=14m05s eta_to_max=3h54m19s
+seed=46 epoch=018/300 train_loss=0.528804 validation_loss=0.551921 validation_spearman=0.7860 best_epoch=004 patience=14/60 epoch_time=50s elapsed=14m54s eta_to_max=3h53m29s
+seed=46 epoch=019/300 train_loss=0.528812 validation_loss=0.551921 validation_spearman=0.7861 best_epoch=004 patience=15/60 epoch_time=50s elapsed=15m44s eta_to_max=3h52m39s
+seed=46 epoch=020/300 train_loss=0.528816 validation_loss=0.551921 validation_spearman=0.7859 best_epoch=004 patience=16/60 epoch_time=50s elapsed=16m34s eta_to_max=3h51m50s
+seed=46 epoch=021/300 train_loss=0.528812 validation_loss=0.551921 validation_spearman=0.7860 best_epoch=004 patience=17/60 epoch_time=50s elapsed=17m23s eta_to_max=3h51m00s
+seed=46 epoch=022/300 train_loss=0.528817 validation_loss=0.551921 validation_spearman=0.7860 best_epoch=004 patience=18/60 epoch_time=50s elapsed=18m13s eta_to_max=3h50m10s
+seed=46 epoch=023/300 train_loss=0.528819 validation_loss=0.549547 validation_spearman=0.9256 best_epoch=023 patience=00/60 epoch_time=50s elapsed=19m03s eta_to_max=3h49m21s
+seed=46 epoch=024/300 train_loss=0.526508 validation_loss=0.547201 validation_spearman=0.9338 best_epoch=024 patience=00/60 epoch_time=50s elapsed=19m52s eta_to_max=3h48m32s
+seed=46 epoch=025/300 train_loss=0.524263 validation_loss=0.544942 validation_spearman=0.9351 best_epoch=025 patience=00/60 epoch_time=50s elapsed=20m42s eta_to_max=3h47m42s
+seed=46 epoch=026/300 train_loss=0.522097 validation_loss=0.542608 validation_spearman=0.9353 best_epoch=026 patience=00/60 epoch_time=50s elapsed=21m32s eta_to_max=3h46m53s
+seed=46 epoch=027/300 train_loss=0.519772 validation_loss=0.540121 validation_spearman=0.9353 best_epoch=026 patience=01/60 epoch_time=50s elapsed=22m21s eta_to_max=3h46m03s
+seed=46 epoch=028/300 train_loss=0.517282 validation_loss=0.537517 validation_spearman=0.9357 best_epoch=028 patience=00/60 epoch_time=50s elapsed=23m11s eta_to_max=3h45m13s
+seed=46 epoch=029/300 train_loss=0.514837 validation_loss=0.534850 validation_spearman=0.9369 best_epoch=029 patience=00/60 epoch_time=50s elapsed=24m01s eta_to_max=3h44m24s
+seed=46 epoch=030/300 train_loss=0.512085 validation_loss=0.532042 validation_spearman=0.9372 best_epoch=030 patience=00/60 epoch_time=50s elapsed=24m50s eta_to_max=3h43m34s
+seed=46 epoch=031/300 train_loss=0.509396 validation_loss=0.529056 validation_spearman=0.9376 best_epoch=031 patience=00/60 epoch_time=50s elapsed=25m40s eta_to_max=3h42m44s
+seed=46 epoch=032/300 train_loss=0.506424 validation_loss=0.525841 validation_spearman=0.9375 best_epoch=031 patience=01/60 epoch_time=50s elapsed=26m30s eta_to_max=3h41m55s
+seed=46 epoch=033/300 train_loss=0.503078 validation_loss=0.522345 validation_spearman=0.9377 best_epoch=031 patience=02/60 epoch_time=50s elapsed=27m19s eta_to_max=3h41m05s
+seed=46 epoch=034/300 train_loss=0.499833 validation_loss=0.518602 validation_spearman=0.9377 best_epoch=031 patience=03/60 epoch_time=50s elapsed=28m09s eta_to_max=3h40m15s
+seed=46 epoch=035/300 train_loss=0.496486 validation_loss=0.514713 validation_spearman=0.9377 best_epoch=031 patience=04/60 epoch_time=50s elapsed=28m59s eta_to_max=3h39m25s
+seed=46 epoch=036/300 train_loss=0.492745 validation_loss=0.514713 validation_spearman=0.9377 best_epoch=031 patience=05/60 epoch_time=50s elapsed=29m48s eta_to_max=3h38m36s
+seed=46 epoch=037/300 train_loss=0.492664 validation_loss=0.510953 validation_spearman=0.9378 best_epoch=037 patience=00/60 epoch_time=50s elapsed=30m38s eta_to_max=3h37m46s
+seed=46 epoch=038/300 train_loss=0.488878 validation_loss=0.507254 validation_spearman=0.9378 best_epoch=037 patience=01/60 epoch_time=50s elapsed=31m28s eta_to_max=3h36m56s
+seed=46 epoch=039/300 train_loss=0.484991 validation_loss=0.503606 validation_spearman=0.9377 best_epoch=037 patience=02/60 epoch_time=50s elapsed=32m18s eta_to_max=3h36m07s
+seed=46 epoch=040/300 train_loss=0.482078 validation_loss=0.499983 validation_spearman=0.9376 best_epoch=037 patience=03/60 epoch_time=50s elapsed=33m07s eta_to_max=3h35m17s
+seed=46 epoch=041/300 train_loss=0.478430 validation_loss=0.496321 validation_spearman=0.9376 best_epoch=037 patience=04/60 epoch_time=50s elapsed=33m57s eta_to_max=3h34m27s
+seed=46 epoch=042/300 train_loss=0.474834 validation_loss=0.492651 validation_spearman=0.9376 best_epoch=037 patience=05/60 epoch_time=50s elapsed=34m47s eta_to_max=3h33m37s
+seed=46 epoch=043/300 train_loss=0.470856 validation_loss=0.488928 validation_spearman=0.9377 best_epoch=037 patience=06/60 epoch_time=50s elapsed=35m36s eta_to_max=3h32m48s
+seed=46 epoch=044/300 train_loss=0.467730 validation_loss=0.485198 validation_spearman=0.9377 best_epoch=037 patience=07/60 epoch_time=50s elapsed=36m26s eta_to_max=3h31m58s
+seed=46 epoch=045/300 train_loss=0.463982 validation_loss=0.481378 validation_spearman=0.9377 best_epoch=037 patience=08/60 epoch_time=50s elapsed=37m16s eta_to_max=3h31m08s
+seed=46 epoch=046/300 train_loss=0.460886 validation_loss=0.477497 validation_spearman=0.9378 best_epoch=037 patience=09/60 epoch_time=50s elapsed=38m05s eta_to_max=3h30m19s
+seed=46 epoch=047/300 train_loss=0.456033 validation_loss=0.473558 validation_spearman=0.9378 best_epoch=037 patience=10/60 epoch_time=50s elapsed=38m55s eta_to_max=3h29m29s
+seed=46 epoch=048/300 train_loss=0.452651 validation_loss=0.469457 validation_spearman=0.9376 best_epoch=037 patience=11/60 epoch_time=50s elapsed=39m45s eta_to_max=3h28m39s
+seed=46 epoch=049/300 train_loss=0.448613 validation_loss=0.465201 validation_spearman=0.9376 best_epoch=037 patience=12/60 epoch_time=50s elapsed=40m34s eta_to_max=3h27m49s
+seed=46 epoch=050/300 train_loss=0.444251 validation_loss=0.851124 validation_spearman=0.5415 best_epoch=037 patience=13/60 epoch_time=50s elapsed=41m24s eta_to_max=3h26m59s
+seed=46 epoch=051/300 train_loss=0.827319 validation_loss=0.852921 validation_spearman=0.5251 best_epoch=037 patience=14/60 epoch_time=49s elapsed=42m13s eta_to_max=3h26m08s
+seed=46 epoch=052/300 train_loss=0.828399 validation_loss=0.840543 validation_spearman=0.5149 best_epoch=037 patience=15/60 epoch_time=49s elapsed=43m02s eta_to_max=3h25m16s
+seed=46 epoch=053/300 train_loss=0.815046 validation_loss=0.820904 validation_spearman=0.5082 best_epoch=037 patience=16/60 epoch_time=49s elapsed=43m52s eta_to_max=3h24m25s
+seed=46 epoch=054/300 train_loss=0.795318 validation_loss=0.791556 validation_spearman=0.5024 best_epoch=037 patience=17/60 epoch_time=49s elapsed=44m41s eta_to_max=3h23m34s
+seed=46 epoch=055/300 train_loss=0.764792 validation_loss=0.865493 validation_spearman=0.5032 best_epoch=037 patience=18/60 epoch_time=49s elapsed=45m30s eta_to_max=3h22m43s
+seed=46 epoch=056/300 train_loss=0.842070 validation_loss=0.826327 validation_spearman=0.5018 best_epoch=037 patience=19/60 epoch_time=49s elapsed=46m20s eta_to_max=3h21m52s
+seed=46 epoch=057/300 train_loss=0.798648 validation_loss=0.786636 validation_spearman=0.5083 best_epoch=037 patience=20/60 epoch_time=49s elapsed=47m09s eta_to_max=3h21m00s
+seed=46 epoch=058/300 train_loss=0.757402 validation_loss=0.752198 validation_spearman=0.4980 best_epoch=037 patience=21/60 epoch_time=49s elapsed=47m58s eta_to_max=3h20m09s
+seed=46 epoch=059/300 train_loss=0.722471 validation_loss=0.721463 validation_spearman=0.4980 best_epoch=037 patience=22/60 epoch_time=49s elapsed=48m48s eta_to_max=3h19m19s
+seed=46 epoch=060/300 train_loss=0.691511 validation_loss=0.693361 validation_spearman=0.5018 best_epoch=037 patience=23/60 epoch_time=49s elapsed=49m37s eta_to_max=3h18m28s
+seed=46 epoch=061/300 train_loss=0.664827 validation_loss=0.669906 validation_spearman=0.5011 best_epoch=037 patience=24/60 epoch_time=49s elapsed=50m26s eta_to_max=3h17m37s
+seed=46 epoch=062/300 train_loss=0.641619 validation_loss=0.649446 validation_spearman=0.4995 best_epoch=037 patience=25/60 epoch_time=49s elapsed=51m16s eta_to_max=3h16m46s
+seed=46 epoch=063/300 train_loss=0.622350 validation_loss=0.631729 validation_spearman=0.5001 best_epoch=037 patience=26/60 epoch_time=49s elapsed=52m05s eta_to_max=3h15m55s
+seed=46 epoch=064/300 train_loss=0.604982 validation_loss=0.616177 validation_spearman=0.5005 best_epoch=037 patience=27/60 epoch_time=49s elapsed=52m54s eta_to_max=3h15m05s
+seed=46 epoch=065/300 train_loss=0.589440 validation_loss=0.602529 validation_spearman=0.4993 best_epoch=037 patience=28/60 epoch_time=49s elapsed=53m43s eta_to_max=3h14m14s
+seed=46 epoch=066/300 train_loss=0.575991 validation_loss=0.590557 validation_spearman=0.4983 best_epoch=037 patience=29/60 epoch_time=49s elapsed=54m33s eta_to_max=3h13m23s
+seed=46 epoch=067/300 train_loss=0.564547 validation_loss=0.580160 validation_spearman=0.4985 best_epoch=037 patience=30/60 epoch_time=49s elapsed=55m22s eta_to_max=3h12m33s
+seed=46 epoch=068/300 train_loss=0.554140 validation_loss=0.571206 validation_spearman=0.4965 best_epoch=037 patience=31/60 epoch_time=49s elapsed=56m11s eta_to_max=3h11m42s
+seed=46 epoch=069/300 train_loss=0.544740 validation_loss=0.563223 validation_spearman=0.4971 best_epoch=037 patience=32/60 epoch_time=49s elapsed=57m01s eta_to_max=3h10m52s
+seed=46 epoch=070/300 train_loss=0.537604 validation_loss=0.556656 validation_spearman=0.4954 best_epoch=037 patience=33/60 epoch_time=49s elapsed=57m50s eta_to_max=3h10m01s
+seed=46 epoch=071/300 train_loss=0.530735 validation_loss=0.551434 validation_spearman=0.4929 best_epoch=037 patience=34/60 epoch_time=49s elapsed=58m39s eta_to_max=3h09m11s
+seed=46 epoch=072/300 train_loss=0.525486 validation_loss=0.547803 validation_spearman=0.4910 best_epoch=037 patience=35/60 epoch_time=49s elapsed=59m29s eta_to_max=3h08m21s
+seed=46 epoch=073/300 train_loss=0.522029 validation_loss=0.545637 validation_spearman=0.4855 best_epoch=037 patience=36/60 epoch_time=49s elapsed=1h00m18s eta_to_max=3h07m30s
+seed=46 epoch=074/300 train_loss=0.519858 validation_loss=0.544130 validation_spearman=0.4835 best_epoch=037 patience=37/60 epoch_time=49s elapsed=1h01m07s eta_to_max=3h06m40s
+seed=46 epoch=075/300 train_loss=0.518171 validation_loss=0.543452 validation_spearman=0.4908 best_epoch=037 patience=38/60 epoch_time=49s elapsed=1h01m57s eta_to_max=3h05m50s
+seed=46 epoch=076/300 train_loss=0.517986 validation_loss=0.543389 validation_spearman=0.4955 best_epoch=037 patience=39/60 epoch_time=49s elapsed=1h02m46s eta_to_max=3h04m59s
+seed=46 epoch=077/300 train_loss=0.517905 validation_loss=0.543530 validation_spearman=0.4926 best_epoch=037 patience=40/60 epoch_time=49s elapsed=1h03m35s eta_to_max=3h04m09s
+seed=46 epoch=078/300 train_loss=0.518270 validation_loss=0.543607 validation_spearman=0.5022 best_epoch=037 patience=41/60 epoch_time=49s elapsed=1h04m24s eta_to_max=3h03m19s
+seed=46 epoch=079/300 train_loss=0.518782 validation_loss=0.543496 validation_spearman=0.5059 best_epoch=037 patience=42/60 epoch_time=49s elapsed=1h05m14s eta_to_max=3h02m29s
+seed=46 epoch=080/300 train_loss=0.518933 validation_loss=0.542881 validation_spearman=0.5066 best_epoch=037 patience=43/60 epoch_time=49s elapsed=1h06m03s eta_to_max=3h01m38s
+seed=46 epoch=081/300 train_loss=0.518401 validation_loss=0.542288 validation_spearman=0.5048 best_epoch=037 patience=44/60 epoch_time=49s elapsed=1h06m52s eta_to_max=3h00m48s
+seed=46 epoch=082/300 train_loss=0.517796 validation_loss=0.541846 validation_spearman=0.5032 best_epoch=037 patience=45/60 epoch_time=49s elapsed=1h07m42s eta_to_max=2h59m58s
+seed=46 epoch=083/300 train_loss=0.517212 validation_loss=0.541495 validation_spearman=0.5042 best_epoch=037 patience=46/60 epoch_time=49s elapsed=1h08m31s eta_to_max=2h59m08s
+seed=46 epoch=084/300 train_loss=0.517110 validation_loss=0.541240 validation_spearman=0.5032 best_epoch=037 patience=47/60 epoch_time=49s elapsed=1h09m20s eta_to_max=2h58m18s
+seed=46 epoch=085/300 train_loss=0.516762 validation_loss=0.541047 validation_spearman=0.5025 best_epoch=037 patience=48/60 epoch_time=49s elapsed=1h10m10s eta_to_max=2h57m28s
+seed=46 epoch=086/300 train_loss=0.516498 validation_loss=0.540882 validation_spearman=0.5039 best_epoch=037 patience=49/60 epoch_time=49s elapsed=1h10m59s eta_to_max=2h56m38s
+seed=46 epoch=087/300 train_loss=0.516265 validation_loss=0.540781 validation_spearman=0.5023 best_epoch=037 patience=50/60 epoch_time=49s elapsed=1h11m48s eta_to_max=2h55m48s
+seed=46 epoch=088/300 train_loss=0.516362 validation_loss=0.540722 validation_spearman=0.5018 best_epoch=037 patience=51/60 epoch_time=49s elapsed=1h12m37s eta_to_max=2h54m58s
+seed=46 epoch=089/300 train_loss=0.516186 validation_loss=0.540676 validation_spearman=0.5029 best_epoch=037 patience=52/60 epoch_time=49s elapsed=1h13m27s eta_to_max=2h54m08s
+seed=46 epoch=090/300 train_loss=0.516211 validation_loss=0.540562 validation_spearman=0.5035 best_epoch=037 patience=53/60 epoch_time=49s elapsed=1h14m16s eta_to_max=2h53m18s
+seed=46 epoch=091/300 train_loss=0.515941 validation_loss=0.540487 validation_spearman=0.5030 best_epoch=037 patience=54/60 epoch_time=49s elapsed=1h15m05s eta_to_max=2h52m28s
+seed=46 epoch=092/300 train_loss=0.515796 validation_loss=0.540428 validation_spearman=0.5017 best_epoch=037 patience=55/60 epoch_time=49s elapsed=1h15m55s eta_to_max=2h51m38s
+seed=46 epoch=093/300 train_loss=0.515721 validation_loss=0.540429 validation_spearman=0.5018 best_epoch=037 patience=56/60 epoch_time=49s elapsed=1h16m44s eta_to_max=2h50m48s
+seed=46 epoch=094/300 train_loss=0.515737 validation_loss=0.540431 validation_spearman=0.5012 best_epoch=037 patience=57/60 epoch_time=49s elapsed=1h17m33s eta_to_max=2h49m58s
+seed=46 epoch=095/300 train_loss=0.515888 validation_loss=0.540478 validation_spearman=0.5018 best_epoch=037 patience=58/60 epoch_time=49s elapsed=1h18m23s eta_to_max=2h49m08s
+seed=46 epoch=096/300 train_loss=0.515759 validation_loss=0.540567 validation_spearman=0.5014 best_epoch=037 patience=59/60 epoch_time=49s elapsed=1h19m12s eta_to_max=2h48m18s
+seed=46 epoch=097/300 train_loss=0.515927 validation_loss=0.540652 validation_spearman=0.5012 best_epoch=037 patience=60/60 epoch_time=49s elapsed=1h20m01s eta_to_max=2h47m28s
+seed=46 early_stop epoch=97 best_epoch=37 best_validation_spearman=0.937780
+seed=46 evaluating_best_checkpoint best_epoch=37
+seed=46 best_epoch=37 holdout_spearman=0.9567 holdout_top_gain=139.802
+summary=results/gnn_v2/nbfnet_propagation/propagation_doubling_repeats/runs/propagation_doubling/seed_46/summary.json
+[1/1] completed propagation_doubling__seed46
+ablation status=complete completed=1/1 failures=0

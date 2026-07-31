@@ -1,0 +1,92 @@
+{
+  "schema": "nbfnet_propagation_old_protocol_repeats_v1",
+  "status": "complete",
+  "architecture": "propagation_doubling",
+  "protocol": {
+    "precision": "fp16",
+    "learning_rate": 0.001,
+    "hidden_dim": 32,
+    "layers": 32,
+    "prototype_batch_size": 4,
+    "max_epochs": 300,
+    "patience": 60,
+    "loss": "Huber + 0.20 * sampled pairwise ranking",
+    "checkpoint_selection": "highest validation Spearman"
+  },
+  "dataset_sha256": "e9b1bc149a6a94dd744305e41817c3a2b9447cd5e3ba5a17c71fea38db2bf261",
+  "candidate_sha256": "40d7d8babf74381b5f7088de22edc0f48181bec9c78a53fb039c9e8e7c20f71c",
+  "seeds": [42, 43, 44, 45, 46],
+  "runs": [
+    {
+      "seed": 42,
+      "best_epoch": 26,
+      "epochs_ran": 86,
+      "validation_spearman": 0.7639783120878216,
+      "holdout_spearman": 0.8622159120137453,
+      "holdout_ndcg_at_5_10_18": [0.9668688046164898, 0.9676630278997984, 0.9830589537448554],
+      "holdout_gain_at_5_10_18": [171.9219970703125, 155.88189697265625, 142.33233642578125],
+      "artifact_source": "seed_42"
+    },
+    {
+      "seed": 43,
+      "best_epoch": 1,
+      "epochs_ran": 61,
+      "validation_spearman": 0.9457961386649701,
+      "holdout_spearman": 0.9600419766042162,
+      "holdout_ndcg_at_5_10_18": [0.9719726950783892, 0.9849369227382604, 0.979481763075015],
+      "holdout_gain_at_5_10_18": [170.04299926757812, 158.02243041992188, 139.802001953125],
+      "initialization_dominant": true,
+      "artifact_source": "seed_43"
+    },
+    {
+      "seed": 44,
+      "best_epoch": 35,
+      "epochs_ran": 95,
+      "validation_spearman": 0.9399960904143132,
+      "holdout_spearman": 0.9568690391678756,
+      "holdout_ndcg_at_5_10_18": [0.972005873443569, 0.9821381354080745, 0.9881689061704638],
+      "holdout_gain_at_5_10_18": [171.9219970703125, 158.02243041992188, 142.33233642578125],
+      "artifact_source": "../screening/runs/propagation_doubling/seed_44"
+    },
+    {
+      "seed": 45,
+      "best_epoch": 141,
+      "epochs_ran": 201,
+      "validation_spearman": 0.6168091607765672,
+      "holdout_spearman": 0.694268341615482,
+      "holdout_ndcg_at_5_10_18": [0.055365496170789695, 0.1612327801155416, 0.4016140383625167],
+      "holdout_gain_at_5_10_18": [10.746800422668457, 35.8702507019043, 81.41893768310547],
+      "artifact_source": "seed_45"
+    },
+    {
+      "seed": 46,
+      "best_epoch": 37,
+      "epochs_ran": 97,
+      "validation_spearman": 0.9377799726329001,
+      "holdout_spearman": 0.956725001800467,
+      "holdout_ndcg_at_5_10_18": [0.9643227919741237, 0.9796102425298658, 0.9755555357500136],
+      "holdout_gain_at_5_10_18": [170.04299926757812, 158.02244567871094, 139.80201721191406],
+      "artifact_source": "seed_46"
+    }
+  ],
+  "aggregate": {
+    "sample_standard_deviation": true,
+    "validation_spearman": {"mean": 0.840871935, "std": 0.146920566},
+    "holdout_spearman": {"mean": 0.886024054, "std": 0.114927553},
+    "holdout_ndcg_at_5": {"mean": 0.786107132, "std": 0.408510493},
+    "holdout_ndcg_at_10": {"mean": 0.815116222, "std": 0.365591219},
+    "holdout_ndcg_at_18": {"mean": 0.865575839, "std": 0.259404119},
+    "holdout_gain_at_5": {"mean": 138.93535862, "std": 71.665740941},
+    "holdout_gain_at_10": {"mean": 133.163890839, "std": 54.39669554},
+    "holdout_gain_at_18": {"mean": 129.13752594, "std": 26.705486962},
+    "worst_seed": 45,
+    "worst_holdout_spearman": 0.694268341615482
+  },
+  "provenance": {
+    "seed_42_43_45": "server 1 completed artifacts",
+    "seed_44": "previous propagation screening artifact",
+    "seed_46": "server 2 completed artifact",
+    "metric_reconstruction": "Recomputed from saved predictions.csv with the repository evaluation functions."
+  },
+  "interpretation": "This is an abnormal old-protocol baseline, not evidence of stable multi-seed training. Seed 43 is initialization-dominant and seed 45 collapses on Top-K metrics."
+}

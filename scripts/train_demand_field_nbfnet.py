@@ -8,7 +8,7 @@ import json
 import statistics
 import sys
 import time
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import numpy as np
@@ -38,7 +38,45 @@ from src.demand_field_torch_model import cuda_environment, require_cuda
 DEFAULT_DATASET = ROOT_DIR / "results" / "gnn_v2" / "demand_field_dataset.npz"
 DEFAULT_DATASET_MANIFEST = ROOT_DIR / "results" / "gnn_v2" / "demand_field_dataset.json"
 DEFAULT_OUTPUT_DIR = ROOT_DIR / "results" / "gnn_v2" / "nbfnet_base"
-EXPERIMENT_SCHEMA = "aic.gnn_v2.od_conditioned_bidirectional_nbfnet.v3"
+EXPERIMENT_SCHEMA = "aic.gnn_v2.od_conditioned_bidirectional_nbfnet.v4"
+PRECISION_MODES = ("fp16", "bf16", "fp32")
+
+
+@dataclass(frozen=True, slots=True)
+class PrecisionPolicy:
+    mode: str = "fp16"
+    grad_scaler_init_scale: float = 65536.0
+
+    def validate(self) -> None:
+        if self.mode not in PRECISION_MODES:
+            raise ValueError(f"precision must be one of {', '.join(PRECISION_MODES)}")
+        if self.grad_scaler_init_scale <= 0.0:
+            raise ValueError("grad scaler initial scale must be positive")
+
+    @property
+    def autocast_enabled(self) -> bool:
+        return self.mode in {"fp16", "bf16"}
+
+    @property
+    def autocast_dtype(self) -> torch.dtype:
+        return torch.float16 if self.mode == "fp16" else torch.bfloat16
+
+    @property
+    def grad_scaler_enabled(self) -> bool:
+        return self.mode == "fp16"
+
+    def metadata(self) -> dict[str, object]:
+        return {
+            "mode": self.mode,
+            "autocast_enabled": self.autocast_enabled,
+            "autocast_dtype": (
+                str(self.autocast_dtype).removeprefix("torch.")
+                if self.autocast_enabled
+                else None
+            ),
+            "grad_scaler_enabled": self.grad_scaler_enabled,
+            "grad_scaler_init_scale": self.grad_scaler_init_scale,
+        }
 
 
 def parse_args() -> argparse.Namespace:
@@ -62,7 +100,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--variant", choices=NBFNET_VARIANTS, default="base")
     parser.add_argument("--randomization-seed", type=int, default=20260730)
-    parser.add_argument("--no-mixed-precision", action="store_true")
+    parser.add_argument(
+        "--precision",
+        choices=PRECISION_MODES,
+        help="CUDA numerical path. Defaults to fp16 for backward compatibility.",
+    )
+    parser.add_argument("--grad-scaler-init-scale", type=float, default=65536.0)
+    parser.add_argument(
+        "--no-mixed-precision",
+        action="store_true",
+        help="Legacy alias for --precision fp32.",
+    )
     parser.add_argument("--no-gradient-checkpointing", action="store_true")
     return parser.parse_args()
 
@@ -70,6 +118,11 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     seeds = _parse_int_list(args.seeds, "--seeds")
+    precision_policy = _resolve_precision_policy(
+        args.precision,
+        args.no_mixed_precision,
+        args.grad_scaler_init_scale,
+    )
     rank_weight = 0.0 if args.variant == "no_ranking" else args.rank_weight
     config = NBFNetConfig(
         hidden_dim=args.hidden_dim,
@@ -82,7 +135,7 @@ def main() -> None:
         prototype_batch_size=args.prototype_batch_size,
         max_epochs=args.max_epochs,
         patience=args.patience,
-        mixed_precision=not args.no_mixed_precision,
+        mixed_precision=precision_policy.autocast_enabled,
         gradient_checkpointing=not args.no_gradient_checkpointing,
         variant=args.variant,
         randomization_seed=args.randomization_seed,
@@ -104,7 +157,15 @@ def main() -> None:
             f"training NBFNet variant={config.variant} seed={seed}",
             flush=True,
         )
-        run = _train_one_seed(dataset, tensors, scalers, config, seed, device)
+        run = _train_one_seed(
+            dataset,
+            tensors,
+            scalers,
+            config,
+            seed,
+            device,
+            precision_policy,
+        )
         seed_dir = args.output_dir / f"seed_{seed}"
         seed_dir.mkdir(parents=True, exist_ok=True)
         _write_history(seed_dir / "training_history.csv", run.pop("history"))
@@ -134,6 +195,7 @@ def main() -> None:
         "dataset_sha256": dataset.manifest["dataset_sha256"],
         "candidate_sha256": dataset.manifest["candidate_sha256"],
         "config": asdict(config),
+        "numerics": precision_policy.metadata(),
         "seeds": seeds,
         "selected_seed": selected_seed,
         "selection_rule": "highest validation Spearman; holdout is never used",
@@ -444,7 +506,9 @@ def _train_one_seed(
     config: NBFNetConfig,
     seed: int,
     device: torch.device,
+    precision_policy: PrecisionPolicy,
 ) -> dict:
+    precision_policy.validate()
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.benchmark = False
@@ -457,8 +521,11 @@ def _train_one_seed(
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay
     )
-    amp_enabled = config.mixed_precision and device.type == "cuda"
-    gradient_scaler = torch.amp.GradScaler("cuda", enabled=amp_enabled)
+    gradient_scaler = torch.amp.GradScaler(
+        "cuda",
+        init_scale=precision_policy.grad_scaler_init_scale,
+        enabled=precision_policy.grad_scaler_enabled,
+    )
     train_indices = torch.as_tensor(
         np.flatnonzero(dataset.split_mask("train")), device=device, dtype=torch.long
     )
@@ -469,11 +536,101 @@ def _train_one_seed(
     best_state: dict[str, torch.Tensor] | None = None
     best_epoch = 0
     epochs_without_improvement = 0
-    history: list[dict[str, float]] = []
+    history: list[dict[str, float | int]] = []
     generator = torch.Generator(device=device)
     generator.manual_seed(seed)
     torch.cuda.reset_peak_memory_stats(device)
     started = time.perf_counter()
+    model.eval()
+    with torch.no_grad():
+        initial_train_prediction = _predict_weighted(
+            model,
+            tensors,
+            train_indices,
+            config.prototype_batch_size,
+            precision_policy,
+        )
+        initial_validation_prediction = _predict_weighted(
+            model,
+            tensors,
+            validation_indices,
+            config.prototype_batch_size,
+            precision_policy,
+        )
+    train_target = tensors["labels"][train_indices]
+    validation_target = tensors["labels"][validation_indices]
+    initial_train_loss, initial_train_huber, initial_train_rank = _evaluation_loss(
+        initial_train_prediction,
+        train_target,
+        config,
+    )
+    (
+        initial_validation_loss,
+        initial_validation_huber,
+        initial_validation_rank,
+    ) = _evaluation_loss(
+        initial_validation_prediction,
+        validation_target,
+        config,
+    )
+    initial_validation_unscaled = _unscale_prediction(
+        initial_validation_prediction,
+        scalers,
+    )
+    initial_validation_metrics = regression_metrics(
+        initial_validation_unscaled,
+        dataset.labels[dataset.split_mask("validation")],
+    )
+    initial_train_pairwise_accuracy = _full_pairwise_accuracy(
+        initial_train_prediction,
+        train_target,
+    )
+    initial_validation_pairwise_accuracy = _full_pairwise_accuracy(
+        initial_validation_prediction,
+        validation_target,
+    )
+    history.append(
+        _diagnostic_history_row(
+            epoch=0,
+            train_loss=initial_train_loss,
+            train_huber=initial_train_huber,
+            train_rank=float("nan"),
+            train_full_pairwise_loss=initial_train_rank,
+            train_pairwise_accuracy=initial_train_pairwise_accuracy,
+            train_prediction=initial_train_prediction,
+            validation_loss=initial_validation_loss,
+            validation_huber=initial_validation_huber,
+            validation_rank=initial_validation_rank,
+            validation_pairwise_accuracy=initial_validation_pairwise_accuracy,
+            validation_spearman=initial_validation_metrics["spearman"],
+            validation_prediction=initial_validation_prediction,
+            scaler_scale_before=gradient_scaler.get_scale(),
+            scaler_scale_after=gradient_scaler.get_scale(),
+            optimizer_state_step_before=0,
+            optimizer_state_step_after=0,
+            optimizer_step_skipped=False,
+            optimizer_step_effective=False,
+            gradient_norm_before_clip=float("nan"),
+            gradient_norm_after_clip=float("nan"),
+            parameter_delta_norm=0.0,
+            learning_rate=optimizer.param_groups[0]["lr"],
+        )
+    )
+    print(
+        f"seed={seed} epoch=000/{config.max_epochs} "
+        f"validation_loss={initial_validation_loss:.6f} "
+        f"validation_spearman={initial_validation_metrics['spearman']:.4f} "
+        f"precision={precision_policy.mode} optimizer_step=none",
+        flush=True,
+    )
+    effective_optimizer_steps = 0
+    skipped_optimizer_steps = 0
+    first_effective_optimizer_epoch: int | None = None
+    first_positive_validation_epoch = (
+        0 if initial_validation_metrics["spearman"] > 0.0 else None
+    )
+    best_checkpoint_effective_step_count = 0
+    stopped_reason = "max_epochs"
 
     for epoch in range(1, config.max_epochs + 1):
         epoch_started = time.perf_counter()
@@ -485,9 +642,16 @@ def _train_one_seed(
                 tensors,
                 train_indices,
                 config.prototype_batch_size,
-                amp_enabled,
+                precision_policy,
             )
-        train_target = tensors["labels"][train_indices]
+        train_full_pairwise_loss = _full_pairwise_loss(
+            full_train_prediction,
+            train_target,
+        )
+        train_pairwise_accuracy = _full_pairwise_accuracy(
+            full_train_prediction,
+            train_target,
+        )
         prediction_leaf = full_train_prediction.detach().requires_grad_(True)
         train_huber = functional.huber_loss(
             prediction_leaf,
@@ -510,7 +674,7 @@ def _train_one_seed(
                 prototype_slice.stop,
                 device=device,
             )
-            with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=amp_enabled):
+            with _autocast_context(device, precision_policy):
                 prediction = _forward_batch(model, tensors, prototype_ids, train_indices)
                 weighted_contribution = (
                     prediction
@@ -520,17 +684,41 @@ def _train_one_seed(
                     weighted_contribution * prediction_gradient
                 ).sum()
             gradient_scaler.scale(gradient_surrogate).backward()
+        scaler_scale_before = gradient_scaler.get_scale()
         gradient_scaler.unscale_(optimizer)
+        gradient_norm_before_clip = _global_gradient_norm(model)
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        gradient_norm_after_clip = _global_gradient_norm(model)
+        parameters_before_step = _parameter_snapshot(model)
+        optimizer_state_step_before = _optimizer_state_step(optimizer)
         gradient_scaler.step(optimizer)
         gradient_scaler.update()
+        scaler_scale_after = gradient_scaler.get_scale()
+        optimizer_state_step_after = _optimizer_state_step(optimizer)
+        parameter_delta_norm = _parameter_delta_norm(parameters_before_step, model)
+        optimizer_step_skipped = _optimizer_step_was_skipped(
+            optimizer_state_step_before,
+            optimizer_state_step_after,
+        )
+        optimizer_step_effective = (
+            not optimizer_step_skipped and parameter_delta_norm > 0.0
+        )
+        if optimizer_step_skipped:
+            skipped_optimizer_steps += 1
+        if optimizer_step_effective:
+            effective_optimizer_steps += 1
+            if first_effective_optimizer_epoch is None:
+                first_effective_optimizer_epoch = epoch
 
         model.eval()
         with torch.no_grad():
             validation_prediction = _predict_weighted(
-                model, tensors, validation_indices, config.prototype_batch_size, amp_enabled
+                model,
+                tensors,
+                validation_indices,
+                config.prototype_batch_size,
+                precision_policy,
             )
-            validation_target = tensors["labels"][validation_indices]
             validation_loss, validation_huber, validation_rank = _evaluation_loss(
                 validation_prediction,
                 validation_target,
@@ -541,18 +729,42 @@ def _train_one_seed(
                 validation_unscaled,
                 dataset.labels[dataset.split_mask("validation")],
             )
-        history.append(
-            {
-                "epoch": float(epoch),
-                "train_loss": float(train_loss.detach()),
-                "train_huber": float(train_huber.detach()),
-                "train_rank": float(train_rank.detach()),
-                "validation_loss": validation_loss,
-                "validation_huber": validation_huber,
-                "validation_rank": validation_rank,
-                "validation_spearman": validation_metrics["spearman"],
-            }
+        validation_pairwise_accuracy = _full_pairwise_accuracy(
+            validation_prediction,
+            validation_target,
         )
+        history.append(
+            _diagnostic_history_row(
+                epoch=epoch,
+                train_loss=float(train_loss.detach()),
+                train_huber=float(train_huber.detach()),
+                train_rank=float(train_rank.detach()),
+                train_full_pairwise_loss=train_full_pairwise_loss,
+                train_pairwise_accuracy=train_pairwise_accuracy,
+                train_prediction=full_train_prediction,
+                validation_loss=validation_loss,
+                validation_huber=validation_huber,
+                validation_rank=validation_rank,
+                validation_pairwise_accuracy=validation_pairwise_accuracy,
+                validation_spearman=validation_metrics["spearman"],
+                validation_prediction=validation_prediction,
+                scaler_scale_before=scaler_scale_before,
+                scaler_scale_after=scaler_scale_after,
+                optimizer_state_step_before=optimizer_state_step_before,
+                optimizer_state_step_after=optimizer_state_step_after,
+                optimizer_step_skipped=optimizer_step_skipped,
+                optimizer_step_effective=optimizer_step_effective,
+                gradient_norm_before_clip=gradient_norm_before_clip,
+                gradient_norm_after_clip=gradient_norm_after_clip,
+                parameter_delta_norm=parameter_delta_norm,
+                learning_rate=optimizer.param_groups[0]["lr"],
+            )
+        )
+        if (
+            first_positive_validation_epoch is None
+            and validation_metrics["spearman"] > 0.0
+        ):
+            first_positive_validation_epoch = epoch
         if (
             validation_metrics["spearman"]
             > best_validation_spearman + config.min_improvement
@@ -563,6 +775,7 @@ def _train_one_seed(
                 for name, value in model.state_dict().items()
             }
             best_epoch = epoch
+            best_checkpoint_effective_step_count = effective_optimizer_steps
             epochs_without_improvement = 0
         else:
             epochs_without_improvement += 1
@@ -576,6 +789,11 @@ def _train_one_seed(
             f"train_loss={float(train_loss.detach()):.6f} "
             f"validation_loss={validation_loss:.6f} "
             f"validation_spearman={validation_metrics['spearman']:.4f} "
+            f"scale={scaler_scale_before:g}->{scaler_scale_after:g} "
+            f"optimizer_step={optimizer_state_step_before}->{optimizer_state_step_after} "
+            f"step_skipped={int(optimizer_step_skipped)} "
+            f"grad_norm={gradient_norm_before_clip:.3e}->{gradient_norm_after_clip:.3e} "
+            f"param_delta={parameter_delta_norm:.3e} "
             f"best_epoch={best_epoch:03d} "
             f"patience={epochs_without_improvement:02d}/{config.patience} "
             f"epoch_time={_format_duration(epoch_seconds)} "
@@ -584,6 +802,7 @@ def _train_one_seed(
             flush=True,
         )
         if epochs_without_improvement >= config.patience:
+            stopped_reason = "validation_spearman_patience"
             print(
                 f"seed={seed} early_stop epoch={epoch} "
                 f"best_epoch={best_epoch} "
@@ -607,19 +826,36 @@ def _train_one_seed(
             tensors,
             torch.arange(dataset.region_ids.size, device=device),
             config.prototype_batch_size,
-            amp_enabled,
+            precision_policy,
         )
     torch.cuda.synchronize(device)
     unscaled_prediction = _unscale_prediction(prediction, scalers)
     return {
         "seed": seed,
         "best_epoch": best_epoch,
-        "epochs_ran": len(history),
+        "epochs_ran": len(history) - 1,
         "training_seconds": time.perf_counter() - started,
         "peak_allocated_bytes": int(torch.cuda.max_memory_allocated(device)),
         "peak_reserved_bytes": int(torch.cuda.max_memory_reserved(device)),
         "parameter_count": sum(parameter.numel() for parameter in model.parameters()),
         "metrics": _all_split_metrics(dataset, unscaled_prediction),
+        "diagnostics": {
+            "numerics": precision_policy.metadata(),
+            "epoch_zero_validation_spearman": initial_validation_metrics["spearman"],
+            "first_effective_optimizer_epoch": first_effective_optimizer_epoch,
+            "first_positive_validation_epoch": first_positive_validation_epoch,
+            "effective_optimizer_steps": effective_optimizer_steps,
+            "skipped_optimizer_steps": skipped_optimizer_steps,
+            "best_checkpoint_effective_step_count": (
+                best_checkpoint_effective_step_count
+            ),
+            "initialization_dominant": (
+                best_checkpoint_effective_step_count == 0
+                or best_validation_spearman
+                <= initial_validation_metrics["spearman"] + config.min_improvement
+            ),
+            "stopped_reason": stopped_reason,
+        },
         "prediction": unscaled_prediction,
         "history": history,
         "model_state": best_state,
@@ -651,7 +887,7 @@ def _predict_weighted(
     tensors: dict[str, torch.Tensor],
     region_indices: torch.Tensor,
     prototype_batch_size: int,
-    amp_enabled: bool,
+    precision_policy: PrecisionPolicy,
 ) -> torch.Tensor:
     aggregate = torch.zeros(len(region_indices), device=region_indices.device)
     prototype_count = tensors["prototype_weight"].size(0)
@@ -661,10 +897,21 @@ def _predict_weighted(
             prototype_slice.stop,
             device=region_indices.device,
         )
-        with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=amp_enabled):
+        with _autocast_context(region_indices.device, precision_policy):
             prediction = _forward_batch(model, tensors, prototype_ids, region_indices)
         aggregate += (prediction.float() * tensors["prototype_weight"][prototype_ids, None]).sum(dim=0)
     return aggregate
+
+
+def _autocast_context(
+    device: torch.device,
+    precision_policy: PrecisionPolicy,
+):
+    return torch.autocast(
+        device_type=device.type,
+        dtype=precision_policy.autocast_dtype,
+        enabled=precision_policy.autocast_enabled,
+    )
 
 
 def _sampled_pairwise_loss(
@@ -706,20 +953,172 @@ def _evaluation_loss(
         reduction="mean",
         delta=config.huber_delta,
     )
-    left, right = torch.triu_indices(
-        len(target), len(target), offset=1, device=prediction.device
-    )
-    valid = target[left] != target[right]
-    left = left[valid]
-    right = right[valid]
-    if len(left):
-        sign = torch.sign(target[left] - target[right])
-        margin = sign * (prediction[left] - prediction[right])
-        rank = functional.softplus(-margin).mean()
-    else:
-        rank = prediction.sum() * 0.0
+    rank = _full_pairwise_loss_tensor(prediction, target)
     total = huber + config.rank_weight * rank
     return float(total.item()), float(huber.item()), float(rank.item())
+
+
+def _full_pairwise_loss_tensor(
+    prediction: torch.Tensor,
+    target: torch.Tensor,
+) -> torch.Tensor:
+    left, right = _ordered_pair_indices(target)
+    if not len(left):
+        return prediction.sum() * 0.0
+    sign = torch.sign(target[left] - target[right])
+    margin = sign * (prediction[left] - prediction[right])
+    return functional.softplus(-margin).mean()
+
+
+def _full_pairwise_loss(
+    prediction: torch.Tensor,
+    target: torch.Tensor,
+) -> float:
+    return float(_full_pairwise_loss_tensor(prediction, target).item())
+
+
+def _full_pairwise_accuracy(
+    prediction: torch.Tensor,
+    target: torch.Tensor,
+) -> float:
+    left, right = _ordered_pair_indices(target)
+    if not len(left):
+        return float("nan")
+    target_sign = torch.sign(target[left] - target[right])
+    prediction_sign = torch.sign(prediction[left] - prediction[right])
+    return float((target_sign == prediction_sign).float().mean().item())
+
+
+def _ordered_pair_indices(target: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    left, right = torch.triu_indices(
+        len(target),
+        len(target),
+        offset=1,
+        device=target.device,
+    )
+    valid = target[left] != target[right]
+    return left[valid], right[valid]
+
+
+def _prediction_statistics(prediction: torch.Tensor) -> dict[str, float]:
+    values = prediction.detach().float()
+    return {
+        "mean": float(values.mean().item()),
+        "std": float(values.std(unbiased=False).item()),
+        "min": float(values.min().item()),
+        "max": float(values.max().item()),
+    }
+
+
+def _diagnostic_history_row(
+    *,
+    epoch: int,
+    train_loss: float,
+    train_huber: float,
+    train_rank: float,
+    train_full_pairwise_loss: float,
+    train_pairwise_accuracy: float,
+    train_prediction: torch.Tensor,
+    validation_loss: float,
+    validation_huber: float,
+    validation_rank: float,
+    validation_pairwise_accuracy: float,
+    validation_spearman: float,
+    validation_prediction: torch.Tensor,
+    scaler_scale_before: float,
+    scaler_scale_after: float,
+    optimizer_state_step_before: int,
+    optimizer_state_step_after: int,
+    optimizer_step_skipped: bool,
+    optimizer_step_effective: bool,
+    gradient_norm_before_clip: float,
+    gradient_norm_after_clip: float,
+    parameter_delta_norm: float,
+    learning_rate: float,
+) -> dict[str, float | int]:
+    train_stats = _prediction_statistics(train_prediction)
+    validation_stats = _prediction_statistics(validation_prediction)
+    return {
+        "epoch": epoch,
+        "train_loss": train_loss,
+        "train_huber": train_huber,
+        "train_rank": train_rank,
+        "train_full_pairwise_loss": train_full_pairwise_loss,
+        "train_pairwise_accuracy": train_pairwise_accuracy,
+        "train_pre_step_prediction_mean": train_stats["mean"],
+        "train_pre_step_prediction_std": train_stats["std"],
+        "train_pre_step_prediction_min": train_stats["min"],
+        "train_pre_step_prediction_max": train_stats["max"],
+        "validation_loss": validation_loss,
+        "validation_huber": validation_huber,
+        "validation_rank": validation_rank,
+        "validation_pairwise_accuracy": validation_pairwise_accuracy,
+        "validation_spearman": validation_spearman,
+        "validation_post_step_prediction_mean": validation_stats["mean"],
+        "validation_post_step_prediction_std": validation_stats["std"],
+        "validation_post_step_prediction_min": validation_stats["min"],
+        "validation_post_step_prediction_max": validation_stats["max"],
+        "scaler_scale_before": scaler_scale_before,
+        "scaler_scale_after": scaler_scale_after,
+        "optimizer_state_step_before": optimizer_state_step_before,
+        "optimizer_state_step_after": optimizer_state_step_after,
+        "optimizer_step_skipped": int(optimizer_step_skipped),
+        "optimizer_step_effective": int(optimizer_step_effective),
+        "gradient_norm_before_clip": gradient_norm_before_clip,
+        "gradient_norm_after_clip": gradient_norm_after_clip,
+        "parameter_delta_norm": parameter_delta_norm,
+        "learning_rate": learning_rate,
+    }
+
+
+def _global_gradient_norm(model: torch.nn.Module) -> float:
+    total = torch.zeros((), device=next(model.parameters()).device)
+    for parameter in model.parameters():
+        if parameter.grad is not None:
+            total += parameter.grad.detach().float().square().sum()
+    return float(torch.sqrt(total).item())
+
+
+def _parameter_snapshot(model: torch.nn.Module) -> tuple[torch.Tensor, ...]:
+    return tuple(
+        parameter.detach().clone()
+        for parameter in model.parameters()
+        if parameter.requires_grad
+    )
+
+
+def _parameter_delta_norm(
+    before: tuple[torch.Tensor, ...],
+    model: torch.nn.Module,
+) -> float:
+    parameters = tuple(
+        parameter
+        for parameter in model.parameters()
+        if parameter.requires_grad
+    )
+    if len(before) != len(parameters):
+        raise ValueError("parameter snapshot does not match model")
+    total = torch.zeros((), device=next(model.parameters()).device)
+    for old_value, parameter in zip(before, parameters):
+        difference = parameter.detach().float() - old_value.float()
+        total += difference.square().sum()
+    return float(torch.sqrt(total).item())
+
+
+def _optimizer_state_step(optimizer: torch.optim.Optimizer) -> int:
+    steps: list[int] = []
+    for state in optimizer.state.values():
+        value = state.get("step")
+        if value is None:
+            continue
+        steps.append(int(value.item()) if torch.is_tensor(value) else int(value))
+    return max(steps, default=0)
+
+
+def _optimizer_step_was_skipped(step_before: int, step_after: int) -> bool:
+    if step_after < step_before or step_after > step_before + 1:
+        raise ValueError("optimizer step counter changed unexpectedly")
+    return step_after == step_before
 
 
 def _unscale_prediction(
@@ -768,7 +1167,7 @@ def _architecture_metadata(config: NBFNetConfig) -> dict[str, object]:
     }
 
 
-def _write_history(path: Path, history: list[dict[str, float]]) -> None:
+def _write_history(path: Path, history: list[dict[str, float | int]]) -> None:
     with path.open("w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=list(history[0]))
         writer.writeheader()
@@ -802,6 +1201,7 @@ def _save_checkpoint(
             "schema": EXPERIMENT_SCHEMA,
             "model_state": run.pop("model_state"),
             "config": asdict(config),
+            "numerics": run["diagnostics"]["numerics"],
             "dataset_sha256": dataset.manifest["dataset_sha256"],
             "candidate_sha256": dataset.manifest["candidate_sha256"],
             "scalers": scalers,
@@ -853,6 +1253,23 @@ def _parse_int_list(value: str, option: str) -> list[int]:
     if not values or len(set(values)) != len(values):
         raise ValueError(f"{option} must contain unique integers")
     return values
+
+
+def _resolve_precision_policy(
+    precision: str | None,
+    no_mixed_precision: bool,
+    grad_scaler_init_scale: float,
+) -> PrecisionPolicy:
+    if no_mixed_precision and precision not in {None, "fp32"}:
+        raise ValueError(
+            "--no-mixed-precision cannot be combined with a non-fp32 --precision"
+        )
+    policy = PrecisionPolicy(
+        mode="fp32" if no_mixed_precision else precision or "fp16",
+        grad_scaler_init_scale=grad_scaler_init_scale,
+    )
+    policy.validate()
+    return policy
 
 
 def _display_path(path: Path) -> str:

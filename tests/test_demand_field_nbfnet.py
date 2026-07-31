@@ -13,12 +13,49 @@ try:
         build_edge_features,
         build_receiver_normalizers,
     )
+    from scripts.train_demand_field_nbfnet import (
+        PrecisionPolicy,
+        _full_pairwise_accuracy,
+        _optimizer_step_was_skipped,
+        _optimizer_state_step,
+        _parameter_delta_norm,
+        _parameter_snapshot,
+        _resolve_precision_policy,
+    )
 except ImportError:  # pragma: no cover - covered by the CUDA environment instead.
     torch = None
 
 
 @unittest.skipIf(torch is None, "PyTorch is not installed")
 class BidirectionalNBFNetTest(unittest.TestCase):
+    def test_precision_policy_keeps_diagnostic_comparisons_single_variable(self) -> None:
+        self.assertEqual(_resolve_precision_policy(None, False, 65536.0).mode, "fp16")
+        self.assertEqual(_resolve_precision_policy("bf16", False, 65536.0).mode, "bf16")
+        self.assertEqual(_resolve_precision_policy(None, True, 65536.0).mode, "fp32")
+        with self.assertRaises(ValueError):
+            _resolve_precision_policy("bf16", True, 65536.0)
+
+    def test_optimizer_skip_uses_actual_adam_step_counter(self) -> None:
+        model = torch.nn.Linear(2, 1, bias=False)
+        optimizer = torch.optim.AdamW(model.parameters(), lr=0.01)
+        self.assertEqual(_optimizer_state_step(optimizer), 0)
+        self.assertTrue(_optimizer_step_was_skipped(0, 0))
+        model(torch.ones(1, 2)).sum().backward()
+        optimizer.step()
+        self.assertEqual(_optimizer_state_step(optimizer), 1)
+        self.assertFalse(_optimizer_step_was_skipped(0, 1))
+
+    def test_pairwise_accuracy_and_parameter_delta_are_directly_observed(self) -> None:
+        prediction = torch.tensor([0.1, 0.4, 0.2])
+        target = torch.tensor([1.0, 3.0, 2.0])
+        self.assertEqual(_full_pairwise_accuracy(prediction, target), 1.0)
+
+        model = torch.nn.Linear(2, 1, bias=False)
+        snapshot = _parameter_snapshot(model)
+        with torch.no_grad():
+            model.weight.add_(1.0)
+        self.assertAlmostEqual(_parameter_delta_norm(snapshot, model), 2.0**0.5)
+
     def test_forward_shape_and_gradients(self) -> None:
         config = NBFNetConfig(hidden_dim=4, propagation_layers=2, max_epochs=1)
         model = BidirectionalNBFNet(
