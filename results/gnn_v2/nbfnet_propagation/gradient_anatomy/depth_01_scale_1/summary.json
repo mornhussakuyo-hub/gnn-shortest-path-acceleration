@@ -1,0 +1,1683 @@
+{
+  "schema": "aic.gnn_v2.gradient_anatomy.v1",
+  "mode": "snapshot",
+  "seed": 42,
+  "loss_scale": 1.0,
+  "hook_depth_mode": "all",
+  "warmup_output_head_steps": 0,
+  "head_only_steps": 0,
+  "config": {
+    "hidden_dim": 32,
+    "propagation_layers": 1,
+    "demand_scale": 1000.0,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0,
+    "rank_weight": 0.2,
+    "huber_delta": 1.0,
+    "prototype_batch_size": 4,
+    "max_epochs": 1,
+    "patience": 1,
+    "min_improvement": 0.0001,
+    "mixed_precision": false,
+    "gradient_checkpointing": true,
+    "zero_initialize_prediction_head": false,
+    "variant": "propagation_doubling",
+    "randomization_seed": 20260730
+  },
+  "fixed_prior": {
+    "name": "none"
+  },
+  "ablation": {
+    "variant": "propagation_doubling",
+    "randomization_seed": 20260730,
+    "graph_transform": "directed_original",
+    "original_edge_count": 221589,
+    "effective_edge_count": 221589,
+    "edge_features_zeroed": false,
+    "destination_prototypes_permuted": false,
+    "destination_permutation": null,
+    "shuffled_od_coupling": null,
+    "note": null
+  },
+  "dataset": {
+    "digest": "e9b1bc149a6a94dd744305e41817c3a2b9447cd5e3ba5a17c71fea38db2bf261",
+    "train_candidate_count": 840,
+    "prototype_count": 128
+  },
+  "environment": {
+    "framework": "pytorch",
+    "torch_version": "2.13.0+cu130",
+    "cuda_version": "13.0",
+    "device_type": "cuda",
+    "device_index": 0,
+    "device_name": "NVIDIA GeForce RTX 4090 D",
+    "device_total_memory_bytes": 25250627584
+  },
+  "elapsed_seconds": 4.615850340996985,
+  "result": {
+    "warmup_history": [],
+    "snapshot": {
+      "train_pairwise_loss": 0.6918670535087585,
+      "train_pairwise_accuracy": 0.8820918202400208,
+      "score_prediction": {
+        "dtype": "float32",
+        "shape": [
+          840
+        ],
+        "element_count": 840,
+        "finite_count": 840,
+        "nonfinite_count": 0,
+        "nan_count": 0,
+        "positive_inf_count": 0,
+        "negative_inf_count": 0,
+        "maximum_absolute_finite_value": 0.05748893320560455,
+        "all_finite": true,
+        "finite_l2_norm_fp64": 1.2011315679467578
+      },
+      "score_gradient": {
+        "dtype": "float32",
+        "shape": [
+          840
+        ],
+        "element_count": 840,
+        "finite_count": 840,
+        "nonfinite_count": 0,
+        "nan_count": 0,
+        "positive_inf_count": 0,
+        "negative_inf_count": 0,
+        "maximum_absolute_finite_value": 0.001189392525702715,
+        "all_finite": true,
+        "finite_l2_norm_fp64": 0.019906144738988496
+      },
+      "parameter_gradients_scaled": {
+        "summary": {
+          "parameter_tensor_count": 39,
+          "gradient_tensor_count": 39,
+          "gradient_element_count": 35204,
+          "nonfinite_gradient_element_count": 0,
+          "all_gradient_elements_finite": true,
+          "maximum_absolute_finite_gradient": 0.007555386051535606,
+          "finite_l2_norm_fp64": 0.06399185876965975,
+          "raw_l2_norm_fp32": 0.06399185955524445,
+          "raw_fp32_norm_is_finite": true,
+          "missing_gradient_names": [],
+          "nonfinite_gradient_names": []
+        },
+        "parameters": [
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.001918790745548904,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0047942182364087696,
+            "name": "origin_token",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.001261413679458201,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0026760639974599456,
+            "name": "destination_token",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              1
+            ],
+            "element_count": 1,
+            "finite_count": 1,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.0,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0,
+            "name": "depth_logits",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              32
+            ],
+            "element_count": 1024,
+            "finite_count": 1024,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.00043719654786400497,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.002398590225768042,
+            "name": "origin_encoder.0.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.0008659986197017133,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0018630350956908171,
+            "name": "origin_encoder.0.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              32
+            ],
+            "element_count": 1024,
+            "finite_count": 1024,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.0005720859044231474,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.00299735880888503,
+            "name": "origin_encoder.2.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.001918790745548904,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0047942182364087696,
+            "name": "origin_encoder.2.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              32
+            ],
+            "element_count": 1024,
+            "finite_count": 1024,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.00034461606992408633,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0015318372976322085,
+            "name": "destination_encoder.0.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.0006075037526898086,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0011171188710605501,
+            "name": "destination_encoder.0.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              32
+            ],
+            "element_count": 1024,
+            "finite_count": 1024,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.0004657173412851989,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0025621730139748365,
+            "name": "destination_encoder.2.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.001261413679458201,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0026760639974599456,
+            "name": "destination_encoder.2.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              32
+            ],
+            "element_count": 1024,
+            "finite_count": 1024,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.0022712894715368748,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.009960201251654283,
+            "name": "origin_propagation_layers.0.message_state.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              14
+            ],
+            "element_count": 448,
+            "finite_count": 448,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.00015869068738538772,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0004043965101249961,
+            "name": "origin_propagation_layers.0.message_edge_gate.0.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.0003348038299009204,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0005274045107825089,
+            "name": "origin_propagation_layers.0.message_edge_gate.0.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              78
+            ],
+            "element_count": 2496,
+            "finite_count": 2496,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 1.059213809639914e-05,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 5.093300429754572e-05,
+            "name": "origin_propagation_layers.0.message_gate.0.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 7.816729521437082e-06,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 1.9880470047915077e-05,
+            "name": "origin_propagation_layers.0.message_gate.0.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              1,
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 1.4513816495309584e-05,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 3.7227519686985415e-05,
+            "name": "origin_propagation_layers.0.message_gate.2.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              1
+            ],
+            "element_count": 1,
+            "finite_count": 1,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 7.657946116523817e-05,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 7.657946116523817e-05,
+            "name": "origin_propagation_layers.0.message_gate.2.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              32
+            ],
+            "element_count": 1024,
+            "finite_count": 1024,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.001398203894495964,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.01080101608436654,
+            "name": "origin_propagation_layers.0.aggregate_projection.0.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              32
+            ],
+            "element_count": 1024,
+            "finite_count": 1024,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.002157442504540086,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.008714524305950955,
+            "name": "origin_propagation_layers.0.aggregate_projection.2.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.0005264339270070195,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0011152875080034945,
+            "name": "origin_propagation_layers.0.normalization.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.0010993817122653127,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0030143913209245933,
+            "name": "origin_propagation_layers.0.normalization.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              32
+            ],
+            "element_count": 1024,
+            "finite_count": 1024,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.0009323612321168184,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.006343434754084487,
+            "name": "destination_propagation_layers.0.message_state.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              14
+            ],
+            "element_count": 448,
+            "finite_count": 448,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 8.948717004386708e-05,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.00028916830104235914,
+            "name": "destination_propagation_layers.0.message_edge_gate.0.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.00019212900951970369,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0003392449841166112,
+            "name": "destination_propagation_layers.0.message_edge_gate.0.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              78
+            ],
+            "element_count": 2496,
+            "finite_count": 2496,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 2.5796753106988035e-06,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 1.5840187120716214e-05,
+            "name": "destination_propagation_layers.0.message_gate.0.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 2.4463731733703753e-06,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 6.267111928819819e-06,
+            "name": "destination_propagation_layers.0.message_gate.0.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              1,
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 6.5006456679839175e-06,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 1.1643988770988346e-05,
+            "name": "destination_propagation_layers.0.message_gate.2.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              1
+            ],
+            "element_count": 1,
+            "finite_count": 1,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 2.195555134676397e-05,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 2.195555134676397e-05,
+            "name": "destination_propagation_layers.0.message_gate.2.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              32
+            ],
+            "element_count": 1024,
+            "finite_count": 1024,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.001191863790154457,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0063851689226692735,
+            "name": "destination_propagation_layers.0.aggregate_projection.0.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              32
+            ],
+            "element_count": 1024,
+            "finite_count": 1024,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.002190384780988097,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.009951205438392815,
+            "name": "destination_propagation_layers.0.aggregate_projection.2.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.00040642142994329333,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0010050539907295447,
+            "name": "destination_propagation_layers.0.normalization.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.0016726109897717834,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.003686742747219698,
+            "name": "destination_propagation_layers.0.normalization.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              64,
+              256
+            ],
+            "element_count": 16384,
+            "finite_count": 16384,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.005257480312138796,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.049882466057641114,
+            "name": "prediction_head.0.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              64
+            ],
+            "element_count": 64,
+            "finite_count": 64,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.0029356712475419044,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.009088640875835576,
+            "name": "prediction_head.0.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              64
+            ],
+            "element_count": 2048,
+            "finite_count": 2048,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.004290502984076738,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.023085549751717865,
+            "name": "prediction_head.2.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.007555386051535606,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.014438137028678927,
+            "name": "prediction_head.2.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              1,
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.006492073182016611,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.014021478836214298,
+            "name": "prediction_head.4.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              1
+            ],
+            "element_count": 1,
+            "finite_count": 1,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 7.721610018052161e-10,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 7.721610018052161e-10,
+            "name": "prediction_head.4.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          }
+        ]
+      },
+      "parameter_gradients_unscaled": {
+        "summary": {
+          "parameter_tensor_count": 39,
+          "gradient_tensor_count": 39,
+          "gradient_element_count": 35204,
+          "nonfinite_gradient_element_count": 0,
+          "all_gradient_elements_finite": true,
+          "maximum_absolute_finite_gradient": 0.007555386051535606,
+          "finite_l2_norm_fp64": 0.06399185876965975,
+          "raw_l2_norm_fp32": 0.06399185955524445,
+          "raw_fp32_norm_is_finite": true,
+          "missing_gradient_names": [],
+          "nonfinite_gradient_names": []
+        },
+        "parameters": [
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.001918790745548904,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0047942182364087696,
+            "name": "origin_token",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.001261413679458201,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0026760639974599456,
+            "name": "destination_token",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              1
+            ],
+            "element_count": 1,
+            "finite_count": 1,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.0,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0,
+            "name": "depth_logits",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              32
+            ],
+            "element_count": 1024,
+            "finite_count": 1024,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.00043719654786400497,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.002398590225768042,
+            "name": "origin_encoder.0.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.0008659986197017133,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0018630350956908171,
+            "name": "origin_encoder.0.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              32
+            ],
+            "element_count": 1024,
+            "finite_count": 1024,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.0005720859044231474,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.00299735880888503,
+            "name": "origin_encoder.2.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.001918790745548904,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0047942182364087696,
+            "name": "origin_encoder.2.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              32
+            ],
+            "element_count": 1024,
+            "finite_count": 1024,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.00034461606992408633,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0015318372976322085,
+            "name": "destination_encoder.0.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.0006075037526898086,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0011171188710605501,
+            "name": "destination_encoder.0.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              32
+            ],
+            "element_count": 1024,
+            "finite_count": 1024,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.0004657173412851989,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0025621730139748365,
+            "name": "destination_encoder.2.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.001261413679458201,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0026760639974599456,
+            "name": "destination_encoder.2.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              32
+            ],
+            "element_count": 1024,
+            "finite_count": 1024,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.0022712894715368748,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.009960201251654283,
+            "name": "origin_propagation_layers.0.message_state.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              14
+            ],
+            "element_count": 448,
+            "finite_count": 448,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.00015869068738538772,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0004043965101249961,
+            "name": "origin_propagation_layers.0.message_edge_gate.0.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.0003348038299009204,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0005274045107825089,
+            "name": "origin_propagation_layers.0.message_edge_gate.0.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              78
+            ],
+            "element_count": 2496,
+            "finite_count": 2496,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 1.059213809639914e-05,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 5.093300429754572e-05,
+            "name": "origin_propagation_layers.0.message_gate.0.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 7.816729521437082e-06,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 1.9880470047915077e-05,
+            "name": "origin_propagation_layers.0.message_gate.0.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              1,
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 1.4513816495309584e-05,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 3.7227519686985415e-05,
+            "name": "origin_propagation_layers.0.message_gate.2.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              1
+            ],
+            "element_count": 1,
+            "finite_count": 1,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 7.657946116523817e-05,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 7.657946116523817e-05,
+            "name": "origin_propagation_layers.0.message_gate.2.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              32
+            ],
+            "element_count": 1024,
+            "finite_count": 1024,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.001398203894495964,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.01080101608436654,
+            "name": "origin_propagation_layers.0.aggregate_projection.0.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              32
+            ],
+            "element_count": 1024,
+            "finite_count": 1024,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.002157442504540086,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.008714524305950955,
+            "name": "origin_propagation_layers.0.aggregate_projection.2.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.0005264339270070195,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0011152875080034945,
+            "name": "origin_propagation_layers.0.normalization.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.0010993817122653127,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0030143913209245933,
+            "name": "origin_propagation_layers.0.normalization.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              32
+            ],
+            "element_count": 1024,
+            "finite_count": 1024,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.0009323612321168184,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.006343434754084487,
+            "name": "destination_propagation_layers.0.message_state.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              14
+            ],
+            "element_count": 448,
+            "finite_count": 448,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 8.948717004386708e-05,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.00028916830104235914,
+            "name": "destination_propagation_layers.0.message_edge_gate.0.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.00019212900951970369,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0003392449841166112,
+            "name": "destination_propagation_layers.0.message_edge_gate.0.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              78
+            ],
+            "element_count": 2496,
+            "finite_count": 2496,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 2.5796753106988035e-06,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 1.5840187120716214e-05,
+            "name": "destination_propagation_layers.0.message_gate.0.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 2.4463731733703753e-06,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 6.267111928819819e-06,
+            "name": "destination_propagation_layers.0.message_gate.0.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              1,
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 6.5006456679839175e-06,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 1.1643988770988346e-05,
+            "name": "destination_propagation_layers.0.message_gate.2.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              1
+            ],
+            "element_count": 1,
+            "finite_count": 1,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 2.195555134676397e-05,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 2.195555134676397e-05,
+            "name": "destination_propagation_layers.0.message_gate.2.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              32
+            ],
+            "element_count": 1024,
+            "finite_count": 1024,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.001191863790154457,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0063851689226692735,
+            "name": "destination_propagation_layers.0.aggregate_projection.0.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              32
+            ],
+            "element_count": 1024,
+            "finite_count": 1024,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.002190384780988097,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.009951205438392815,
+            "name": "destination_propagation_layers.0.aggregate_projection.2.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.00040642142994329333,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.0010050539907295447,
+            "name": "destination_propagation_layers.0.normalization.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.0016726109897717834,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.003686742747219698,
+            "name": "destination_propagation_layers.0.normalization.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              64,
+              256
+            ],
+            "element_count": 16384,
+            "finite_count": 16384,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.005257480312138796,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.049882466057641114,
+            "name": "prediction_head.0.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              64
+            ],
+            "element_count": 64,
+            "finite_count": 64,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.0029356712475419044,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.009088640875835576,
+            "name": "prediction_head.0.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32,
+              64
+            ],
+            "element_count": 2048,
+            "finite_count": 2048,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.004290502984076738,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.023085549751717865,
+            "name": "prediction_head.2.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.007555386051535606,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.014438137028678927,
+            "name": "prediction_head.2.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              1,
+              32
+            ],
+            "element_count": 32,
+            "finite_count": 32,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 0.006492073182016611,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 0.014021478836214298,
+            "name": "prediction_head.4.weight",
+            "requires_grad": true,
+            "gradient_missing": false
+          },
+          {
+            "dtype": "float32",
+            "shape": [
+              1
+            ],
+            "element_count": 1,
+            "finite_count": 1,
+            "nonfinite_count": 0,
+            "nan_count": 0,
+            "positive_inf_count": 0,
+            "negative_inf_count": 0,
+            "maximum_absolute_finite_value": 7.721610018052161e-10,
+            "all_finite": true,
+            "finite_l2_norm_fp64": 7.721610018052161e-10,
+            "name": "prediction_head.4.bias",
+            "requires_grad": true,
+            "gradient_missing": false
+          }
+        ]
+      },
+      "validation_spearman": 0.9275532450113915,
+      "tensor_hooks": {
+        "destination.depth_01.activation": {
+          "call_count": 64,
+          "element_count": 1096409088,
+          "finite_count": 1096409088,
+          "nonfinite_count": 0,
+          "nan_count": 0,
+          "positive_inf_count": 0,
+          "negative_inf_count": 0,
+          "maximum_absolute_finite_value": 2.5321857929229736,
+          "all_finite": true
+        },
+        "destination.depth_01.gradient": {
+          "call_count": 32,
+          "element_count": 548204544,
+          "finite_count": 548204544,
+          "nonfinite_count": 0,
+          "nan_count": 0,
+          "positive_inf_count": 0,
+          "negative_inf_count": 0,
+          "maximum_absolute_finite_value": 3.707471023517428e-06,
+          "all_finite": true
+        },
+        "origin.depth_01.activation": {
+          "call_count": 64,
+          "element_count": 1096409088,
+          "finite_count": 1096409088,
+          "nonfinite_count": 0,
+          "nan_count": 0,
+          "positive_inf_count": 0,
+          "negative_inf_count": 0,
+          "maximum_absolute_finite_value": 2.2879414558410645,
+          "all_finite": true
+        },
+        "origin.depth_01.gradient": {
+          "call_count": 32,
+          "element_count": 548204544,
+          "finite_count": 548204544,
+          "nonfinite_count": 0,
+          "nan_count": 0,
+          "positive_inf_count": 0,
+          "negative_inf_count": 0,
+          "maximum_absolute_finite_value": 3.7018062357674353e-06,
+          "all_finite": true
+        },
+        "prediction_head.input.activation": {
+          "call_count": 64,
+          "element_count": 55050240,
+          "finite_count": 55050240,
+          "nonfinite_count": 0,
+          "nan_count": 0,
+          "positive_inf_count": 0,
+          "negative_inf_count": 0,
+          "maximum_absolute_finite_value": 3.596334457397461,
+          "all_finite": true
+        },
+        "prediction_head.input.gradient": {
+          "call_count": 32,
+          "element_count": 27525120,
+          "finite_count": 27525120,
+          "nonfinite_count": 0,
+          "nan_count": 0,
+          "positive_inf_count": 0,
+          "negative_inf_count": 0,
+          "maximum_absolute_finite_value": 8.319978519466531e-07,
+          "all_finite": true
+        },
+        "prediction_head.output.activation": {
+          "call_count": 64,
+          "element_count": 215040,
+          "finite_count": 215040,
+          "nonfinite_count": 0,
+          "nan_count": 0,
+          "positive_inf_count": 0,
+          "negative_inf_count": 0,
+          "maximum_absolute_finite_value": 0.08803657442331314,
+          "all_finite": true
+        },
+        "prediction_head.output.gradient": {
+          "call_count": 32,
+          "element_count": 107520,
+          "finite_count": 107520,
+          "nonfinite_count": 0,
+          "nan_count": 0,
+          "positive_inf_count": 0,
+          "negative_inf_count": 0,
+          "maximum_absolute_finite_value": 4.833379716728814e-05,
+          "all_finite": true
+        },
+        "weighted_score.activation": {
+          "call_count": 32,
+          "element_count": 26880,
+          "finite_count": 26880,
+          "nonfinite_count": 0,
+          "nan_count": 0,
+          "positive_inf_count": 0,
+          "negative_inf_count": 0,
+          "maximum_absolute_finite_value": 0.004869451746344566,
+          "all_finite": true
+        },
+        "weighted_score.gradient": {
+          "call_count": 32,
+          "element_count": 26880,
+          "finite_count": 26880,
+          "nonfinite_count": 0,
+          "nan_count": 0,
+          "positive_inf_count": 0,
+          "negative_inf_count": 0,
+          "maximum_absolute_finite_value": 0.001189392525702715,
+          "all_finite": true
+        }
+      }
+    }
+  }
+}
