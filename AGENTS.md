@@ -12,7 +12,9 @@
 
 ## 服务器连接固定流程
 
-- `.server.env` 中的 `SERVER_SSH_COMMAND` 仍会交互式询问密码；本机没有 `sshpass` 和可用的
+- 一号服务器使用 `.server.env`，二号服务器使用 `.server2.env`；两者字段名相同。切换服务器时
+  重新 `source` 对应文件并导出变量，不要把两台服务器的连接参数写进文档或日志。
+- 环境文件中的 `SERVER_SSH_COMMAND` 仍会交互式询问密码；本机没有 `sshpass` 和可用的
   `ssh-askpass`，不要直接执行它并反复试错。
 - 固定使用系统已有的 `/usr/bin/expect`，从环境变量读取密码；命令和日志都不得输出
   `SERVER_PASSWORD`。SSH 必须保留 `-F /dev/null`。
@@ -74,7 +76,13 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
 
 ## 第二版已经确定的方向
 
-- 第二版唯一主模型确定为基于 NBFNet 的 OD 条件双向传播网络，目标是研究历史需求如何沿道路图传播并预测候选区域价值。
+- 当前研究主线分为三部分：确定性 OD 图传播 Z0、神经网络传播与优化可解释性、可选的 Z0 神经
+  排序残差。不能再把“必须训练成功一个 32 层黑盒 NBFNet”当作项目成败标准。
+- Z0 只使用历史 OD 与静态道路图，不使用标签；神经模型固定采用
+  `score = frozen_z0 + learned_residual`。只有学习残差在重复种子 validation 上稳定超过 Z0，
+  才能写成监督学习贡献。
+- NBFNet 仍使用 OD 条件双向传播：起点场沿正图、终点场沿反图传播，目标是研究历史需求如何沿
+  道路图传播并预测候选区域价值；起点塔和终点塔参数不共享。
 - 需求原型只由历史窗口 OD 和静态道路图构造，不使用历史最短路径；至少保存起点集合、终点集合和出现权重。
 - 时间切分必须避免泄漏：较早历史窗口 H 构造输入，紧随其后的标签窗口 Y 构造真实区域收益，两者绝不重叠。
 - 当前固定口径：H 为全部 98,082 条 OD 按时间排序后的前 35%，共 34,328 条；Y 为时间比例 `[0.35, 0.70)`，完整窗口约 34,329 条；正式标签从 Y 中以随机种子 42 抽取 2,000 条查询。
@@ -115,37 +123,89 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
 - 所选倍增模型 holdout NDCG@5/10/18 为 `0.9720 / 0.9821 / 0.9882`，收益为 `171.922 / 158.022 / 142.332`；成员冗余为 `1.744 / 1.786 / 1.750`，仍需非重叠集合选择。
 - 新 split 同口径 MLP 五种子已完成：holdout Spearman `0.8696 ± 0.0197`，NDCG@18 `0.9593 ± 0.0143`，Top-18 收益 `136.841 ± 2.764`。所选纯传播 seed 44 的对应值为 `0.9569 / 0.9882 / 142.332`，本轮观察上明显领先，但纯传播仍缺重复种子，不能声称正确道路拓扑必要、多种子稳定或未来时间泛化。
 - 新 split midpoint Proxy 已在本机 CPU 完成：holdout Spearman `0.8918`，NDCG@5/10/18 `0.9645 / 0.9454 / 0.9830`，收益 `170.043 / 149.592 / 142.332`。它与 `propagation_doubling` 的 Top-18 候选集合完全相同；纯传播主要改善全局排序和 K=5/10，不能声称在 K=18 固定候选预算上超过 Proxy。
-- 四组前 22 epoch 几乎不更新、第 23 epoch 同步翻转。每次前向本来就执行全部 32 层，这不是传播逐 epoch 到达中部；结合 FP16 `GradScaler`、更新前记录 train loss 和更新后计算 validation，最可能是前 22 次 optimizer step 因梯度溢出被跳过。日志未记录 scale，故这是高置信诊断而非直接观测事实。
+- 四组前 22 epoch 几乎不更新、第 23 epoch 同步翻转。后续 B1/B2 已直接记录：默认 FP16 scale
+  `65536` 的前 22 次 optimizer step 全部跳过；scale 从 `1` 开始时在降至
+  `0.015625=1/64` 后于 epoch 7 首次成功。旧平台期已确定来自 FP16 backward 溢出和
+  GradScaler 跳步，不是传播逐 epoch 到达中部，也不是学习率过低。
+
+## Z0、rank-first 与梯度解剖结论
+
+- Z0 是无参数、无标签的双向固定均值扩散，在深度 `1/2/4/8/16/32` 等权读出。validation /
+  holdout Spearman 为 `0.9411 / 0.9356`，holdout NDCG@5/10/18 为
+  `0.9307 / 0.9642 / 0.9745`。它已是主方法与所有神经残差的冻结基线。
+- Z1 为随机 32 层传播网络只前向，五种子 holdout `|Spearman|=0.9376 ± 0.0285`；随机头主要
+  选择同一潜在排序轴的正负号。Z2 只用 train 选择全局符号，不能保证 K=5/10 头部稳定。
+- 完整 rank-first 模型 seed 42 从 `-0.9020` 开始，每轮 `inf→0`；Z0 残差模型首轮梯度
+  `8.495e-3` 正常，第二轮开始 `inf→0`。两组机制证据充分后已正常停止，不再空转。
+- CUDA FP32 深度扫描已完成。1/2/4/8/16/32 层 FP64 全局梯度范数约为
+  `6.40e-2 / 5.75e-2 / 4.40e-1 / 8.38e2 / 8.28e9 / 2.34e23`。
+- 32 层 418,183 个参数梯度元素全部有限，最大绝对值约 `1.14e23`；原始 FP32 全局范数在
+  平方求和时溢出为 `inf`。因此 BF16/FP32 日志的 `inf` 不是参数元素先成为 Inf，而是深层反向
+  指数放大后触发的 FP32 范数累计溢出；全局裁剪随后把所有梯度乘成近零。
+- 32 层前向激活始终约 `2.3～3.4`，反向 hook 从第 32 层约 `1e-6` 放大到第 1 层约 `1e19`，
+  最大参数梯度集中在最早的 LayerNorm bias。根因定位为无真实恒等路径的深层传播与归一化反向
+  几何；尚不能在正交消融前把 LayerNorm 单独写成唯一根因。
+- loss scale `1/64` 解缩放后 FP64 范数仍为 `2.34e23`，FP32 范数仍为 `inf`；GradScaler 只能
+  缓解 FP16 中间溢出，不是结构性修复。
+- 冻结主干后输出头 8 个 step 全部有效，validation Spearman `-0.9020→-0.8532`，证明
+  pairwise loss 与输出头能够学习；阻断反转的是主干梯度污染。
+- 完整结果位于 `results/gnn_v2/nbfnet_propagation/gradient_anatomy/`，主要报告为
+  `reports/阶段四_NBFNet传播诊断与深层纯传播实验.md`。
 
 ## 服务器训练最终状态
 
-- 服务器仓库：`~/gnn-shortest-path-acceleration`。
-- SSH 必须加 `-F /dev/null`，系统 SSH 配置权限有问题；连接参数从本机 `.server.env` 读取。
-- GPU 为 RTX 4090 D 24 GB。
-- 实验 ID：`38bfa5d15809b383`。
-- 输出目录：`results/gnn_v2/nbfnet_propagation/screening`。
-- 启动参数：seed 44、hidden 32、layers 32、prototype batch 4、max epochs 300、patience 60。
-- 旧筛选结果已归档到 `~/aic-training-archive/nbfnet_ablation_screening_20260731`。
-- 实验已经 `complete`：四组完成、零失败，服务器重启后 GPU 空闲，不需要恢复 runner。
-- 完整产物已同步回本机 `results/gnn_v2/nbfnet_propagation/screening/`，包含 manifest、汇总、日志、checkpoint、预测和训练历史。
-- 本机与服务器的 `report.md` SHA-256 均为 `d0d617fa08e0c909f64a5fcf2dd0dcee6bdf95d1dceed67e8a517170ca1d66dd`；`manifest.json` 均为 `7539a5468bd4f6fed992d352083a18e30b098a1e2dbce11980ebde680a78383e`。
-- 新 split MLP 输出目录为 `results/gnn_v2/mlp_overlap_group_split`；种子 `42～46` 已全部完成，使用 RTX 4090 D CUDA，无报错，完整产物已回传本机。
-- 当前正在补跑正式结构 `propagation_doubling` 的重复种子 `42,43,45,46`，输出目录为 `results/gnn_v2/nbfnet_propagation/propagation_doubling_repeats`；配置为 hidden 32、layers 32、prototype batch 4、max epochs 300、patience 60。
-- 本轮 runner 启动 PID 为 `8127`。最近检查时进程存活、GPU 利用率 100%，无 traceback、OOM 或 RuntimeError；seed 42 已早停，最佳 validation Spearman `0.7640`、holdout `0.8622`。seed 43 也已早停：epoch 1～22 的 validation Spearman 约 `0.9458` 不变，epoch 59 的更新后 validation loss 从 `0.4219` 突变至 `0.8094`、Spearman 从 `0.9384` 降至 `0.8004`，best checkpoint 为 epoch 1、holdout `0.9600`；它是 `initialization_dominant` 异常基线，不得当作训练成功。最近 seed 45 正在 epoch 41，PID 可能变化，接续时重新读取 `runner.pid`，不要停止 runner。
+- 两台服务器仓库均为 `~/gnn-shortest-path-acceleration`，GPU 均为 RTX 4090 D 24 GB。
+- 一号使用 `.server.env`，二号使用 `.server2.env`；SSH 必须加 `-F /dev/null`。
+- 当前两台服务器均无相关训练进程，GPU 最近确认均为约 15 MiB、0% 利用率；不要恢复任何旧 runner。
+- 四组 screening、旧协议五种子重复、B1～B4、Z0/Z1/Z2、两组失败 rank-first 和梯度解剖均已
+  完成或按机制停止；相关完整/摘要产物已同步本机。
+- gradient anatomy 一号完成深度 `1/2/4/8/16/32` 与 32 层 scale `1/64`；二号完成 32 层
+  `head_only` 和 Z0 输出头预热后快照。两组 runner 已结束，服务器 GPU 空闲。
+- 服务器最后确认包含代码提交 `8ea0fa2`；本机 `main` 已推进到更新的文档提交。下一次运行前先看
+  远端 `git status --short`，再 fast-forward 到本机已推送的最新 `main`，不得在服务器改文件。
+- 本机只剩四个旧未跟踪运行文件，不提交、不删除：
+  `gradient_anatomy/server1_launcher.log`、`server1_runner.pid`、`server2_launcher.log`、
+  `train_free_baselines_launcher.log`。
 
 ## 后续实验顺序
 
-1. 先完成当前 `propagation_doubling` 的 seed `42,43,45,46`，与 seed 44 合并为旧协议异常基线；runner 不中途改配置。
-2. 暂缓正式消融，先诊断平台期和更新路径：记录 epoch 0、GradScaler scale、step skipped、裁剪前后梯度范数、参数差范数、实际学习率和 prediction 分布，并比较 FP16、较低 initial scale、BF16 与短程 CUDA FP32。
-   - 短程诊断每次最多 80 epoch、`patience=80`、输出到独立 `stability_diagnostics/`；先固定 seed 43 依次跑 FP16 默认、FP16 `init_scale=1.0`、BF16、CUDA FP32，只改精度路径；再用选定协议跑 seed 42/43/44。B1～B4 不改初始化、学习率、scheduler、loss 或 pair 采样。
-3. 保留 `propagation_doubling` 架构，把主训练改成完整 pairwise rank-first：对至多 `352,380` 个训练候选对计算 ranking loss，score 先中心化和标准化，主干不再同时接收 Huber 梯度；epoch 0 单列，正式 checkpoint 必须位于有效 optimizer step 之后并只按 validation Spearman 选择。
-4. 若需要具体收益值，冻结排序模型后只用 train 拟合 `prediction=a×score+b` 且约束 `a>0`，不得改变排序或使用 validation/holdout 校准。
-5. 用 seed 42/43/44 依次筛选读出头预热、传播保持初始化、浅层深度先验、`1e-3/3e-4` 和 `ReduceLROnPlateau`；冻结协议后重跑 seed `42～46`。
-6. 新协议五种子稳定后再做消融。先拆分 `architecture=propagation_doubling` 与正交 `ablation`；`degree_rewired`、`shuffled_od` 五种子，方向、边特征和单侧 OD 消融按预注册阈值扩展。
-7. 最后再做未来窗口、非重叠集合选择和精确在线配对评测；不继续堆叠新传播结构，编号“从零详解”文档本轮不更新。完整规则见 `reports/阶段四_GNN第二版实施计划.md`。
+1. 当前进入阶段五，详细冻结计划见 `reports/阶段五_梯度稳定化与Z0神经残差.md`。原
+   `阶段五_最终对比与扩展验证.md` 已顺延为 `阶段六_最终对比与扩展验证.md`。
+2. **下一步立即只做 S0，不启动长训练**：实现三种稳定传播更新并将结构与固定先验/消融拆为
+   正交配置：G1 `LayerNorm(x+F(x))`、G2 `x+0.01×LayerNorm(F(x))`、
+   G3 `x+0.01×F(LayerNorm(x))`。G0 为当前失败基线。
+3. 扩展 `scripts/diagnose_demand_field_gradients.py` 支持结构名、连续三步、裁剪系数；新增 S1
+   manifest runner 和结构/梯度测试。本机测试后提交推送，两台服务器只 pull 和运行。
+4. S1 固定 seed 42、CUDA FP32，对 G0～G3 跑 8/16/32 层单步扫描；通过项再跑三个 optimizer
+   step。硬门包括梯度元素有限、原始 FP32 范数有限、FP64 范数不高于 `1e4`、裁剪系数不低于
+   `1e-4`、32→1 层 hook 放大不超过 `1e6`。未通过者不进入训练。
+5. S1 选出稳定结构后才启用 P 路线：P0 由 Z0 生成起点/终点、分深度无标签教师场；P1 在两台
+   服务器分别按 `1→2→4→8→16→32` 预训练起点塔和终点塔；P2 冻结双塔训练读出；P3 按
+   最后 8→16→32 层渐进解冻，输出头 `lr=3e-4`、主干 `lr=3e-5`。
+6. S2 固定 seed 42 比较三个协议：N0 从零全量解冻、C0 从零但使用 P3 微调方式、P3 使用预训练
+   双塔且与 C0 完全相同。这样隔离稳定结构、渐进解冻和预训练各自贡献。
+7. S2 通过后才做 S3 最小学习率/解冻对照；再依次进入 S4 seed 42/43/44、S5 seed 42～46。
+   holdout 只在协议完全冻结后解锁。若稳定但不能超过 Z0，停止神经残差扩展并记录负结论。
+8. S4/S5 之后才进入阶段六的正确拓扑消融、未来窗口、非重叠集合选择、精确在线配对和跨城市。
+
+## 阶段五时间预算
+
+- 已有实测基准：32 层单次快照约 83 秒；正式 32 层训练约 50～68 秒/epoch；95 epoch 约 79 分钟。
+- S0 编码、测试和 runner 预计 4～7 小时，不占服务器长训练。
+- S1 四结构深度扫描与三步门，两机墙钟约 30～50 分钟，不属于大规模训练。
+- P0 教师场约 5～20 分钟；P1 双塔逐层预训练两机并行约 1～2 小时；P2/P3 约 30～60 分钟。
+- S2 三协议 40 epoch 两机约 1.2～1.8 小时；S3 最多两个补充对照约 40～60 分钟。
+- S4 三种子 80 epoch 两机约 2.5～3.5 小时，属于第一次大规模训练。
+- S5 五种子若按 80 epoch 约 3.5～5 小时；若恢复旧 300 epoch 上限，最坏约 13～17 小时。
+- 任何阶段未过预注册门即停止，不提前运行后续大规模任务。
 
 ## 仓库状态交接
 
 - 交接前分支为 `main`。
-- 本次计划修改前最新提交为 `d601c2e 固化纯传播消融与调参计划`。
+- 本次交接文档更新前最新提交为 `1a0c8e0 加入双塔预训练与渐进微调方案`。
+- 梯度解剖代码提交为 `8ea0fa2 加入深层传播梯度解剖诊断`；结果与结论提交为
+  `06989a2 固化深层传播梯度解剖结论`。
+- 阶段五计划提交为 `0523135 制定阶段五梯度稳定化实验计划`，双塔预训练补充为 `1a0c8e0`。
 - 主要诊断报告：`reports/阶段四_NBFNet传播诊断与深层纯传播实验.md`。
+- 当前执行计划：`reports/阶段五_梯度稳定化与Z0神经残差.md`。
+- 阶段六占位：`reports/阶段六_最终对比与扩展验证.md`。
