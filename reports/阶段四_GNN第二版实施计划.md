@@ -493,7 +493,8 @@ results/gnn_v2/
 | ---: | --- | --- | --- |
 | A | 完成当前 seed `42,43,45,46`，并合并已有 seed 44 | 保持原始 FP16、`lr=1e-3`、Huber + `0.20` sampled rank loss | 报告 epoch 1、最佳与最终排序、平台长度、最差种子 |
 | B | 平台期和更新路径直接诊断 | CUDA 上使用 seed 42/43/44，不看 holdout 选方案 | 确认每轮是否真实 step，并定位 FP16、梯度或初始化问题 |
-| C | 将训练目标收敛为单一排序任务 | 保留 `propagation_doubling` 架构，主干不再同时优化数值回归 | 训练目标、checkpoint 和主评价均围绕 validation Spearman |
+| Z | 零训练传播与随机前向强基线 | Z0 不含参数；Z1 不选 seed 或符号；Z2 只用 train 定向 | 判断任务排序来自固定传播、随机特征还是监督学习 |
+| C | 将训练目标收敛为单一排序残差任务 | 以确定性传播为显式先验，学习其无法解释的排序残差 | 学习模型稳定超过 Z0，而非重新学习已经存在的空间排序轴 |
 | D | 初始化、精度和学习率稳定化 | 只用 seed 42/43/44 validation 筛选 | 冻结一个无假平台、无随机正负方向依赖的协议 |
 | E | 新协议五种子确认 | seed `42～46`，配置完全冻结 | 报告均值、标准差、最差值、平台与最佳 epoch |
 | F | 最终协议下关键消融 | 架构与消融条件正交，模型和对照使用同一协议 | 得到正确拓扑、OD 配对、方向和边特征的独立证据 |
@@ -501,7 +502,24 @@ results/gnn_v2/
 
 阶段 A 已完成：五种子 holdout Spearman 为 `0.8860 ± 0.1149`，最差 seed 45 为 `0.6943`；
 seed 43 的最佳 checkpoint 位于 epoch 1，属于 `initialization_dominant`。旧协议没有通过稳定性
-阶段门，下一步从 B1 开始直接记录 optimizer step、GradScaler、梯度与参数差。
+阶段门，阶段 B 已启动并直接记录 optimizer step、GradScaler、梯度与参数差。
+
+阶段 Z 已提前完成，用于避免在强零训练先验上继续误判训练贡献。Z0 是不含编码器、隐藏层和
+预测头的纯标量双向固定均值扩散；在深度 `1/2/4/8/16/32` 等权读出，区域内 mean 与 max
+等权汇总。它不读取任何标签即可得到 validation / holdout Spearman `0.9411 / 0.9356`，
+holdout NDCG@5/10/18 为 `0.9307 / 0.9642 / 0.9745`。这证明当前 H→Y 任务的大部分排序
+结构在监督训练前已经由历史 OD、道路方向和区域池化确定。
+
+Z1 保留随机初始化的 32 层 `propagation_doubling`，只做 epoch 0 前向。五种子 holdout
+`|Spearman|` 为 `0.9376 ± 0.0285`，不同 seed 的候选次序相关性大多接近 `+1` 或 `-1`；
+随机预测头主要选择同一潜在排序轴的正负方向。Z2 仅使用 train split 决定一个全局符号，
+holdout Spearman 为 `0.9376 ± 0.0285`。但 seed 46 虽有 `0.8855` Spearman，NDCG@5/10/18
+仅为 `0.6467 / 0.6512 / 0.6658`，说明单一符号校准不能保证头部候选稳定性。
+
+因此阶段 B 仍需完成数值路径解释，但 B5 以后不得再把“从随机负排序翻为正排序”视为完整模型
+学习。阶段 C 改为比较两个冻结候选：完整 rank-first NBFNet，以及以 Z0 为固定正向先验、
+零初始化学习残差的排序网络。二者都只能用 train 优化、用 validation 选择；只有学习后在重复
+种子 validation Spearman 和 K=5/10 排名上稳定超过 Z0，才进入阶段 E 和正式消融。
 
 ### 平台期与异常行为诊断
 
@@ -536,29 +554,38 @@ seed 43 的最佳 checkpoint 位于 epoch 1，属于 `initialization_dominant`�
 
 截至 2026-07-31，训练入口已经支持 `--precision fp16/bf16/fp32` 和
 `--grad-scaler-init-scale`，并逐轮保存 epoch 0、scaler scale、step skipped、裁剪前后梯度
-范数、参数差范数、实际学习率、预测分布、完整 pairwise loss/accuracy 与 Spearman。该状态
-仅表示诊断代码和 CUDA 冒烟验证完成，B1～B5 正式实验尚未启动，不能据此提前判断平台原因。
+范数、参数差范数、实际学习率、预测分布、完整 pairwise loss/accuracy 与 Spearman。B1 已直接
+观测默认 scale `65536` 的前 22 次 optimizer step 全部跳过；B2 从 scale `1` 开始，在降至
+`0.015625` 后于 epoch 7 首次有效更新。`65536 → 0.015625` 恰好需要 22 次减半，平台期已
+确定来自 FP16 backward 溢出与 GradScaler 跳步，而非学习率过低或传播逐 epoch 扩散。B3（BF16）
+和 B4（CUDA FP32）均完成 80 个未跳过的 step，但每轮梯度范数均为 `inf`，裁剪后为 `0.0`，参数
+差范数近乎恒定在 `8.70e-6`；其微小移动与 AdamW 解耦 weight decay 相符，不能当作有效学习。
+因此移除 FP16 scale 不能解除旧目标的深层非有限梯度问题，B5 不启动，也不把 B3/B4 的初始化
+排序当作训练成功。
 
 B1～B4 期间不得同时改变初始化、学习率、scheduler、loss 或 pair 采样；B5 通过的最低门槛为
 从 epoch 1 开始有可验证的有效 step、无未解释的单步总 loss 翻倍、且不把 epoch 0/未更新模型
-当作训练最佳 checkpoint。若 B2～B4 全部仍出现同类异常，优先研究梯度几何和读出头预热，不
-把问题归结为 AMP，也不进入阶段 C 的 rank-first 改造。
+当作训练最佳 checkpoint。B2～B4 已表明除 FP16 scale 外仍存在梯度几何问题；因此不再把问题
+归结为 AMP，旧 Huber 混合目标不进入 B5。下一步以独立目录执行冻结的 rank-first 协议：完整
+NBFNet 与 `Z0 + 零初始化残差` 分别在 seed 42/43/44 的 validation 上比较。
 
-### 单一排序目标
+### 单一排序残差目标
 
 当前训练目标为标准化标签上的 Huber 加 `0.20 ×` sampled pairwise loss，但 checkpoint 按
 validation Spearman 选择。seed 43 证明“排序几乎正确但数值尺度不准”时，降低 Huber 可以
 同时降低 Spearman，因此这一混合目标不再作为正式协议。
 
-正式候选协议首先采用 rank-first 设计：
+正式候选协议首先采用 rank-first 设计。确定性 Z0 分数先在 train 上中心化和标准化；学习模型
+预测残差 `r`，最终排序分数为 `z0 + r`。残差头最后一层零初始化，使 epoch 0 必然等于 Z0，
+不再由随机预测头选择整条排序轴的正负方向。完整 NBFNet rank-first 保留为同预算对照：
 
 1. 主干只优化完整 pairwise logistic ranking loss；840 个训练候选至多产生 `352,380` 对，
    不再每轮只随机抽约 840 对。
-2. 进入 ranking loss 前将全体训练候选 score 中心化并标准化，去除无意义的平移和尺度自由度；
+2. 进入 ranking loss 前将全体训练候选最终 score 中心化并标准化，去除无意义的平移和尺度自由度；
    保存未标准化 score 供诊断。
-3. epoch 0 单独保存为未训练基线，不得称为模型训练结果；正式 checkpoint 只在至少发生一次
+3. epoch 0 单独保存为 Z0 或未训练随机网络基线，不得称为模型训练结果；正式 checkpoint 只在至少发生一次
    有效 optimizer step 后按 validation Spearman 选择，差异小于 `1e-4` 时保留更早 epoch。
-   若所有已训练 checkpoint 都不及 epoch 0，则该次运行标记为 `initialization_dominant`，协议
+   若所有已训练 checkpoint 都不及 Z0，则该次运行标记为 `prior_dominant`，协议
    不通过稳定性阶段门。K=5/10/18 NDCG、收益和冗余继续完整报告，但不反向改变主目标。
 4. 主干训练不再接收 Huber 梯度。若应用需要具体收益值，冻结排序模型后仅在 train 上拟合
    `prediction = a × score + b`，并约束 `a > 0`；该单调校准不得改变任何候选顺序。
@@ -611,7 +638,8 @@ validation Spearman 选择。seed 43 证明“排序几乎正确但数值尺度�
 1. 内部端点不再触发整图回退，精确查询正确率为 100%。
 2. 真实区域收益标签不包含路径监督，时间窗口无泄漏。
 3. 损失能够端到端更新起点场、终点场、边注意力、门控和深度融合参数。
-4. OD 条件化双向 NBFNet 优于原始频率、固定扩散、GraphSAGE 和无消息传递 MLP。
+4. OD 条件化双向学习模型在重复种子和未来窗口上稳定优于 Z0 确定性传播、Z2 train 定向、
+   原始频率、GraphSAGE 和无消息传递 MLP。
 5. 删除任一方向需求场或道路方向都会造成可复现下降。
 6. 所有主方法使用同一候选池、查询划分和索引预算。
 7. 结果同时报告收益预测、在线查询、算法工作量、索引成本和正确性。

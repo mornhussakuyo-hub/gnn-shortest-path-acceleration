@@ -105,9 +105,19 @@ validation。若缩放后的梯度含非有限值，`GradScaler` 会跳过 optim
 但同轮更新后的 validation 首次变化；四组又都在完全相同的 epoch 23 同步发生。这组现象与
 “前 22 次 optimizer step 因 AMP 溢出被跳过，第 23 次才首次成功更新”高度一致。
 
-现有日志没有保存每轮 `GradScaler.get_scale()`、非有限梯度计数或 `optimizer_step_skipped`，
-所以无法在训练结束后把这一机制提升为直接观测事实。它仍是比“模型等待传播到中间”更符合
-代码和日志的解释；若以后复跑，应记录这三个量，并可用更低初始 scale 或 BF16 验证。
+原筛选日志没有保存每轮 `GradScaler.get_scale()`、非有限梯度计数或
+`optimizer_step_skipped`，当时只能给出高置信诊断。随后 B1/B2 已补齐直接观测：B1 默认
+scale `65536` 的前 22 次 step 全部跳过；B2 从 scale `1` 开始，降至 `0.015625` 后在
+epoch 7 首次有效更新。`65536 → 0.015625` 恰好需要 22 次减半，因此旧平台期现已确定为
+FP16 backward 溢出触发 GradScaler 跳步，不是“传播等待若干 epoch 才到达中部”。
+
+B3（BF16）和 B4（CUDA FP32）随后完成，均从 epoch 1 开始记录为 80 次未跳过的
+optimizer step；但两组的裁剪前梯度范数每轮都是 `inf`，裁剪后均为 `0.0`，参数差范数则为
+近乎恒定的 `8.70e-6`。这与 AdamW 的解耦 weight decay 造成的微小参数移动相符，不能作为
+模型已获得有效反向学习信号的证据。B3 的 validation Spearman 仅从 epoch 0 的 `0.9459` 波动
+到历史最高 `0.9464`，B4 则从 `0.9459` 到 `0.9459`；二者 holdout 均约 `0.9602`，仍是 seed 43
+的初始化排序轴。故 FP16 scale 是造成“前 22 轮完全不更新”的直接原因，但不是全部根因：即使
+移除 AMP scale，深层旧目标仍产生非有限梯度并被裁剪为零。
 
 ### 重复 seed 43：一次有效更新导致的灾难性恶化
 
@@ -259,8 +269,29 @@ validation loss 从约 `0.5424` 下降，Spearman 反而小幅下降。这不是
 `initialization_dominant`；seed 45 则在全局 Spearman 和 Top-K 上同时失败。完整统一摘要见
 `results/gnn_v2/nbfnet_propagation/propagation_doubling_repeats/`。
 
-因此后续顺序进入“平台期与 optimizer 更新诊断 → rank-first 单一排序
-目标 → 初始化、精度及学习率稳定化 → 新协议五种子 → 最终协议下关键消融”。保留现有数据、
-split 和 `propagation_doubling`，不推倒重来；消融不取消，但在训练协议闭合前不启动。完整
-参数、阶段门和复跑规则见 `reports/阶段四_GNN第二版实施计划.md` 的“纯传播稳定性、训练目标
-诊断、消融与调参追加计划”。
+### 零训练基线揭示的潜在一维排序轴
+
+本机 CUDA 已完成独立的 Z0/Z1/Z2 评测。Z0 不复用现有 `fixed_diffusion` 变体中的随机编码器
+和预测头，而是直接把历史起点与终点需求作为标量场，在有向道路图上分别正向和反向做固定
+均值扩散，并在 `1/2/4/8/16/32` 跳等权读出。Z0 完全不含可学习参数，validation / holdout
+Spearman 已达 `0.9411 / 0.9356`；holdout NDCG@5/10/18 为
+`0.9307 / 0.9642 / 0.9745`。
+
+Z1 保留随机初始化的 `propagation_doubling`，但不执行 backward 或 optimizer step。五种子
+原始 holdout Spearman 为 `-0.9284 / +0.9601 / -0.9572 / -0.9569 / +0.8855`，绝对值均值
+`0.9376`。seed 间排序相关性大多接近 `+1` 或 `-1`，直接证明随机网络不是生成五套不同的
+候选结构，而是把同一强潜在排序轴投影为随机正负方向。Z2 只用 train split 决定全局符号，
+五种子 holdout Spearman 为 `0.9376 ± 0.0285`，未使用 validation 或 holdout 定向。
+
+这一结果解释了 seed 43 为何在首次有效 optimizer step 前已经得到高分，也改变了后续模型
+设计。训练模型不能再以“翻转随机读出符号”作为贡献；正式 rank-first 候选应以 Z0 为固定
+正向先验并学习排序残差，epoch 0 从 Z0 出发。seed 46 的 Z2 虽有 `0.8855` Spearman，
+NDCG@5/10/18 却只有 `0.6467 / 0.6512 / 0.6658`，说明学习部分仍有明确任务：稳定修正头部
+候选，而不是重复拟合已经存在的全局空间梯度。完整结果、逐候选预测和地图见
+`results/gnn_v2/nbfnet_propagation/train_free_baselines/`。
+
+因此后续顺序调整为“完成平台期与 optimizer 更新诊断 → 以 Z0 为固定先验的 rank-first
+排序残差 → 与完整 rank-first NBFNet 做 validation 对照 → 新协议五种子 → 最终协议下关键
+消融”。保留现有数据、split 和双向传播主线；消融不取消，但在学习模型稳定超过 Z0 前不启动。
+完整参数、阶段门和复跑规则见 `reports/阶段四_GNN第二版实施计划.md` 的“纯传播稳定性、训练
+目标诊断、消融与调参追加计划”。

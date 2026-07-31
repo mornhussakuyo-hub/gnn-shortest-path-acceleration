@@ -21,6 +21,7 @@ try:
         _parameter_delta_norm,
         _parameter_snapshot,
         _resolve_precision_policy,
+        _evaluation_loss,
     )
 except ImportError:  # pragma: no cover - covered by the CUDA environment instead.
     torch = None
@@ -95,6 +96,37 @@ class BidirectionalNBFNetTest(unittest.TestCase):
     def test_config_rejects_invalid_batch_size(self) -> None:
         with self.assertRaises(ValueError):
             NBFNetConfig(prototype_batch_size=0).validate()
+
+    def test_zero_initialized_residual_head_is_exactly_zero(self) -> None:
+        model = BidirectionalNBFNet(
+            3,
+            2,
+            2,
+            NBFNetConfig(
+                hidden_dim=4,
+                propagation_layers=2,
+                max_epochs=1,
+                zero_initialize_prediction_head=True,
+            ),
+        )
+        output_layer = model.prediction_head[-1]
+        self.assertTrue(
+            torch.equal(output_layer.weight, torch.zeros_like(output_layer.weight))
+        )
+        self.assertTrue(torch.equal(output_layer.bias, torch.zeros_like(output_layer.bias)))
+
+    def test_rank_first_evaluation_excludes_huber_from_total(self) -> None:
+        prediction = torch.tensor([0.0, 2.0, 1.0])
+        target = torch.tensor([1.0, 3.0, 2.0])
+        config = NBFNetConfig(hidden_dim=4, propagation_layers=1, max_epochs=1)
+        total, huber, rank = _evaluation_loss(
+            prediction,
+            target,
+            config,
+            "rank_first",
+        )
+        self.assertGreater(huber, 0.0)
+        self.assertAlmostEqual(total, rank)
 
     def test_zero_state_does_not_create_messages(self) -> None:
         layer = _DirectionalLayer(hidden_dim=4, edge_dim=3)

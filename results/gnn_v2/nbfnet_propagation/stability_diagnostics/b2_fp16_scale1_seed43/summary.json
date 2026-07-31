@@ -1,0 +1,357 @@
+{
+  "schema": "aic.gnn_v2.od_conditioned_bidirectional_nbfnet.v4",
+  "model": "od_conditioned_bidirectional_nbfnet",
+  "variant": "propagation_doubling",
+  "execution": {
+    "framework": "pytorch",
+    "torch_version": "2.13.0+cu130",
+    "cuda_version": "13.0",
+    "device_type": "cuda",
+    "device_index": 0,
+    "device_name": "NVIDIA GeForce RTX 4090 D",
+    "device_total_memory_bytes": 25250627584
+  },
+  "dataset_sha256": "e9b1bc149a6a94dd744305e41817c3a2b9447cd5e3ba5a17c71fea38db2bf261",
+  "candidate_sha256": "40d7d8babf74381b5f7088de22edc0f48181bec9c78a53fb039c9e8e7c20f71c",
+  "config": {
+    "hidden_dim": 32,
+    "propagation_layers": 32,
+    "demand_scale": 1000.0,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001,
+    "rank_weight": 0.2,
+    "huber_delta": 1.0,
+    "prototype_batch_size": 4,
+    "max_epochs": 80,
+    "patience": 80,
+    "min_improvement": 0.0001,
+    "mixed_precision": true,
+    "gradient_checkpointing": true,
+    "variant": "propagation_doubling",
+    "randomization_seed": 20260730
+  },
+  "numerics": {
+    "mode": "fp16",
+    "autocast_enabled": true,
+    "autocast_dtype": "float16",
+    "grad_scaler_enabled": true,
+    "grad_scaler_init_scale": 1.0
+  },
+  "seeds": [
+    43
+  ],
+  "selected_seed": 43,
+  "selection_rule": "highest validation Spearman; holdout is never used",
+  "architecture": {
+    "propagation_only": true,
+    "uses_direct_region_features": false,
+    "uses_layer_zero_readout": false,
+    "residual_propagation": false,
+    "doubling_scale_readout": true,
+    "readout_depths": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32
+    ],
+    "maximum_hop_depth": 32,
+    "materializes_multi_hop_edges": false
+  },
+  "split": {
+    "axis": "candidate",
+    "strategy": "jaccard_overlap_connected_components",
+    "seed": 42,
+    "train_fraction": 0.7,
+    "validation_fraction": 0.15,
+    "holdout_fraction": 0.15000000000000005,
+    "counts": {
+      "train": 840,
+      "validation": 180,
+      "holdout": 180
+    },
+    "overlap_group_threshold": 0.5,
+    "overlap_group_count": 521,
+    "largest_overlap_group": 12,
+    "cross_split_max_jaccard_upper_bound": 0.5,
+    "guarantee": "Every candidate pair with Jaccard similarity greater than or equal to the threshold belongs to the same split.",
+    "warning": "Candidate holdout measures region generalization within H→Y; it is not the frozen future temporal test."
+  },
+  "input_policy": {
+    "uses_history_od_only": true,
+    "uses_static_road_graph": true,
+    "uses_path_supervision": false,
+    "uses_label_window_as_input": false,
+    "uses_cost_or_query_runtime_features": false,
+    "uses_node_coordinates": false,
+    "coordinates_used_for_prototype_grouping_only": true,
+    "selection_method_is_model_input": false
+  },
+  "ablation": {
+    "variant": "propagation_doubling",
+    "randomization_seed": 20260730,
+    "graph_transform": "directed_original",
+    "original_edge_count": 221589,
+    "effective_edge_count": 221589,
+    "edge_features_zeroed": false,
+    "destination_prototypes_permuted": false,
+    "destination_permutation": null,
+    "shuffled_od_coupling": null,
+    "note": null
+  },
+  "prototype_batching": {
+    "prototype_count": 128,
+    "prototype_batch_size": 4,
+    "training_objective": "Two-pass exact full-mixture gradient: the first pass evaluates the weighted score of all frozen prototypes; the second recomputes one memory chunk at a time and accumulates its exact gradient contribution.",
+    "batch_size_affects_objective": false
+  },
+  "runs": [
+    {
+      "seed": 43,
+      "best_epoch": 1,
+      "epochs_ran": 80,
+      "training_seconds": 3996.049434853,
+      "peak_allocated_bytes": 9623838208,
+      "peak_reserved_bytes": 10626269184,
+      "parameter_count": 418183,
+      "metrics": {
+        "train": {
+          "count": 840,
+          "mae": 29.87152099609375,
+          "huber": 251.80502319335938,
+          "spearman": 0.9448487055660628,
+          "ndcg_at_k": 0.9525823314600232,
+          "top_k": 84,
+          "top_k_mean_gain": 126.551513671875,
+          "oracle_top_k_mean_gain": 131.675537109375,
+          "all_mean_gain": 39.26521682739258,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.8882597476931207,
+              "mean_gain": 158.8481903076172,
+              "oracle_mean_gain": 177.17410278320312,
+              "membership_count": 2560,
+              "unique_node_count": 997,
+              "membership_redundancy": 2.567703109327984
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.9157309910333657,
+              "mean_gain": 163.4398956298828,
+              "oracle_mean_gain": 174.91421508789062,
+              "membership_count": 5120,
+              "unique_node_count": 2341,
+              "membership_redundancy": 2.1870995301153355
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.9513135943176436,
+              "mean_gain": 164.998046875,
+              "oracle_mean_gain": 168.4081573486328,
+              "membership_count": 9216,
+              "unique_node_count": 3234,
+              "membership_redundancy": 2.849721706864564
+            }
+          }
+        },
+        "validation": {
+          "count": 180,
+          "mae": 30.626691818237305,
+          "huber": 258.9905090332031,
+          "spearman": 0.9457637581406834,
+          "ndcg_at_k": 0.9767645303107199,
+          "top_k": 18,
+          "top_k_mean_gain": 139.10101318359375,
+          "oracle_top_k_mean_gain": 140.1768798828125,
+          "all_mean_gain": 40.91598892211914,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.9360156121954909,
+              "mean_gain": 159.82449340820312,
+              "oracle_mean_gain": 170.85610961914062,
+              "membership_count": 2560,
+              "unique_node_count": 2137,
+              "membership_redundancy": 1.1979410388394947
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.9661987947624908,
+              "mean_gain": 151.89401245117188,
+              "oracle_mean_gain": 155.20130920410156,
+              "membership_count": 5120,
+              "unique_node_count": 3606,
+              "membership_redundancy": 1.4198557958957294
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.9767645303107199,
+              "mean_gain": 139.10101318359375,
+              "oracle_mean_gain": 140.1768798828125,
+              "membership_count": 9216,
+              "unique_node_count": 5994,
+              "membership_redundancy": 1.5375375375375375
+            }
+          }
+        },
+        "holdout": {
+          "count": 180,
+          "mae": 31.909088134765625,
+          "huber": 272.5697021484375,
+          "spearman": 0.9601139952879204,
+          "ndcg_at_k": 0.979481763075015,
+          "top_k": 18,
+          "top_k_mean_gain": 139.802001953125,
+          "oracle_top_k_mean_gain": 143.29766845703125,
+          "all_mean_gain": 40.47897720336914,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.9719726950783892,
+              "mean_gain": 170.04299926757812,
+              "oracle_mean_gain": 176.84671020507812,
+              "membership_count": 2560,
+              "unique_node_count": 1358,
+              "membership_redundancy": 1.8851251840942562
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.9849369227382604,
+              "mean_gain": 158.02243041992188,
+              "oracle_mean_gain": 160.19338989257812,
+              "membership_count": 5120,
+              "unique_node_count": 2867,
+              "membership_redundancy": 1.7858388559469829
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.979481763075015,
+              "mean_gain": 139.802001953125,
+              "oracle_mean_gain": 143.29766845703125,
+              "membership_count": 9216,
+              "unique_node_count": 5592,
+              "membership_redundancy": 1.648068669527897
+            }
+          }
+        }
+      },
+      "diagnostics": {
+        "numerics": {
+          "mode": "fp16",
+          "autocast_enabled": true,
+          "autocast_dtype": "float16",
+          "grad_scaler_enabled": true,
+          "grad_scaler_init_scale": 1.0
+        },
+        "epoch_zero_validation_spearman": 0.9457961386649701,
+        "first_effective_optimizer_epoch": 7,
+        "first_positive_validation_epoch": 0,
+        "effective_optimizer_steps": 72,
+        "skipped_optimizer_steps": 8,
+        "best_checkpoint_effective_step_count": 0,
+        "initialization_dominant": true,
+        "stopped_reason": "max_epochs"
+      }
+    }
+  ],
+  "aggregate": {
+    "train": {
+      "mae": {
+        "mean": 29.87152099609375,
+        "std": 0.0,
+        "min": 29.87152099609375,
+        "max": 29.87152099609375
+      },
+      "huber": {
+        "mean": 251.80502319335938,
+        "std": 0.0,
+        "min": 251.80502319335938,
+        "max": 251.80502319335938
+      },
+      "spearman": {
+        "mean": 0.9448487055660628,
+        "std": 0.0,
+        "min": 0.9448487055660628,
+        "max": 0.9448487055660628
+      },
+      "ndcg_at_k": {
+        "mean": 0.9525823314600232,
+        "std": 0.0,
+        "min": 0.9525823314600232,
+        "max": 0.9525823314600232
+      },
+      "top_k_mean_gain": {
+        "mean": 126.551513671875,
+        "std": 0.0,
+        "min": 126.551513671875,
+        "max": 126.551513671875
+      }
+    },
+    "validation": {
+      "mae": {
+        "mean": 30.626691818237305,
+        "std": 0.0,
+        "min": 30.626691818237305,
+        "max": 30.626691818237305
+      },
+      "huber": {
+        "mean": 258.9905090332031,
+        "std": 0.0,
+        "min": 258.9905090332031,
+        "max": 258.9905090332031
+      },
+      "spearman": {
+        "mean": 0.9457637581406834,
+        "std": 0.0,
+        "min": 0.9457637581406834,
+        "max": 0.9457637581406834
+      },
+      "ndcg_at_k": {
+        "mean": 0.9767645303107199,
+        "std": 0.0,
+        "min": 0.9767645303107199,
+        "max": 0.9767645303107199
+      },
+      "top_k_mean_gain": {
+        "mean": 139.10101318359375,
+        "std": 0.0,
+        "min": 139.10101318359375,
+        "max": 139.10101318359375
+      }
+    },
+    "holdout": {
+      "mae": {
+        "mean": 31.909088134765625,
+        "std": 0.0,
+        "min": 31.909088134765625,
+        "max": 31.909088134765625
+      },
+      "huber": {
+        "mean": 272.5697021484375,
+        "std": 0.0,
+        "min": 272.5697021484375,
+        "max": 272.5697021484375
+      },
+      "spearman": {
+        "mean": 0.9601139952879204,
+        "std": 0.0,
+        "min": 0.9601139952879204,
+        "max": 0.9601139952879204
+      },
+      "ndcg_at_k": {
+        "mean": 0.979481763075015,
+        "std": 0.0,
+        "min": 0.979481763075015,
+        "max": 0.979481763075015
+      },
+      "top_k_mean_gain": {
+        "mean": 139.802001953125,
+        "std": 0.0,
+        "min": 139.802001953125,
+        "max": 139.802001953125
+      }
+    }
+  }
+}

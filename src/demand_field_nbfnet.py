@@ -62,6 +62,7 @@ class NBFNetConfig:
     min_improvement: float = 0.0001
     mixed_precision: bool = True
     gradient_checkpointing: bool = True
+    zero_initialize_prediction_head: bool = False
     variant: str = "base"
     randomization_seed: int = 20260730
 
@@ -330,6 +331,11 @@ class BidirectionalNBFNet(nn.Module):
             nn.ReLU(),
             nn.Linear(config.hidden_dim, 1),
         )
+        if config.zero_initialize_prediction_head:
+            output_layer = self.prediction_head[-1]
+            assert isinstance(output_layer, nn.Linear)
+            nn.init.zeros_(output_layer.weight)
+            nn.init.zeros_(output_layer.bias)
 
     @staticmethod
     def _encoder(input_dim: int, hidden_dim: int) -> nn.Sequential:

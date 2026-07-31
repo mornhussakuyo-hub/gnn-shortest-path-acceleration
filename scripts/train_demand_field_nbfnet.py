@@ -33,6 +33,9 @@ from src.demand_field_nbfnet import (
     iter_slices,
 )
 from src.demand_field_torch_model import cuda_environment, require_cuda
+from src.train_free_demand_field import (
+    deterministic_diffusion_batch_scores,
+)
 
 
 DEFAULT_DATASET = ROOT_DIR / "results" / "gnn_v2" / "demand_field_dataset.npz"
@@ -40,6 +43,8 @@ DEFAULT_DATASET_MANIFEST = ROOT_DIR / "results" / "gnn_v2" / "demand_field_datas
 DEFAULT_OUTPUT_DIR = ROOT_DIR / "results" / "gnn_v2" / "nbfnet_base"
 EXPERIMENT_SCHEMA = "aic.gnn_v2.od_conditioned_bidirectional_nbfnet.v4"
 PRECISION_MODES = ("fp16", "bf16", "fp32")
+TRAINING_OBJECTIVES = ("regression_rank", "rank_first")
+FIXED_PRIORS = ("none", "z0")
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,6 +98,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--learning-rate", type=float, default=0.001)
     parser.add_argument("--weight-decay", type=float, default=0.0001)
     parser.add_argument("--rank-weight", type=float, default=0.20)
+    parser.add_argument(
+        "--training-objective",
+        choices=TRAINING_OBJECTIVES,
+        default="regression_rank",
+        help="regression_rank preserves the legacy Huber-plus-sampled-rank loss.",
+    )
+    parser.add_argument(
+        "--fixed-prior",
+        choices=FIXED_PRIORS,
+        default="none",
+        help="Add a frozen score to the learned residual before every ranking metric.",
+    )
     parser.add_argument("--huber-delta", type=float, default=1.0)
     parser.add_argument("--prototype-batch-size", type=int, default=1)
     parser.add_argument("--max-epochs", type=int, default=100)
@@ -124,6 +141,12 @@ def main() -> None:
         args.grad_scaler_init_scale,
     )
     rank_weight = 0.0 if args.variant == "no_ranking" else args.rank_weight
+    if args.training_objective == "rank_first" and args.variant == "no_ranking":
+        raise SystemExit("rank_first cannot be combined with variant=no_ranking")
+    if args.fixed_prior != "none" and args.training_objective != "rank_first":
+        raise SystemExit("a fixed prior is only supported by training-objective=rank_first")
+    if args.fixed_prior == "z0" and args.variant not in PROPAGATION_ONLY_VARIANTS:
+        raise SystemExit("the Z0 residual protocol requires a propagation-only variant")
     config = NBFNetConfig(
         hidden_dim=args.hidden_dim,
         propagation_layers=args.layers,
@@ -137,6 +160,7 @@ def main() -> None:
         patience=args.patience,
         mixed_precision=precision_policy.autocast_enabled,
         gradient_checkpointing=not args.no_gradient_checkpointing,
+        zero_initialize_prediction_head=args.fixed_prior != "none",
         variant=args.variant,
         randomization_seed=args.randomization_seed,
     )
@@ -148,6 +172,11 @@ def main() -> None:
         device,
         config.variant,
         config.randomization_seed,
+    )
+    prior_metadata = _attach_fixed_prior(
+        tensors,
+        args.fixed_prior,
+        config.prototype_batch_size,
     )
     args.output_dir.mkdir(parents=True, exist_ok=True)
     runs: list[dict] = []
@@ -165,6 +194,8 @@ def main() -> None:
             seed,
             device,
             precision_policy,
+            args.training_objective,
+            args.fixed_prior,
         )
         seed_dir = args.output_dir / f"seed_{seed}"
         seed_dir.mkdir(parents=True, exist_ok=True)
@@ -174,7 +205,8 @@ def main() -> None:
             dataset,
             run["prediction"],
         )
-        _save_checkpoint(seed_dir / "model.pt", run, config, scalers, dataset)
+        if run.get("model_state") is not None:
+            _save_checkpoint(seed_dir / "model.pt", run, config, scalers, dataset)
         run.pop("prediction")
         runs.append(run)
         print(
@@ -196,9 +228,16 @@ def main() -> None:
         "candidate_sha256": dataset.manifest["candidate_sha256"],
         "config": asdict(config),
         "numerics": precision_policy.metadata(),
+        "training_objective": args.training_objective,
+        "fixed_prior": prior_metadata,
         "seeds": seeds,
         "selected_seed": selected_seed,
-        "selection_rule": "highest validation Spearman; holdout is never used",
+        "selection_rule": (
+            "highest validation Spearman among post-update checkpoints; holdout is "
+            "never used"
+            if args.training_objective == "rank_first"
+            else "highest validation Spearman; holdout is never used"
+        ),
         "architecture": _architecture_metadata(config),
         "split": dataset.manifest["split"],
         "input_policy": dataset.manifest["model_input_policy"],
@@ -210,6 +249,11 @@ def main() -> None:
                 "Two-pass exact full-mixture gradient: the first pass evaluates the "
                 "weighted score of all frozen prototypes; the second recomputes one "
                 "memory chunk at a time and accumulates its exact gradient contribution."
+            ),
+            "ranking_loss": (
+                "all unique training candidate pairs"
+                if args.training_objective == "rank_first"
+                else "one sampled pair per training candidate"
             ),
             "batch_size_affects_objective": False,
         },
@@ -309,6 +353,9 @@ def _prepare_tensors(
             (dataset.labels - label_mean) / label_scale,
             device=device,
         ),
+        "split_train_mask": torch.as_tensor(
+            train_mask, device=device, dtype=torch.bool
+        ),
         "forward_degree": build_receiver_normalizers(
             edge_target, dataset.node_ids.size
         ),
@@ -343,6 +390,55 @@ def _prepare_tensors(
             ),
         },
     )
+
+
+def _attach_fixed_prior(
+    tensors: dict[str, torch.Tensor],
+    fixed_prior: str,
+    prototype_batch_size: int,
+) -> dict[str, object]:
+    if fixed_prior == "none":
+        return {"name": "none"}
+    if fixed_prior != "z0":
+        raise ValueError(f"unsupported fixed prior: {fixed_prior}")
+
+    raw_score = torch.zeros(
+        tensors["region_nodes"].shape[0],
+        device=tensors["region_nodes"].device,
+        dtype=torch.float32,
+    )
+    with torch.inference_mode():
+        for prototype_slice in iter_slices(
+            tensors["prototype_weight"].size(0), prototype_batch_size
+        ):
+            batch_score = deterministic_diffusion_batch_scores(
+                origin_fields=tensors["origin_fields"][prototype_slice],
+                destination_fields=tensors["destination_fields"][prototype_slice],
+                edge_source=tensors["edge_source"],
+                edge_target=tensors["edge_target"],
+                region_nodes=tensors["region_nodes"],
+                receiver_normalizer_forward=tensors["forward_degree"],
+                receiver_normalizer_reverse=tensors["reverse_degree"],
+            )
+            raw_score += (
+                batch_score.float()
+                * tensors["prototype_weight"][prototype_slice, None].float()
+            ).sum(dim=0)
+    train_mask = tensors["split_train_mask"]
+    train_score = raw_score[train_mask]
+    train_mean = train_score.mean()
+    train_std = train_score.std(unbiased=False).clamp_min(1e-6)
+    tensors["fixed_prior"] = (raw_score - train_mean) / train_std
+    return {
+        "name": "z0",
+        "description": (
+            "deterministic scalar bidirectional fixed-mean diffusion over depths "
+            "1,2,4,8,16,32; centered and standardized on train candidates only"
+        ),
+        "readout_depths": [1, 2, 4, 8, 16, 32],
+        "train_mean": float(train_mean.item()),
+        "train_std": float(train_std.item()),
+    }
 
 
 def _marginal_preserving_od_shuffle(
@@ -507,6 +603,8 @@ def _train_one_seed(
     seed: int,
     device: torch.device,
     precision_policy: PrecisionPolicy,
+    training_objective: str,
+    fixed_prior: str,
 ) -> dict:
     precision_policy.validate()
     torch.manual_seed(seed)
@@ -563,6 +661,7 @@ def _train_one_seed(
         initial_train_prediction,
         train_target,
         config,
+        training_objective,
     )
     (
         initial_validation_loss,
@@ -572,6 +671,7 @@ def _train_one_seed(
         initial_validation_prediction,
         validation_target,
         config,
+        training_objective,
     )
     initial_validation_unscaled = _unscale_prediction(
         initial_validation_prediction,
@@ -653,16 +753,21 @@ def _train_one_seed(
             train_target,
         )
         prediction_leaf = full_train_prediction.detach().requires_grad_(True)
-        train_huber = functional.huber_loss(
-            prediction_leaf,
-            train_target,
-            reduction="mean",
-            delta=config.huber_delta,
-        )
-        train_rank = _sampled_pairwise_loss(
-            prediction_leaf, train_target, generator
-        )
-        train_loss = train_huber + config.rank_weight * train_rank
+        if training_objective == "rank_first":
+            train_huber = prediction_leaf.sum() * 0.0
+            train_rank = _full_pairwise_loss_tensor(prediction_leaf, train_target)
+            train_loss = train_rank
+        else:
+            train_huber = functional.huber_loss(
+                prediction_leaf,
+                train_target,
+                reduction="mean",
+                delta=config.huber_delta,
+            )
+            train_rank = _sampled_pairwise_loss(
+                prediction_leaf, train_target, generator
+            )
+            train_loss = train_huber + config.rank_weight * train_rank
         prediction_gradient = torch.autograd.grad(train_loss, prediction_leaf)[0].detach()
 
         prototype_count = tensors["prototype_weight"].size(0)
@@ -723,6 +828,7 @@ def _train_one_seed(
                 validation_prediction,
                 validation_target,
                 config,
+                training_objective,
             )
             validation_unscaled = _unscale_prediction(validation_prediction, scalers)
             validation_metrics = regression_metrics(
@@ -765,7 +871,12 @@ def _train_one_seed(
             and validation_metrics["spearman"] > 0.0
         ):
             first_positive_validation_epoch = epoch
+        checkpoint_is_eligible = (
+            training_objective != "rank_first" or optimizer_step_effective
+        )
         if (
+            checkpoint_is_eligible
+            and
             validation_metrics["spearman"]
             > best_validation_spearman + config.min_improvement
         ):
@@ -811,23 +922,37 @@ def _train_one_seed(
             )
             break
 
-    if best_state is None:
+    if best_state is None and (
+        training_objective != "rank_first" or fixed_prior == "none"
+    ):
         raise RuntimeError("NBFNet training did not produce a finite validation checkpoint")
-    print(
-        f"seed={seed} evaluating_best_checkpoint best_epoch={best_epoch}",
-        flush=True,
-    )
-    model.load_state_dict(best_state)
-    model.to(device)
-    model.eval()
-    with torch.no_grad():
-        prediction = _predict_weighted(
-            model,
-            tensors,
-            torch.arange(dataset.region_ids.size, device=device),
-            config.prototype_batch_size,
-            precision_policy,
+    if best_state is None:
+        print(
+            f"seed={seed} no_effective_checkpoint; retaining fixed prior only",
+            flush=True,
         )
+        model_state = None
+        prediction = tensors["fixed_prior"].detach().clone()
+        best_epoch = 0
+        best_checkpoint_effective_step_count = 0
+        stopped_reason = "no_effective_optimizer_checkpoint"
+    else:
+        print(
+            f"seed={seed} evaluating_best_checkpoint best_epoch={best_epoch}",
+            flush=True,
+        )
+        model.load_state_dict(best_state)
+        model.to(device)
+        model.eval()
+        with torch.no_grad():
+            prediction = _predict_weighted(
+                model,
+                tensors,
+                torch.arange(dataset.region_ids.size, device=device),
+                config.prototype_batch_size,
+                precision_policy,
+            )
+        model_state = best_state
     torch.cuda.synchronize(device)
     unscaled_prediction = _unscale_prediction(prediction, scalers)
     return {
@@ -854,11 +979,14 @@ def _train_one_seed(
                 or best_validation_spearman
                 <= initial_validation_metrics["spearman"] + config.min_improvement
             ),
+            "selection_requires_effective_optimizer_step": training_objective
+            == "rank_first",
+            "fixed_prior": fixed_prior,
             "stopped_reason": stopped_reason,
         },
         "prediction": unscaled_prediction,
         "history": history,
-        "model_state": best_state,
+        "model_state": model_state,
     }
 
 
@@ -900,6 +1028,9 @@ def _predict_weighted(
         with _autocast_context(region_indices.device, precision_policy):
             prediction = _forward_batch(model, tensors, prototype_ids, region_indices)
         aggregate += (prediction.float() * tensors["prototype_weight"][prototype_ids, None]).sum(dim=0)
+    fixed_prior = tensors.get("fixed_prior")
+    if fixed_prior is not None:
+        aggregate = aggregate + fixed_prior[region_indices]
     return aggregate
 
 
@@ -946,6 +1077,7 @@ def _evaluation_loss(
     prediction: torch.Tensor,
     target: torch.Tensor,
     config: NBFNetConfig,
+    training_objective: str,
 ) -> tuple[float, float, float]:
     huber = functional.huber_loss(
         prediction,
@@ -954,7 +1086,11 @@ def _evaluation_loss(
         delta=config.huber_delta,
     )
     rank = _full_pairwise_loss_tensor(prediction, target)
-    total = huber + config.rank_weight * rank
+    total = (
+        rank
+        if training_objective == "rank_first"
+        else huber + config.rank_weight * rank
+    )
     return float(total.item()), float(huber.item()), float(rank.item())
 
 
@@ -1232,6 +1368,8 @@ def _render_report(summary: dict) -> str:
             "# OD 条件化双向 NBFNet 训练结果",
             "",
             f"- 实验变体：`{summary['variant']}`",
+            f"- 训练目标：`{summary['training_objective']}`",
+            f"- 固定先验：`{summary['fixed_prior']['name']}`",
             f"- 数据摘要：`{summary['dataset_sha256']}`",
             f"- 候选摘要：`{summary['candidate_sha256']}`",
             f"- 选定种子：`{summary['selected_seed']}`（仅按验证集 Spearman 选择）",
