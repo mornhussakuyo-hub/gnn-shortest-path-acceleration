@@ -25,7 +25,7 @@ from src.demand_field_nbfnet import (
     DOUBLING_PROPAGATION_VARIANTS,
     NBFNET_VARIANTS,
     PROPAGATION_ONLY_VARIANTS,
-    RESIDUAL_PROPAGATION_VARIANTS,
+    PROPAGATION_STRUCTURES,
     BidirectionalNBFNet,
     NBFNetConfig,
     build_edge_features,
@@ -116,6 +116,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--patience", type=int, default=20)
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--variant", choices=NBFNET_VARIANTS, default="base")
+    parser.add_argument(
+        "--propagation-structure",
+        choices=PROPAGATION_STRUCTURES,
+        help=(
+            "Orthogonal S0 propagation update. If omitted, legacy propagation "
+            "variants retain their historical G0/G1 behavior."
+        ),
+    )
+    parser.add_argument("--propagation-residual-scale", type=float, default=0.01)
     parser.add_argument("--randomization-seed", type=int, default=20260730)
     parser.add_argument(
         "--precision",
@@ -161,6 +170,8 @@ def main() -> None:
         mixed_precision=precision_policy.autocast_enabled,
         gradient_checkpointing=not args.no_gradient_checkpointing,
         zero_initialize_prediction_head=args.fixed_prior != "none",
+        propagation_structure=args.propagation_structure,
+        propagation_residual_scale=args.propagation_residual_scale,
         variant=args.variant,
         randomization_seed=args.randomization_seed,
     )
@@ -1289,13 +1300,16 @@ def _all_split_metrics(
 def _architecture_metadata(config: NBFNetConfig) -> dict[str, object]:
     propagation_only = config.variant in PROPAGATION_ONLY_VARIANTS
     doubling = config.variant in DOUBLING_PROPAGATION_VARIANTS
-    residual = config.variant in RESIDUAL_PROPAGATION_VARIANTS
+    structure = config.resolved_propagation_structure()
     readout_depths = BidirectionalNBFNet._readout_depths(config)
     return {
         "propagation_only": propagation_only,
         "uses_direct_region_features": not propagation_only,
         "uses_layer_zero_readout": 0 in readout_depths,
-        "residual_propagation": residual,
+        "propagation_structure": structure,
+        "propagation_residual_scale": config.propagation_residual_scale,
+        "residual_propagation": structure in {"g1", "g2", "g3"},
+        "strict_identity_path": structure in {"g2", "g3"},
         "doubling_scale_readout": doubling,
         "readout_depths": list(readout_depths),
         "maximum_hop_depth": config.propagation_layers,

@@ -45,6 +45,13 @@ RESIDUAL_PROPAGATION_VARIANTS = frozenset(
 DOUBLING_PROPAGATION_VARIANTS = frozenset(
     {"propagation_doubling", "propagation_residual_doubling"}
 )
+PROPAGATION_STRUCTURES = ("g0", "g1", "g2", "g3")
+LEGACY_PROPAGATION_STRUCTURES = {
+    "propagation_deep": "g0",
+    "propagation_doubling": "g0",
+    "propagation_residual": "g1",
+    "propagation_residual_doubling": "g1",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,6 +70,8 @@ class NBFNetConfig:
     mixed_precision: bool = True
     gradient_checkpointing: bool = True
     zero_initialize_prediction_head: bool = False
+    propagation_structure: str | None = None
+    propagation_residual_scale: float = 0.01
     variant: str = "base"
     randomization_seed: int = 20260730
 
@@ -87,6 +96,30 @@ class NBFNetConfig:
             raise ValueError(
                 f"variant must be one of {', '.join(NBFNET_VARIANTS)}"
             )
+        if (
+            self.propagation_structure is not None
+            and self.propagation_structure not in PROPAGATION_STRUCTURES
+        ):
+            raise ValueError(
+                "propagation_structure must be one of "
+                f"{', '.join(PROPAGATION_STRUCTURES)}"
+            )
+        if (
+            self.propagation_structure is not None
+            and self.variant not in PROPAGATION_ONLY_VARIANTS
+        ):
+            raise ValueError(
+                "propagation_structure requires a propagation-only variant"
+            )
+        if self.propagation_residual_scale <= 0.0:
+            raise ValueError("propagation_residual_scale must be positive")
+
+    def resolved_propagation_structure(self) -> str:
+        """Resolve the explicit S0 structure or preserve legacy experiment replay."""
+
+        if self.propagation_structure is not None:
+            return self.propagation_structure
+        return LEGACY_PROPAGATION_STRUCTURES.get(self.variant, "g0")
 
 
 class _DirectionalLayer(nn.Module):
@@ -174,11 +207,24 @@ class _GraphSAGELayer(nn.Module):
 
 
 class _PropagationOnlyLayer(nn.Module):
-    """One sparse directed propagation step with an optional residual path."""
+    """One sparse directed propagation step using an explicit S0 update structure."""
 
-    def __init__(self, hidden_dim: int, edge_dim: int, residual: bool) -> None:
+    def __init__(
+        self,
+        hidden_dim: int,
+        edge_dim: int,
+        structure: str,
+        residual_scale: float = 0.01,
+    ) -> None:
         super().__init__()
-        self.residual = residual
+        if structure not in PROPAGATION_STRUCTURES:
+            raise ValueError(
+                f"structure must be one of {', '.join(PROPAGATION_STRUCTURES)}"
+            )
+        if residual_scale <= 0.0:
+            raise ValueError("residual_scale must be positive")
+        self.structure = structure
+        self.residual_scale = residual_scale
         self.message_state = nn.Linear(hidden_dim, hidden_dim, bias=False)
         self.message_edge_gate = nn.Sequential(
             nn.Linear(edge_dim, hidden_dim),
@@ -197,6 +243,30 @@ class _PropagationOnlyLayer(nn.Module):
         self.normalization = nn.LayerNorm(hidden_dim)
 
     def forward(
+        self,
+        state: torch.Tensor,
+        sender_index: torch.Tensor,
+        receiver_index: torch.Tensor,
+        edge_features: torch.Tensor,
+        receiver_normalizer: torch.Tensor,
+    ) -> torch.Tensor:
+        branch_state = self.normalization(state) if self.structure == "g3" else state
+        propagated = self._propagation_branch(
+            branch_state,
+            sender_index,
+            receiver_index,
+            edge_features,
+            receiver_normalizer,
+        )
+        if self.structure == "g0":
+            return self.normalization(propagated)
+        if self.structure == "g1":
+            return self.normalization(state + propagated)
+        if self.structure == "g2":
+            return state + self.residual_scale * self.normalization(propagated)
+        return state + self.residual_scale * propagated
+
+    def _propagation_branch(
         self,
         state: torch.Tensor,
         sender_index: torch.Tensor,
@@ -223,10 +293,7 @@ class _PropagationOnlyLayer(nn.Module):
         aggregate = aggregate / receiver_normalizer.to(dtype=aggregate.dtype).unsqueeze(
             0
         ).unsqueeze(-1)
-        propagated = self.aggregate_projection(aggregate)
-        if self.residual:
-            propagated = propagated + state
-        return self.normalization(propagated)
+        return self.aggregate_projection(aggregate)
 
 
 class BidirectionalNBFNet(nn.Module):
@@ -252,7 +319,7 @@ class BidirectionalNBFNet(nn.Module):
         self.hidden_dim = config.hidden_dim
         self.edge_dim = edge_type_count + 1
         self.propagation_only = config.variant in PROPAGATION_ONLY_VARIANTS
-        self.residual_propagation = config.variant in RESIDUAL_PROPAGATION_VARIANTS
+        self.propagation_structure = config.resolved_propagation_structure()
         self.doubling_readout = config.variant in DOUBLING_PROPAGATION_VARIANTS
         self.origin_encoder = self._encoder(node_feature_dim, config.hidden_dim)
         self.destination_encoder = (
@@ -275,7 +342,8 @@ class BidirectionalNBFNet(nn.Module):
                 _PropagationOnlyLayer(
                     config.hidden_dim,
                     self.edge_dim,
-                    self.residual_propagation,
+                    self.propagation_structure,
+                    config.propagation_residual_scale,
                 )
                 for _ in range(config.propagation_layers)
             )
@@ -283,7 +351,8 @@ class BidirectionalNBFNet(nn.Module):
                 _PropagationOnlyLayer(
                     config.hidden_dim,
                     self.edge_dim,
-                    self.residual_propagation,
+                    self.propagation_structure,
+                    config.propagation_residual_scale,
                 )
                 for _ in range(config.propagation_layers)
             )

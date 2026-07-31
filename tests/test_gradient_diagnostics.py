@@ -6,6 +6,8 @@ import unittest
 try:
     import torch
 
+    from scripts.diagnose_demand_field_gradients import _gradient_clipping_summary
+
     from src.gradient_diagnostics import (
         DeviceTensorAccumulator,
         finite_tensor_statistics,
@@ -51,6 +53,14 @@ class GradientDiagnosticsTest(unittest.TestCase):
         self.assertEqual(result["nonfinite_count"], 1)
         self.assertEqual(result["positive_inf_count"], 1)
         self.assertEqual(result["maximum_absolute_finite_value"], 3.0)
+
+    def test_clipping_coefficient_uses_fp64_norm(self) -> None:
+        clipping = _gradient_clipping_summary(
+            {"finite_l2_norm_fp64": 2500.0},
+            max_grad_norm=1.0,
+        )
+        self.assertAlmostEqual(clipping["coefficient"], 4.0e-4)
+        self.assertAlmostEqual(clipping["expected_clipped_l2_norm_fp64"], 1.0)
 
 
 if __name__ == "__main__":

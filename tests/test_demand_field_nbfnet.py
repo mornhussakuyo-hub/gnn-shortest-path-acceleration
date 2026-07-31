@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import unittest
+from dataclasses import asdict
 
 try:
     import torch
@@ -10,6 +11,7 @@ try:
         BidirectionalNBFNet,
         NBFNetConfig,
         _DirectionalLayer,
+        _PropagationOnlyLayer,
         build_edge_features,
         build_receiver_normalizers,
     )
@@ -96,6 +98,99 @@ class BidirectionalNBFNetTest(unittest.TestCase):
     def test_config_rejects_invalid_batch_size(self) -> None:
         with self.assertRaises(ValueError):
             NBFNetConfig(prototype_batch_size=0).validate()
+
+    def test_propagation_structure_is_explicit_and_serializable(self) -> None:
+        legacy = NBFNetConfig(variant="propagation_residual_doubling")
+        self.assertEqual(legacy.resolved_propagation_structure(), "g1")
+        explicit = NBFNetConfig(
+            variant="propagation_residual_doubling",
+            propagation_structure="g3",
+            propagation_residual_scale=0.01,
+        )
+        explicit.validate()
+        self.assertEqual(explicit.resolved_propagation_structure(), "g3")
+        self.assertEqual(asdict(explicit)["propagation_structure"], "g3")
+        with self.assertRaises(ValueError):
+            NBFNetConfig(
+                variant="propagation_doubling",
+                propagation_structure="unknown",
+            ).validate()
+        with self.assertRaises(ValueError):
+            NBFNetConfig(variant="base", propagation_structure="g2").validate()
+
+    def test_s0_structures_preserve_shape_zero_input_and_gradient_scope(self) -> None:
+        edge_source = torch.tensor([0, 1, 2, 3], dtype=torch.long)
+        edge_target = torch.tensor([1, 2, 3, 4], dtype=torch.long)
+        edge_features = torch.randn(4, 3)
+        normalizer = build_receiver_normalizers(edge_target, 5)
+        for structure in ("g0", "g1", "g2", "g3"):
+            with self.subTest(structure=structure):
+                layer = _PropagationOnlyLayer(4, 3, structure)
+                zero = torch.zeros(2, 5, 4)
+                zero_output = layer(
+                    zero,
+                    edge_source,
+                    edge_target,
+                    edge_features,
+                    normalizer,
+                )
+                self.assertEqual(tuple(zero_output.shape), (2, 5, 4))
+                self.assertTrue(torch.equal(zero_output, torch.zeros_like(zero_output)))
+
+                state = torch.randn(2, 5, 4, requires_grad=True)
+                output = layer(
+                    state,
+                    edge_source,
+                    edge_target,
+                    edge_features,
+                    normalizer,
+                )
+                output.square().mean().backward()
+                self.assertIsNotNone(state.grad)
+                self.assertIsNotNone(layer.message_state.weight.grad)
+                self.assertTrue(torch.isfinite(output).all())
+
+    def test_g2_and_g3_have_an_exact_identity_when_branch_is_zero(self) -> None:
+        edge_source = torch.tensor([0, 1, 2, 3], dtype=torch.long)
+        edge_target = torch.tensor([1, 2, 3, 4], dtype=torch.long)
+        edge_features = torch.randn(4, 3)
+        normalizer = build_receiver_normalizers(edge_target, 5)
+        state = torch.randn(2, 5, 4)
+        for structure in ("g2", "g3"):
+            with self.subTest(structure=structure):
+                layer = _PropagationOnlyLayer(4, 3, structure, residual_scale=0.01)
+                for parameter in layer.aggregate_projection.parameters():
+                    torch.nn.init.zeros_(parameter)
+                output = layer(
+                    state,
+                    edge_source,
+                    edge_target,
+                    edge_features,
+                    normalizer,
+                )
+                self.assertTrue(torch.equal(output, state))
+
+    def test_g3_normalizes_before_message_projection(self) -> None:
+        layer = _PropagationOnlyLayer(4, 3, "g3")
+        state = torch.randn(1, 5, 4)
+        edge_source = torch.tensor([0, 1, 2, 3], dtype=torch.long)
+        edge_target = torch.tensor([1, 2, 3, 4], dtype=torch.long)
+        captured: list[torch.Tensor] = []
+        handle = layer.message_state.register_forward_pre_hook(
+            lambda _module, inputs: captured.append(inputs[0].detach().clone())
+        )
+        try:
+            layer(
+                state,
+                edge_source,
+                edge_target,
+                torch.randn(4, 3),
+                build_receiver_normalizers(edge_target, 5),
+            )
+        finally:
+            handle.remove()
+        expected = layer.normalization(state)[:, edge_source, :]
+        self.assertTrue(torch.allclose(captured[0], expected))
 
     def test_zero_initialized_residual_head_is_exactly_zero(self) -> None:
         model = BidirectionalNBFNet(

@@ -27,12 +27,16 @@ from scripts.train_demand_field_nbfnet import (
     _full_pairwise_loss_tensor,
     _predict_weighted,
     _prepare_tensors,
+    _parameter_delta_norm,
+    _parameter_snapshot,
+    _prediction_statistics,
     _unscale_prediction,
 )
 from src.demand_field_data import DemandFieldDataset, load_demand_field_dataset
 from src.demand_field_model import regression_metrics
 from src.demand_field_nbfnet import (
     PROPAGATION_ONLY_VARIANTS,
+    PROPAGATION_STRUCTURES,
     BidirectionalNBFNet,
     NBFNetConfig,
     iter_slices,
@@ -48,8 +52,8 @@ from src.gradient_diagnostics import (
 DEFAULT_OUTPUT_DIR = (
     ROOT_DIR / "results" / "gnn_v2" / "nbfnet_propagation" / "gradient_anatomy"
 )
-DIAGNOSTIC_SCHEMA = "aic.gnn_v2.gradient_anatomy.v1"
-DIAGNOSTIC_MODES = ("snapshot", "head_only")
+DIAGNOSTIC_SCHEMA = "aic.gnn_v2.gradient_diagnostics.v2"
+DIAGNOSTIC_MODES = ("snapshot", "optimizer_steps", "head_only")
 HOOK_DEPTH_MODES = ("none", "doubling", "all")
 
 
@@ -66,6 +70,12 @@ def parse_args() -> argparse.Namespace:
         choices=sorted(PROPAGATION_ONLY_VARIANTS),
         default="propagation_doubling",
     )
+    parser.add_argument(
+        "--propagation-structure",
+        choices=PROPAGATION_STRUCTURES,
+        default="g0",
+    )
+    parser.add_argument("--propagation-residual-scale", type=float, default=0.01)
     parser.add_argument("--fixed-prior", choices=("none", "z0"), default="none")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--hidden-dim", type=int, default=32)
@@ -74,6 +84,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--loss-scale", type=float, default=1.0)
     parser.add_argument("--learning-rate", type=float, default=0.001)
     parser.add_argument("--head-only-steps", type=int, default=8)
+    parser.add_argument("--optimizer-steps", type=int, default=3)
+    parser.add_argument("--max-grad-norm", type=float, default=1.0)
     parser.add_argument("--warmup-output-head-steps", type=int, default=0)
     parser.add_argument("--hook-depths", choices=HOOK_DEPTH_MODES, default="doubling")
     parser.add_argument("--device", default="cuda")
@@ -98,6 +110,8 @@ def main() -> None:
         mixed_precision=False,
         gradient_checkpointing=not args.no_gradient_checkpointing,
         zero_initialize_prediction_head=args.fixed_prior == "z0",
+        propagation_structure=args.propagation_structure,
+        propagation_residual_scale=args.propagation_residual_scale,
         variant=args.variant,
     )
     config.validate()
@@ -126,6 +140,19 @@ def main() -> None:
             steps=args.head_only_steps,
             loss_scale=args.loss_scale,
         )
+    elif args.mode == "optimizer_steps":
+        result = _run_optimizer_steps(
+            model=model,
+            dataset=dataset,
+            tensors=tensors,
+            scalers=scalers,
+            config=config,
+            precision_policy=precision_policy,
+            steps=args.optimizer_steps,
+            loss_scale=args.loss_scale,
+            hook_depth_mode=args.hook_depths,
+            max_grad_norm=args.max_grad_norm,
+        )
     else:
         warmup_history: list[dict[str, object]] = []
         if args.warmup_output_head_steps:
@@ -151,6 +178,7 @@ def main() -> None:
                 precision_policy=precision_policy,
                 loss_scale=args.loss_scale,
                 hook_depth_mode=args.hook_depths,
+                max_grad_norm=args.max_grad_norm,
             ),
         }
 
@@ -163,6 +191,10 @@ def main() -> None:
         "hook_depth_mode": args.hook_depths,
         "warmup_output_head_steps": args.warmup_output_head_steps,
         "head_only_steps": args.head_only_steps if args.mode == "head_only" else 0,
+        "optimizer_steps": (
+            args.optimizer_steps if args.mode == "optimizer_steps" else 0
+        ),
+        "max_grad_norm": args.max_grad_norm,
         "config": asdict(config),
         "fixed_prior": prior_metadata,
         "ablation": ablation_metadata,
@@ -191,6 +223,12 @@ def _validate_args(args: argparse.Namespace) -> None:
         raise SystemExit("layers, hidden-dim and prototype-batch-size must be positive")
     if args.head_only_steps <= 0:
         raise SystemExit("head-only-steps must be positive")
+    if args.optimizer_steps <= 0:
+        raise SystemExit("optimizer-steps must be positive")
+    if args.max_grad_norm <= 0.0:
+        raise SystemExit("max-grad-norm must be positive")
+    if args.propagation_residual_scale <= 0.0:
+        raise SystemExit("propagation-residual-scale must be positive")
     if args.warmup_output_head_steps < 0:
         raise SystemExit("warmup-output-head-steps must be non-negative")
     if args.fixed_prior == "z0" and args.layers != 32:
@@ -224,6 +262,7 @@ def _run_gradient_snapshot(
     precision_policy: PrecisionPolicy,
     loss_scale: float,
     hook_depth_mode: str,
+    max_grad_norm: float,
 ) -> dict[str, object]:
     recorder = DeviceTensorAccumulator()
     hook_handles = _register_tensor_hooks(model, recorder, hook_depth_mode)
@@ -250,7 +289,128 @@ def _run_gradient_snapshot(
     )
     backward_result["validation_spearman"] = validation_spearman
     backward_result["tensor_hooks"] = recorder.finalize()
+    backward_result["clipping"] = _gradient_clipping_summary(
+        backward_result["parameter_gradients_unscaled"]["summary"],
+        max_grad_norm,
+    )
     return backward_result
+
+
+def _run_optimizer_steps(
+    *,
+    model: BidirectionalNBFNet,
+    dataset: DemandFieldDataset,
+    tensors: dict[str, torch.Tensor],
+    scalers: dict[str, np.ndarray | float],
+    config: NBFNetConfig,
+    precision_policy: PrecisionPolicy,
+    steps: int,
+    loss_scale: float,
+    hook_depth_mode: str,
+    max_grad_norm: float,
+) -> dict[str, object]:
+    """Run bounded full-model FP32 updates after a structure passes the snapshot gate."""
+
+    _set_trainable_scope(model, "all")
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr=config.learning_rate,
+        weight_decay=0.0,
+    )
+    history: list[dict[str, object]] = [
+        {
+            "step": 0,
+            "validation_spearman": _validation_spearman(
+                model,
+                dataset,
+                tensors,
+                scalers,
+                config,
+                precision_policy,
+            ),
+        }
+    ]
+    for step in range(1, steps + 1):
+        recorder = DeviceTensorAccumulator()
+        hook_handles = _register_tensor_hooks(model, recorder, hook_depth_mode)
+        parameter_before = _parameter_snapshot(model)
+        try:
+            backward_result = _backward_rank_first(
+                model=model,
+                dataset=dataset,
+                tensors=tensors,
+                config=config,
+                precision_policy=precision_policy,
+                loss_scale=loss_scale,
+                recorder=recorder,
+            )
+        finally:
+            for handle in hook_handles:
+                handle.remove()
+
+        gradient_summary = backward_result["parameter_gradients_unscaled"]["summary"]
+        clipping = _gradient_clipping_summary(gradient_summary, max_grad_norm)
+        row: dict[str, object] = {
+            "step": step,
+            "train_pairwise_loss": backward_result["train_pairwise_loss"],
+            "train_pairwise_accuracy": backward_result["train_pairwise_accuracy"],
+            "score_prediction": backward_result["score_prediction"],
+            "score_gradient": backward_result["score_gradient"],
+            "parameter_gradients_unscaled": backward_result[
+                "parameter_gradients_unscaled"
+            ],
+            "tensor_hooks": recorder.finalize(),
+            "clipping": clipping,
+        }
+        if not gradient_summary["all_gradient_elements_finite"]:
+            row["optimizer_step"] = "skipped_nonfinite_gradient_element"
+            history.append(row)
+            break
+        if not gradient_summary["raw_fp32_norm_is_finite"]:
+            row["optimizer_step"] = "skipped_nonfinite_fp32_norm"
+            history.append(row)
+            break
+
+        _scale_gradients(model, float(clipping["coefficient"]))
+        row["parameter_gradients_clipped"] = parameter_gradient_report(model)
+        optimizer.step()
+        row["optimizer_step"] = "applied"
+        row["parameter_delta_norm"] = _parameter_delta_norm(parameter_before, model)
+        row["validation_spearman"] = _validation_spearman(
+            model,
+            dataset,
+            tensors,
+            scalers,
+            config,
+            precision_policy,
+        )
+        history.append(row)
+    return {
+        "trainable_scope": "all",
+        "requested_steps": steps,
+        "applied_steps": sum(row.get("optimizer_step") == "applied" for row in history),
+        "history": history,
+    }
+
+
+def _gradient_clipping_summary(
+    gradient_summary: dict[str, object],
+    max_grad_norm: float,
+) -> dict[str, float]:
+    raw_norm = float(gradient_summary["finite_l2_norm_fp64"])
+    coefficient = min(1.0, max_grad_norm / max(raw_norm, 1.0e-30))
+    return {
+        "max_grad_norm": max_grad_norm,
+        "raw_l2_norm_fp64": raw_norm,
+        "coefficient": coefficient,
+        "expected_clipped_l2_norm_fp64": raw_norm * coefficient,
+    }
+
+
+def _scale_gradients(model: torch.nn.Module, coefficient: float) -> None:
+    for parameter in model.parameters():
+        if parameter.grad is not None:
+            parameter.grad.mul_(coefficient)
 
 
 def _run_output_head_training(
@@ -389,13 +549,15 @@ def _backward_rank_first(
         unscaled_report = parameter_gradient_report(model)
     else:
         unscaled_report = scaled_report
+    prediction_statistics = finite_tensor_statistics(full_train_prediction)
+    prediction_statistics.update(_prediction_statistics(full_train_prediction))
     return {
         "train_pairwise_loss": float(train_loss.item()),
         "train_pairwise_accuracy": _full_pairwise_accuracy(
             full_train_prediction,
             train_target,
         ),
-        "score_prediction": finite_tensor_statistics(full_train_prediction),
+        "score_prediction": prediction_statistics,
         "score_gradient": finite_tensor_statistics(score_gradient),
         "parameter_gradients_scaled": scaled_report,
         "parameter_gradients_unscaled": unscaled_report,
@@ -533,7 +695,17 @@ def _print_result(summary: dict[str, object], output_path: Path) -> None:
             f"all_finite={gradient_summary['all_gradient_elements_finite']} "
             f"nonfinite={gradient_summary['nonfinite_gradient_element_count']} "
             f"fp32_norm={gradient_summary['raw_l2_norm_fp32']} "
-            f"fp64_norm={gradient_summary['finite_l2_norm_fp64']}",
+            f"fp64_norm={gradient_summary['finite_l2_norm_fp64']} "
+            f"clip={snapshot['clipping']['coefficient']}",
+            flush=True,
+        )
+    elif summary["mode"] == "optimizer_steps":
+        history = result["history"]
+        print(
+            f"optimizer_steps structure={summary['config']['propagation_structure']} "
+            f"applied={result['applied_steps']}/{result['requested_steps']} "
+            f"validation_spearman={history[0]['validation_spearman']:.4f}"
+            f"->{history[-1].get('validation_spearman', float('nan')):.4f}",
             flush=True,
         )
     else:
