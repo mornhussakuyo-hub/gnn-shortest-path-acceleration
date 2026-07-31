@@ -1,0 +1,325 @@
+{
+  "schema": "aic.gnn_v2.od_conditioned_bidirectional_nbfnet.v4",
+  "model": "od_conditioned_bidirectional_nbfnet",
+  "variant": "propagation_doubling",
+  "execution": {
+    "framework": "pytorch",
+    "torch_version": "2.13.0+cu130",
+    "cuda_version": "13.0",
+    "device_type": "cuda",
+    "device_index": 0,
+    "device_name": "NVIDIA GeForce RTX 4090 D",
+    "device_total_memory_bytes": 25250627584
+  },
+  "dataset_sha256": "e9b1bc149a6a94dd744305e41817c3a2b9447cd5e3ba5a17c71fea38db2bf261",
+  "candidate_sha256": "40d7d8babf74381b5f7088de22edc0f48181bec9c78a53fb039c9e8e7c20f71c",
+  "config": {
+    "hidden_dim": 32,
+    "propagation_layers": 32,
+    "demand_scale": 1000.0,
+    "learning_rate": 0.005,
+    "weight_decay": 0.0,
+    "rank_weight": 0.2,
+    "huber_delta": 1.0,
+    "prototype_batch_size": 4,
+    "max_epochs": 40,
+    "patience": 40,
+    "min_improvement": 0.0001,
+    "mixed_precision": false,
+    "gradient_checkpointing": true,
+    "zero_initialize_prediction_head": true,
+    "propagation_structure": "g3",
+    "propagation_residual_scale": 0.01,
+    "variant": "propagation_doubling",
+    "randomization_seed": 20260730
+  },
+  "numerics": {
+    "mode": "fp32",
+    "autocast_enabled": false,
+    "autocast_dtype": null,
+    "grad_scaler_enabled": false,
+    "grad_scaler_init_scale": 65536.0
+  },
+  "training_objective": "rank_first",
+  "training_protocol": {
+    "head_warmup_steps": 8,
+    "evaluation_splits": [
+      "train",
+      "validation"
+    ],
+    "holdout_withheld": true
+  },
+  "fixed_prior": {
+    "name": "z0",
+    "description": "deterministic scalar bidirectional fixed-mean diffusion over depths 1,2,4,8,16,32; centered and standardized on train candidates only",
+    "readout_depths": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32
+    ],
+    "train_mean": 0.11733295023441315,
+    "train_std": 0.21461084485054016
+  },
+  "seeds": [
+    44
+  ],
+  "selected_seed": 44,
+  "selection_rule": "highest validation Spearman among post-update checkpoints; holdout is never used",
+  "architecture": {
+    "propagation_only": true,
+    "uses_direct_region_features": false,
+    "uses_layer_zero_readout": false,
+    "propagation_structure": "g3",
+    "propagation_residual_scale": 0.01,
+    "residual_propagation": true,
+    "strict_identity_path": true,
+    "doubling_scale_readout": true,
+    "readout_depths": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32
+    ],
+    "maximum_hop_depth": 32,
+    "materializes_multi_hop_edges": false
+  },
+  "split": {
+    "axis": "candidate",
+    "strategy": "jaccard_overlap_connected_components",
+    "seed": 42,
+    "train_fraction": 0.7,
+    "validation_fraction": 0.15,
+    "holdout_fraction": 0.15000000000000005,
+    "counts": {
+      "train": 840,
+      "validation": 180,
+      "holdout": 180
+    },
+    "overlap_group_threshold": 0.5,
+    "overlap_group_count": 521,
+    "largest_overlap_group": 12,
+    "cross_split_max_jaccard_upper_bound": 0.5,
+    "guarantee": "Every candidate pair with Jaccard similarity greater than or equal to the threshold belongs to the same split.",
+    "warning": "Candidate holdout measures region generalization within H→Y; it is not the frozen future temporal test."
+  },
+  "input_policy": {
+    "uses_history_od_only": true,
+    "uses_static_road_graph": true,
+    "uses_path_supervision": false,
+    "uses_label_window_as_input": false,
+    "uses_cost_or_query_runtime_features": false,
+    "uses_node_coordinates": false,
+    "coordinates_used_for_prototype_grouping_only": true,
+    "selection_method_is_model_input": false
+  },
+  "ablation": {
+    "variant": "propagation_doubling",
+    "randomization_seed": 20260730,
+    "graph_transform": "directed_original",
+    "original_edge_count": 221589,
+    "effective_edge_count": 221589,
+    "edge_features_zeroed": false,
+    "destination_prototypes_permuted": false,
+    "destination_permutation": null,
+    "shuffled_od_coupling": null,
+    "note": null
+  },
+  "prototype_batching": {
+    "prototype_count": 128,
+    "prototype_batch_size": 4,
+    "training_objective": "Two-pass exact full-mixture gradient: the first pass evaluates the weighted score of all frozen prototypes; the second recomputes one memory chunk at a time and accumulates its exact gradient contribution.",
+    "ranking_loss": "all unique training candidate pairs",
+    "batch_size_affects_objective": false
+  },
+  "runs": [
+    {
+      "seed": 44,
+      "best_epoch": 27,
+      "epochs_ran": 40,
+      "training_seconds": 2590.5171594830026,
+      "peak_allocated_bytes": 9700939776,
+      "peak_reserved_bytes": 13776191488,
+      "parameter_count": 418183,
+      "metrics": {
+        "train": {
+          "count": 840,
+          "mae": 596.4032592773438,
+          "huber": 5914.0322265625,
+          "spearman": 0.9327571008615599,
+          "ndcg_at_k": 0.9710140536125054,
+          "top_k": 84,
+          "top_k_mean_gain": 128.34767150878906,
+          "oracle_top_k_mean_gain": 131.675537109375,
+          "all_mean_gain": 39.26521682739258,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.9450968373310928,
+              "mean_gain": 167.38650512695312,
+              "oracle_mean_gain": 177.17410278320312,
+              "membership_count": 2560,
+              "unique_node_count": 1203,
+              "membership_redundancy": 2.1280133000831256
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.9326958293937726,
+              "mean_gain": 162.40335083007812,
+              "oracle_mean_gain": 174.91421508789062,
+              "membership_count": 5120,
+              "unique_node_count": 2001,
+              "membership_redundancy": 2.55872063968016
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.9641601585223426,
+              "mean_gain": 164.48849487304688,
+              "oracle_mean_gain": 168.4081573486328,
+              "membership_count": 9216,
+              "unique_node_count": 3107,
+              "membership_redundancy": 2.9662053427743804
+            }
+          }
+        },
+        "validation": {
+          "count": 180,
+          "mae": 618.689697265625,
+          "huber": 6136.8974609375,
+          "spearman": 0.9441855201292221,
+          "ndcg_at_k": 0.9803201226249295,
+          "top_k": 18,
+          "top_k_mean_gain": 139.1039276123047,
+          "oracle_top_k_mean_gain": 140.1768798828125,
+          "all_mean_gain": 40.91598892211914,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.9342846871166973,
+              "mean_gain": 157.50149536132812,
+              "oracle_mean_gain": 170.85610961914062,
+              "membership_count": 2560,
+              "unique_node_count": 1993,
+              "membership_redundancy": 1.2844957350727546
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.9695872420978513,
+              "mean_gain": 151.96534729003906,
+              "oracle_mean_gain": 155.20130920410156,
+              "membership_count": 5120,
+              "unique_node_count": 3606,
+              "membership_redundancy": 1.4198557958957294
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.9803201226249295,
+              "mean_gain": 139.1039276123047,
+              "oracle_mean_gain": 140.1768798828125,
+              "membership_count": 9216,
+              "unique_node_count": 5770,
+              "membership_redundancy": 1.5972270363951473
+            }
+          }
+        }
+      },
+      "diagnostics": {
+        "numerics": {
+          "mode": "fp32",
+          "autocast_enabled": false,
+          "autocast_dtype": null,
+          "grad_scaler_enabled": false,
+          "grad_scaler_init_scale": 65536.0
+        },
+        "epoch_zero_validation_spearman": 0.9410928320832948,
+        "first_effective_optimizer_epoch": 1,
+        "first_positive_validation_epoch": 0,
+        "effective_optimizer_steps": 40,
+        "skipped_optimizer_steps": 0,
+        "best_checkpoint_effective_step_count": 27,
+        "head_warmup_steps": 8,
+        "first_backbone_effective_optimizer_epoch": 9,
+        "backbone_effective_optimizer_steps": 32,
+        "best_checkpoint_backbone_effective_step_count": 19,
+        "nonfinite_gradient_norm_steps": 0,
+        "maximum_finite_gradient_norm_before_clip": 1.0944074392318726,
+        "maximum_consecutive_zero_gradient_steps_after_clip": 0,
+        "unrecovered_validation_loss_doublings": 0,
+        "initialization_dominant": false,
+        "selection_requires_effective_optimizer_step": true,
+        "fixed_prior": "z0",
+        "stopped_reason": "max_epochs"
+      }
+    }
+  ],
+  "aggregate": {
+    "train": {
+      "mae": {
+        "mean": 596.4032592773438,
+        "std": 0.0,
+        "min": 596.4032592773438,
+        "max": 596.4032592773438
+      },
+      "huber": {
+        "mean": 5914.0322265625,
+        "std": 0.0,
+        "min": 5914.0322265625,
+        "max": 5914.0322265625
+      },
+      "spearman": {
+        "mean": 0.9327571008615599,
+        "std": 0.0,
+        "min": 0.9327571008615599,
+        "max": 0.9327571008615599
+      },
+      "ndcg_at_k": {
+        "mean": 0.9710140536125054,
+        "std": 0.0,
+        "min": 0.9710140536125054,
+        "max": 0.9710140536125054
+      },
+      "top_k_mean_gain": {
+        "mean": 128.34767150878906,
+        "std": 0.0,
+        "min": 128.34767150878906,
+        "max": 128.34767150878906
+      }
+    },
+    "validation": {
+      "mae": {
+        "mean": 618.689697265625,
+        "std": 0.0,
+        "min": 618.689697265625,
+        "max": 618.689697265625
+      },
+      "huber": {
+        "mean": 6136.8974609375,
+        "std": 0.0,
+        "min": 6136.8974609375,
+        "max": 6136.8974609375
+      },
+      "spearman": {
+        "mean": 0.9441855201292221,
+        "std": 0.0,
+        "min": 0.9441855201292221,
+        "max": 0.9441855201292221
+      },
+      "ndcg_at_k": {
+        "mean": 0.9803201226249295,
+        "std": 0.0,
+        "min": 0.9803201226249295,
+        "max": 0.9803201226249295
+      },
+      "top_k_mean_gain": {
+        "mean": 139.1039276123047,
+        "std": 0.0,
+        "min": 139.1039276123047,
+        "max": 139.1039276123047
+      }
+    }
+  }
+}

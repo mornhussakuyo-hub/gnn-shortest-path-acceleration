@@ -21,6 +21,11 @@ class GradientStructureScreeningTest(unittest.TestCase):
             seed=42,
             prototype_batch_size=4,
             learning_rate=3.0e-4,
+            lr_scheduler="reduce_on_plateau",
+            lr_scheduler_factor=0.3,
+            lr_scheduler_patience=3,
+            lr_scheduler_threshold=1.0e-4,
+            lr_scheduler_min_lr=5.0e-5,
             max_epochs=40,
             patience=40,
             structure="g2",
@@ -30,6 +35,10 @@ class GradientStructureScreeningTest(unittest.TestCase):
         self.assertEqual(command[command.index("--fixed-prior") + 1], "z0")
         self.assertEqual(command[command.index("--propagation-structure") + 1], "g2")
         self.assertEqual(command[command.index("--head-warmup-steps") + 1], "8")
+        self.assertEqual(
+            command[command.index("--lr-scheduler") + 1],
+            "reduce_on_plateau",
+        )
         self.assertIn("--withhold-holdout", command)
         self.assertNotIn("pretrain", " ".join(command))
 
@@ -55,6 +64,11 @@ class GradientStructureScreeningTest(unittest.TestCase):
             "dataset_sha256": "dataset",
             "structure": "g3",
             "head_warmup_steps": 8,
+            "lr_scheduler": "reduce_on_plateau",
+            "lr_scheduler_factor": 0.3,
+            "lr_scheduler_patience": 3,
+            "lr_scheduler_threshold": 1.0e-4,
+            "lr_scheduler_min_lr": 5.0e-4,
         }
         payload = {
             "schema": TRAINING_SCHEMA,
@@ -68,6 +82,13 @@ class GradientStructureScreeningTest(unittest.TestCase):
             "training_protocol": {
                 "head_warmup_steps": 8,
                 "holdout_withheld": True,
+                "lr_scheduler": {
+                    "name": "reduce_on_plateau",
+                    "factor": 0.3,
+                    "patience": 3,
+                    "threshold": 1.0e-4,
+                    "min_lr": 5.0e-4,
+                },
             },
             "aggregate": {"train": {}, "validation": {}},
         }

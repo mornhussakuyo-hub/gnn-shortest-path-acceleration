@@ -17,6 +17,7 @@ try:
     )
     from scripts.train_demand_field_nbfnet import (
         PrecisionPolicy,
+        _build_learning_rate_scheduler,
         _full_pairwise_accuracy,
         _optimizer_step_was_skipped,
         _optimizer_state_step,
@@ -49,6 +50,24 @@ class BidirectionalNBFNetTest(unittest.TestCase):
         optimizer.step()
         self.assertEqual(_optimizer_state_step(optimizer), 1)
         self.assertFalse(_optimizer_step_was_skipped(0, 1))
+
+    def test_plateau_scheduler_reduces_only_after_frozen_patience(self) -> None:
+        model = torch.nn.Linear(2, 1)
+        optimizer = torch.optim.AdamW(model.parameters(), lr=5.0e-3)
+        scheduler = _build_learning_rate_scheduler(
+            optimizer,
+            "reduce_on_plateau",
+            factor=0.3,
+            patience=3,
+            threshold=1.0e-4,
+            min_lr=5.0e-4,
+        )
+        self.assertIsNotNone(scheduler)
+        for value in (0.94, 0.94, 0.94, 0.94):
+            scheduler.step(value)
+        self.assertEqual(optimizer.param_groups[0]["lr"], 5.0e-3)
+        scheduler.step(0.94)
+        self.assertAlmostEqual(optimizer.param_groups[0]["lr"], 1.5e-3)
 
     def test_pairwise_accuracy_and_parameter_delta_are_directly_observed(self) -> None:
         prediction = torch.tensor([0.1, 0.4, 0.2])

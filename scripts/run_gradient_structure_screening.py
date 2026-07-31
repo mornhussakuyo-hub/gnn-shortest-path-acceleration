@@ -44,6 +44,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--patience", type=int, default=40)
     parser.add_argument("--head-warmup-steps", type=int, default=8)
     parser.add_argument("--learning-rate", type=float, default=3.0e-4)
+    parser.add_argument(
+        "--lr-scheduler",
+        choices=("none", "reduce_on_plateau"),
+        default="none",
+    )
+    parser.add_argument("--lr-scheduler-factor", type=float, default=0.3)
+    parser.add_argument("--lr-scheduler-patience", type=int, default=3)
+    parser.add_argument("--lr-scheduler-threshold", type=float, default=1.0e-4)
+    parser.add_argument("--lr-scheduler-min-lr", type=float, default=5.0e-4)
     parser.add_argument("--prototype-batch-size", type=int, default=4)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--force", action="store_true")
@@ -72,6 +81,11 @@ def main() -> None:
         "fixed_prior": "z0",
         "precision": "fp32",
         "learning_rate": args.learning_rate,
+        "lr_scheduler": args.lr_scheduler,
+        "lr_scheduler_factor": args.lr_scheduler_factor,
+        "lr_scheduler_patience": args.lr_scheduler_patience,
+        "lr_scheduler_threshold": args.lr_scheduler_threshold,
+        "lr_scheduler_min_lr": args.lr_scheduler_min_lr,
         "weight_decay": 0.0,
         "max_epochs": args.max_epochs,
         "patience": args.patience,
@@ -150,6 +164,16 @@ def _training_command(args: argparse.Namespace, output_dir: Path) -> list[str]:
         str(args.prototype_batch_size),
         "--learning-rate",
         str(args.learning_rate),
+        "--lr-scheduler",
+        args.lr_scheduler,
+        "--lr-scheduler-factor",
+        str(args.lr_scheduler_factor),
+        "--lr-scheduler-patience",
+        str(args.lr_scheduler_patience),
+        "--lr-scheduler-threshold",
+        str(args.lr_scheduler_threshold),
+        "--lr-scheduler-min-lr",
+        str(args.lr_scheduler_min_lr),
         "--weight-decay",
         "0",
         "--max-epochs",
@@ -243,6 +267,7 @@ def _completed_output_is_valid(
     except (OSError, json.JSONDecodeError):
         return False
     protocol = summary.get("training_protocol", {})
+    scheduler = protocol.get("lr_scheduler", {})
     config = summary.get("config", {})
     return (
         summary.get("schema") == TRAINING_SCHEMA
@@ -252,6 +277,11 @@ def _completed_output_is_valid(
         and config.get("propagation_structure") == identity["structure"]
         and config.get("propagation_layers") == 32
         and protocol.get("head_warmup_steps") == identity["head_warmup_steps"]
+        and scheduler.get("name") == identity["lr_scheduler"]
+        and scheduler.get("factor") == identity["lr_scheduler_factor"]
+        and scheduler.get("patience") == identity["lr_scheduler_patience"]
+        and scheduler.get("threshold") == identity["lr_scheduler_threshold"]
+        and scheduler.get("min_lr") == identity["lr_scheduler_min_lr"]
         and protocol.get("holdout_withheld") is True
         and "holdout" not in summary.get("aggregate", {})
     )
@@ -314,11 +344,21 @@ def _validate_args(args: argparse.Namespace) -> None:
         args.head_warmup_steps,
         args.learning_rate,
         args.prototype_batch_size,
+        args.lr_scheduler_factor,
+        args.lr_scheduler_threshold,
+        args.lr_scheduler_min_lr,
     )
     if any(value <= 0 for value in numeric):
         raise SystemExit("G-line numeric settings must be positive")
     if args.head_warmup_steps >= args.max_epochs:
         raise SystemExit("head warmup must leave at least one backbone update")
+    if args.lr_scheduler != "none":
+        if not 0.0 < args.lr_scheduler_factor < 1.0:
+            raise SystemExit("scheduler factor must be in (0, 1)")
+        if args.lr_scheduler_patience < 0:
+            raise SystemExit("scheduler patience must be non-negative")
+        if args.lr_scheduler_min_lr > args.learning_rate:
+            raise SystemExit("scheduler min lr cannot exceed learning rate")
 
 
 def _write_json_atomic(path: Path, value: object) -> None:

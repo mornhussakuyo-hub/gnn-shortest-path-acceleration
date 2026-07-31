@@ -45,6 +45,7 @@ EXPERIMENT_SCHEMA = "aic.gnn_v2.od_conditioned_bidirectional_nbfnet.v4"
 PRECISION_MODES = ("fp16", "bf16", "fp32")
 TRAINING_OBJECTIVES = ("regression_rank", "rank_first")
 FIXED_PRIORS = ("none", "z0")
+LR_SCHEDULERS = ("none", "reduce_on_plateau")
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,6 +126,16 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Do not evaluate or write holdout predictions before protocol freeze.",
     )
+    parser.add_argument(
+        "--lr-scheduler",
+        choices=LR_SCHEDULERS,
+        default="none",
+        help="Optional validation-Spearman scheduler after head warmup.",
+    )
+    parser.add_argument("--lr-scheduler-factor", type=float, default=0.3)
+    parser.add_argument("--lr-scheduler-patience", type=int, default=3)
+    parser.add_argument("--lr-scheduler-threshold", type=float, default=1.0e-4)
+    parser.add_argument("--lr-scheduler-min-lr", type=float, default=5.0e-4)
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--variant", choices=NBFNET_VARIANTS, default="base")
     parser.add_argument(
@@ -175,6 +186,15 @@ def main() -> None:
         raise SystemExit(
             "head-warmup-steps requires rank_first with a fixed residual prior"
         )
+    if args.lr_scheduler != "none":
+        if not 0.0 < args.lr_scheduler_factor < 1.0:
+            raise SystemExit("lr-scheduler-factor must be in (0, 1)")
+        if args.lr_scheduler_patience < 0:
+            raise SystemExit("lr-scheduler-patience must be non-negative")
+        if args.lr_scheduler_threshold < 0.0:
+            raise SystemExit("lr-scheduler-threshold must be non-negative")
+        if not 0.0 < args.lr_scheduler_min_lr <= args.learning_rate:
+            raise SystemExit("lr-scheduler-min-lr must be in (0, learning-rate]")
     config = NBFNetConfig(
         hidden_dim=args.hidden_dim,
         propagation_layers=args.layers,
@@ -228,6 +248,11 @@ def main() -> None:
             args.fixed_prior,
             args.head_warmup_steps,
             ("train", "validation") if args.withhold_holdout else SPLIT_NAMES,
+            args.lr_scheduler,
+            args.lr_scheduler_factor,
+            args.lr_scheduler_patience,
+            args.lr_scheduler_threshold,
+            args.lr_scheduler_min_lr,
         )
         seed_dir = args.output_dir / f"seed_{seed}"
         seed_dir.mkdir(parents=True, exist_ok=True)
@@ -271,6 +296,19 @@ def main() -> None:
                 else list(SPLIT_NAMES)
             ),
             "holdout_withheld": args.withhold_holdout,
+            "lr_scheduler": {
+                "name": args.lr_scheduler,
+                "monitor": (
+                    "validation_spearman"
+                    if args.lr_scheduler == "reduce_on_plateau"
+                    else None
+                ),
+                "starts_after_head_warmup": True,
+                "factor": args.lr_scheduler_factor,
+                "patience": args.lr_scheduler_patience,
+                "threshold": args.lr_scheduler_threshold,
+                "min_lr": args.lr_scheduler_min_lr,
+            },
         },
         "fixed_prior": prior_metadata,
         "seeds": seeds,
@@ -650,6 +688,11 @@ def _train_one_seed(
     fixed_prior: str,
     head_warmup_steps: int = 0,
     evaluation_splits: tuple[str, ...] = SPLIT_NAMES,
+    lr_scheduler: str = "none",
+    lr_scheduler_factor: float = 0.3,
+    lr_scheduler_patience: int = 3,
+    lr_scheduler_threshold: float = 1.0e-4,
+    lr_scheduler_min_lr: float = 5.0e-4,
 ) -> dict:
     precision_policy.validate()
     torch.manual_seed(seed)
@@ -664,6 +707,14 @@ def _train_one_seed(
     _set_training_scope(model, "output_head" if head_warmup_steps else "all")
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay
+    )
+    learning_rate_scheduler = _build_learning_rate_scheduler(
+        optimizer,
+        lr_scheduler,
+        factor=lr_scheduler_factor,
+        patience=lr_scheduler_patience,
+        threshold=lr_scheduler_threshold,
+        min_lr=lr_scheduler_min_lr,
     )
     gradient_scaler = torch.amp.GradScaler(
         "cuda",
@@ -759,6 +810,7 @@ def _train_one_seed(
         gradient_norm_after_clip=float("nan"),
         parameter_delta_norm=0.0,
         learning_rate=optimizer.param_groups[0]["lr"],
+        next_learning_rate=optimizer.param_groups[0]["lr"],
     )
     initial_history_row["trainable_scope"] = (
         "output_head" if head_warmup_steps else "all"
@@ -782,10 +834,12 @@ def _train_one_seed(
     backbone_effective_optimizer_steps = 0
     first_backbone_effective_optimizer_epoch: int | None = None
     best_checkpoint_backbone_effective_step_count = 0
+    learning_rate_reduction_epochs: list[int] = []
     stopped_reason = "max_epochs"
 
     for epoch in range(1, config.max_epochs + 1):
         epoch_started = time.perf_counter()
+        learning_rate_used = float(optimizer.param_groups[0]["lr"])
         trainable_scope = "output_head" if epoch <= head_warmup_steps else "all"
         _set_training_scope(model, trainable_scope)
         model.train()
@@ -897,6 +951,12 @@ def _train_one_seed(
             validation_prediction,
             validation_target,
         )
+        if learning_rate_scheduler is not None and trainable_scope == "all":
+            previous_learning_rate = float(optimizer.param_groups[0]["lr"])
+            learning_rate_scheduler.step(validation_metrics["spearman"])
+            if float(optimizer.param_groups[0]["lr"]) < previous_learning_rate:
+                learning_rate_reduction_epochs.append(epoch)
+        next_learning_rate = float(optimizer.param_groups[0]["lr"])
         history_row = _diagnostic_history_row(
             epoch=epoch,
             train_loss=float(train_loss.detach()),
@@ -920,7 +980,8 @@ def _train_one_seed(
             gradient_norm_before_clip=gradient_norm_before_clip,
             gradient_norm_after_clip=gradient_norm_after_clip,
             parameter_delta_norm=parameter_delta_norm,
-            learning_rate=optimizer.param_groups[0]["lr"],
+            learning_rate=learning_rate_used,
+            next_learning_rate=next_learning_rate,
         )
         history_row["trainable_scope"] = trainable_scope
         history_row["trainable_parameter_count"] = _trainable_parameter_count(model)
@@ -971,6 +1032,7 @@ def _train_one_seed(
             f"step_skipped={int(optimizer_step_skipped)} "
             f"grad_norm={gradient_norm_before_clip:.3e}->{gradient_norm_after_clip:.3e} "
             f"param_delta={parameter_delta_norm:.3e} "
+            f"lr={learning_rate_used:.3e}->{next_learning_rate:.3e} "
             f"best_epoch={best_epoch:03d} "
             f"patience={epochs_without_improvement:02d}/{config.patience} "
             f"epoch_time={_format_duration(epoch_seconds)} "
@@ -1088,6 +1150,9 @@ def _train_one_seed(
             "unrecovered_validation_loss_doublings": (
                 _unrecovered_validation_loss_doublings(history)
             ),
+            "lr_scheduler": lr_scheduler,
+            "learning_rate_reduction_epochs": learning_rate_reduction_epochs,
+            "final_learning_rate": float(optimizer.param_groups[0]["lr"]),
             "initialization_dominant": (
                 best_checkpoint_effective_step_count == 0
                 or best_validation_spearman
@@ -1285,6 +1350,7 @@ def _diagnostic_history_row(
     gradient_norm_after_clip: float,
     parameter_delta_norm: float,
     learning_rate: float,
+    next_learning_rate: float,
 ) -> dict[str, float | int]:
     train_stats = _prediction_statistics(train_prediction)
     validation_stats = _prediction_statistics(validation_prediction)
@@ -1318,6 +1384,7 @@ def _diagnostic_history_row(
         "gradient_norm_after_clip": gradient_norm_after_clip,
         "parameter_delta_norm": parameter_delta_norm,
         "learning_rate": learning_rate,
+        "next_learning_rate": next_learning_rate,
     }
 
 
@@ -1330,6 +1397,30 @@ def _set_training_scope(model: BidirectionalNBFNet, scope: str) -> None:
             parameter.requires_grad_(True)
     elif scope != "all":
         raise ValueError(f"unsupported training scope: {scope}")
+
+
+def _build_learning_rate_scheduler(
+    optimizer: torch.optim.Optimizer,
+    name: str,
+    *,
+    factor: float,
+    patience: int,
+    threshold: float,
+    min_lr: float,
+):
+    if name == "none":
+        return None
+    if name != "reduce_on_plateau":
+        raise ValueError(f"unsupported learning-rate scheduler: {name}")
+    return torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        mode="max",
+        factor=factor,
+        patience=patience,
+        threshold=threshold,
+        threshold_mode="abs",
+        min_lr=min_lr,
+    )
 
 
 def _trainable_parameter_count(model: torch.nn.Module) -> int:

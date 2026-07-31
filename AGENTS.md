@@ -156,13 +156,13 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
 
 - 两台服务器仓库均为 `~/gnn-shortest-path-acceleration`，GPU 均为 RTX 4090 D 24 GB。
 - 一号使用 `.server.env`，二号使用 `.server2.env`；SSH 必须加 `-F /dev/null`。
-- 当前两台服务器均无相关训练进程，GPU 最近确认均为约 15 MiB、0% 利用率；S1 runner 已正常结束，
-  不要恢复旧 runner。
+- 当前两台服务器在恒定 `5e-3` 三种子完成后均无相关训练进程，GPU 最近确认均为约 15 MiB、
+  0% 利用率；不要恢复旧 runner。
 - 四组 screening、旧协议五种子重复、B1～B4、Z0/Z1/Z2、两组失败 rank-first 和梯度解剖均已
   完成或按机制停止；相关完整/摘要产物已同步本机。
 - gradient anatomy 一号完成深度 `1/2/4/8/16/32` 与 32 层 scale `1/64`；二号完成 32 层
   `head_only` 和 Z0 输出头预热后快照。两组 runner 已结束，服务器 GPU 空闲。
-- 服务器最后确认已 fast-forward 到代码提交 `09a22a1`；本机 `main` 将继续推进 G 线短训提交。下一次运行前先看
+- 服务器最后确认包含代码提交 `027f1a2`；本机 `main` 将继续推进 G 线衰减提交。下一次运行前先看
   远端 `git status --short`，再 fast-forward 到本机已推送的最新 `main`，不得在服务器改文件。
 - 本机只剩四个旧未跟踪运行文件，不提交、不删除：
   `gradient_anatomy/server1_launcher.log`、`server1_runner.pid`、`server2_launcher.log`、
@@ -174,12 +174,14 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
    `阶段五_最终对比与扩展验证.md` 已顺延为 `阶段六_最终对比与扩展验证.md`。
 2. S0/S1 已完成并同步本机。G0/G1 在深层失败；G2/G3 的 32 层 FP64 范数约为
    `0.04306 / 0.04317`，裁剪系数均为 `1.0`、Hook 放大约 `6`，连续三步均为 3/3 有效。
-3. **下一步立即先完成 G 线，不实现、不启动 P 预训练**：固定 seed 42、CUDA FP32，G2/G3
-   分别运行 40 epoch `Z0 + learned_residual` rank-first 短训；前 8 step 只训练零初始化最终输出层，
-   第 9 step 起全量解冻，学习率 `3e-4`、weight decay 0，holdout 完全锁定。
-4. G2/G3 使用相同协议在两台服务器并行，仅按 validation 双通道门冻结结构。若均未超过 Z0，
-   记录“数值稳定但无监督增益”并停止扩大 G 线；不得用 P 预训练反向改变 G 结构选型。
-5. G 线单 seed 通过后再做代表种子与正式五种子，仍先完成非预训练结论。
+3. G2/G3 seed 42 的 `5e-3` 结构筛选已完成，G3 仅按 validation 胜出。恒定 `5e-3` 的 G3
+   seeds 42/43/44 Spearman 平均相对 Z0 为 `+0.004807`，但 NDCG@5 平均为 `-0.003448`，
+   因此 S4 头部排序门未通过。
+4. **下一步立即只跑一次冻结的学习率衰减 S3/S4，不实现、不启动 P 预训练**：G3、初始
+   `5e-3`、40 epoch、前 8 step 输出头预热；主干解冻后按 validation Spearman 使用
+   `ReduceLROnPlateau(factor=0.3, patience=3, threshold=1e-4, min_lr=5e-4)`。
+5. 调度版 seeds 42/43/44 可为节省墙钟条件性并行/串行完成；判定时先做 seed 42 的 S3 对照，
+   只有采用调度协议时，三种子才作为新的正式 S4。holdout 继续完全锁定。
 6. P0/P1/P2/P3 整体后移；只有 G 线完成且用户重新确认顺序后才实施。
 7. G 线通过后才做最小学习率对照，再依次进入代表种子和五种子。
    holdout 只在协议完全冻结后解锁。若稳定但不能超过 Z0，停止神经残差扩展并记录负结论。
@@ -200,12 +202,14 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
 ## 仓库状态交接
 
 - 交接前分支为 `main`。
-- 本次 G 线更新前最新提交为 `09a22a1 实现S0梯度稳定化结构与诊断门`。
+- 本次衰减更新前最新提交为 `027f1a2 固化S1结果并加入G线短训门`。
 - 梯度解剖代码提交为 `8ea0fa2 加入深层传播梯度解剖诊断`；结果与结论提交为
   `06989a2 固化深层传播梯度解剖结论`。
 - 阶段五计划提交为 `0523135 制定阶段五梯度稳定化实验计划`，双塔预训练补充为 `1a0c8e0`。
 - S0 结构与 S1 runner 提交为 `09a22a1`；S1 结果位于
   `results/gnn_v2/nbfnet_propagation/gradient_stabilization/`。
+- 恒定 `5e-3` 的 G2/G3 seed 42 与 G3 seeds 43/44 结果分别位于
+  `gradient_structure_screening/` 和 `gradient_structure_confirmation/`。
 - 主要诊断报告：`reports/阶段四_NBFNet传播诊断与深层纯传播实验.md`。
 - 当前执行计划：`reports/阶段五_梯度稳定化与Z0神经残差.md`。
 - 阶段六占位：`reports/阶段六_最终对比与扩展验证.md`。
