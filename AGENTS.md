@@ -135,13 +135,16 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
 
 ## 后续实验顺序
 
-1. 在新 split 上补齐基础 NBFNet、端点密度和随机拓扑纯传播；同口径 MLP、原始频率与 midpoint Proxy 已完成。
-2. 对正式结构 `propagation_doubling` 扩展重复种子。
-3. 再做真正未来时间窗口、候选非重叠集合选择与精确在线配对评测。
-4. 不再继续堆叠新的传播结构；编号“从零详解”文档本轮按用户要求暂不更新。
+1. 先完成当前 `propagation_doubling` 的 seed `42,43,45,46`，与已有 seed 44 合并为五种子稳定性结果；当前 runner 不中途改配置。
+2. 再用当前固定协议做调参前消融。现有互斥 `variant` 会让 `degree_rewired` 等条件退回基础架构，必须先拆成 `architecture=propagation_doubling` 与正交 `ablation` 两轴并补测试；随后 `degree_rewired`、`shuffled_od` 正式跑五种子，`undirected`、`no_edge_features`、`origin_only`、`destination_only` 先 seed 44，validation 差异达到 `0.02` 或改变 K=5/10 结论时扩展五种子。
+3. 消融完成后才做平台诊断和调参。必须记录 GradScaler scale、step skipped、裁剪前梯度范数、实际学习率、首次有效 step 和首次正 Spearman；比较 FP16、较低 initial scale 与 BF16。
+4. 初始化分别验证传播矩阵正交/近单位加正门 bias、小幅非零预测头、浅层倍增深度先验；三项先独立再考虑组合，仍禁止第 0 层读出。
+5. 调参最小集合：固定 `1e-3`、固定 `3e-4`、转正后启用的 `ReduceLROnPlateau(0.3, patience=10, min_lr=1e-5)`，再比较 rank weight `0.20/0.50`。只用 seed 42/44 validation 筛选，冻结后跑五种子。
+6. 若调参改变正式协议，必须用新协议重新跑 `degree_rewired` 和 `shuffled_od` 五种子，再做未来窗口、非重叠集合选择和精确在线配对评测。
+7. 不再继续堆叠新的传播结构；编号“从零详解”文档本轮按用户要求暂不更新。完整规则见 `reports/阶段四_GNN第二版实施计划.md`。
 
 ## 仓库状态交接
 
 - 交接前分支为 `main`。
-- 本轮收口前最新提交为 `4bf1c3e 记录纯传播训练启动状态`。
+- 本次计划修改前最新提交为 `695cb72 补齐空间隔离Proxy基线`。
 - 主要诊断报告：`reports/阶段四_NBFNet传播诊断与深层纯传播实验.md`。
