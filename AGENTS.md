@@ -131,12 +131,13 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
 - 本机与服务器的 `report.md` SHA-256 均为 `d0d617fa08e0c909f64a5fcf2dd0dcee6bdf95d1dceed67e8a517170ca1d66dd`；`manifest.json` 均为 `7539a5468bd4f6fed992d352083a18e30b098a1e2dbce11980ebde680a78383e`。
 - 新 split MLP 输出目录为 `results/gnn_v2/mlp_overlap_group_split`；种子 `42～46` 已全部完成，使用 RTX 4090 D CUDA，无报错，完整产物已回传本机。
 - 当前正在补跑正式结构 `propagation_doubling` 的重复种子 `42,43,45,46`，输出目录为 `results/gnn_v2/nbfnet_propagation/propagation_doubling_repeats`；配置为 hidden 32、layers 32、prototype batch 4、max epochs 300、patience 60。
-- 本轮 runner 启动 PID 为 `8127`。最近检查时进程存活、GPU 利用率 100%，无 traceback、OOM 或 RuntimeError；seed 42 已早停，最佳 validation Spearman `0.7640`、holdout `0.8622`。seed 43 也已早停：epoch 1～22 的 validation Spearman 约 `0.9458` 不变，epoch 59 的更新后 validation loss 从 `0.4219` 突变至 `0.8094`、Spearman 从 `0.9384` 降至 `0.8004`，best checkpoint 为 epoch 1、holdout `0.9600`；它是 `initialization_dominant` 异常基线，不得当作训练成功。PID 可能变化，接续时重新读取 `runner.pid`，不要停止 runner。
+- 本轮 runner 启动 PID 为 `8127`。最近检查时进程存活、GPU 利用率 100%，无 traceback、OOM 或 RuntimeError；seed 42 已早停，最佳 validation Spearman `0.7640`、holdout `0.8622`。seed 43 也已早停：epoch 1～22 的 validation Spearman 约 `0.9458` 不变，epoch 59 的更新后 validation loss 从 `0.4219` 突变至 `0.8094`、Spearman 从 `0.9384` 降至 `0.8004`，best checkpoint 为 epoch 1、holdout `0.9600`；它是 `initialization_dominant` 异常基线，不得当作训练成功。最近 seed 45 正在 epoch 41，PID 可能变化，接续时重新读取 `runner.pid`，不要停止 runner。
 
 ## 后续实验顺序
 
 1. 先完成当前 `propagation_doubling` 的 seed `42,43,45,46`，与 seed 44 合并为旧协议异常基线；runner 不中途改配置。
 2. 暂缓正式消融，先诊断平台期和更新路径：记录 epoch 0、GradScaler scale、step skipped、裁剪前后梯度范数、参数差范数、实际学习率和 prediction 分布，并比较 FP16、较低 initial scale、BF16 与短程 CUDA FP32。
+   - 短程诊断每次最多 80 epoch、`patience=80`、输出到独立 `stability_diagnostics/`；先固定 seed 43 依次跑 FP16 默认、FP16 `init_scale=1.0`、BF16、CUDA FP32，只改精度路径；再用选定协议跑 seed 42/43/44。B1～B4 不改初始化、学习率、scheduler、loss 或 pair 采样。
 3. 保留 `propagation_doubling` 架构，把主训练改成完整 pairwise rank-first：对至多 `352,380` 个训练候选对计算 ranking loss，score 先中心化和标准化，主干不再同时接收 Huber 梯度；epoch 0 单列，正式 checkpoint 必须位于有效 optimizer step 之后并只按 validation Spearman 选择。
 4. 若需要具体收益值，冻结排序模型后只用 train 拟合 `prediction=a×score+b` 且约束 `a>0`，不得改变排序或使用 validation/holdout 校准。
 5. 用 seed 42/43/44 依次筛选读出头预热、传播保持初始化、浅层深度先验、`1e-3/3e-4` 和 `ReduceLROnPlateau`；冻结协议后重跑 seed `42～46`。

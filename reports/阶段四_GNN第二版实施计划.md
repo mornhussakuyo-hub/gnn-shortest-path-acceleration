@@ -518,6 +518,23 @@ results/gnn_v2/
 从首轮即可稳定更新，平台主要是 AMP 数值路径问题；只有确认 optimizer 正常 step 后，才将
 剩余平台归因于初始化或模型结构。所有神经网络诊断仍在 CUDA 上运行。
 
+平台诊断固定为**短程、单变量、最多 80 epoch**：80 轮同时覆盖既有约第 23 轮首次可见更新
+和 seed 43 约第 59 轮的灾难性更新；每次设 `patience=80`，不让早停遮蔽后续异常。当前 runner
+结束后按下面顺序串行执行，输出写入独立的 `stability_diagnostics/` 目录，绝不覆盖旧协议结果：
+
+| 顺序 | 固定项 | 唯一变化 | 目的 |
+| ---: | --- | --- | --- |
+| B1 | seed 43、旧 loss、`lr=1e-3`、32 层 | FP16 默认 scale | 带完整日志复现平台和 epoch 59 突变 |
+| B2 | 与 B1 相同 | FP16，`init_scale=1.0` | 检查 GradScaler 初始 scale 是否造成跳步 |
+| B3 | 与 B1 相同 | BF16，禁用 GradScaler | 隔离 FP16 scale/溢出路径 |
+| B4 | 与 B1 相同 | CUDA FP32 | 提供最高数值精度的短程对照 |
+| B5 | 选出的稳定数值协议 | seed 42、43、44 | 检查稳定性是否跨困难、幸运和强基线初始化复现 |
+
+B1～B4 期间不得同时改变初始化、学习率、scheduler、loss 或 pair 采样；B5 通过的最低门槛为
+从 epoch 1 开始有可验证的有效 step、无未解释的单步总 loss 翻倍、且不把 epoch 0/未更新模型
+当作训练最佳 checkpoint。若 B2～B4 全部仍出现同类异常，优先研究梯度几何和读出头预热，不
+把问题归结为 AMP，也不进入阶段 C 的 rank-first 改造。
+
 ### 单一排序目标
 
 当前训练目标为标准化标签上的 Huber 加 `0.20 ×` sampled pairwise loss，但 checkpoint 按
