@@ -1,0 +1,9 @@
+run_id,status,gate_passed,fp64_gradient_norm,clip_coefficient,hook_amplification,applied_steps
+g2_depth08_snapshot,completed,True,0.051874197132552015,1.0,3.9999456874415866,
+g2_depth16_snapshot,completed,True,0.04698564544101558,1.0,5.033570071959113,
+g2_depth32_optimizer_steps,completed,True,,,,3
+g2_depth32_snapshot,completed,True,0.0430586486805588,1.0,6.078842639493157,
+g3_depth08_snapshot,completed,True,0.05193233558881756,1.0,3.9999770976314637,
+g3_depth16_snapshot,completed,True,0.04705450055952599,1.0,5.000069841134421,
+g3_depth32_optimizer_steps,completed,True,,,,3
+g3_depth32_snapshot,completed,True,0.043172898375448895,1.0,6.000950591587749,

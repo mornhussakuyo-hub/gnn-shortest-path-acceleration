@@ -23,6 +23,8 @@ try:
         _parameter_delta_norm,
         _parameter_snapshot,
         _resolve_precision_policy,
+        _set_training_scope,
+        _trainable_parameter_count,
         _evaluation_loss,
     )
 except ImportError:  # pragma: no cover - covered by the CUDA environment instead.
@@ -209,6 +211,31 @@ class BidirectionalNBFNetTest(unittest.TestCase):
             torch.equal(output_layer.weight, torch.zeros_like(output_layer.weight))
         )
         self.assertTrue(torch.equal(output_layer.bias, torch.zeros_like(output_layer.bias)))
+
+    def test_head_warmup_scope_only_unfreezes_final_residual_layer(self) -> None:
+        model = BidirectionalNBFNet(
+            3,
+            2,
+            2,
+            NBFNetConfig(
+                hidden_dim=4,
+                propagation_layers=2,
+                max_epochs=1,
+                variant="propagation_doubling",
+                propagation_structure="g2",
+                zero_initialize_prediction_head=True,
+            ),
+        )
+        _set_training_scope(model, "output_head")
+        output_layer = model.prediction_head[-1]
+        self.assertTrue(all(parameter.requires_grad for parameter in output_layer.parameters()))
+        self.assertEqual(
+            _trainable_parameter_count(model),
+            sum(parameter.numel() for parameter in output_layer.parameters()),
+        )
+        self.assertFalse(model.origin_encoder[0].weight.requires_grad)
+        _set_training_scope(model, "all")
+        self.assertTrue(all(parameter.requires_grad for parameter in model.parameters()))
 
     def test_rank_first_evaluation_excludes_huber_from_total(self) -> None:
         prediction = torch.tensor([0.0, 2.0, 1.0])

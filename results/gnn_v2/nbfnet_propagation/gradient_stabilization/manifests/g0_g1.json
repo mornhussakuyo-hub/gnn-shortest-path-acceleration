@@ -1,0 +1,360 @@
+{
+  "schema": "aic.gnn_v2.gradient_stabilization_runner.v1",
+  "identity": {
+    "schema": "aic.gnn_v2.gradient_stabilization_runner.v1",
+    "shard_name": "g0_g1",
+    "structures": [
+      "g0",
+      "g1"
+    ],
+    "depths": [
+      8,
+      16,
+      32
+    ],
+    "dataset_sha256": "e9b1bc149a6a94dd744305e41817c3a2b9447cd5e3ba5a17c71fea38db2bf261",
+    "variant": "propagation_doubling",
+    "seed": 42,
+    "hidden_dim": 32,
+    "prototype_batch_size": 4,
+    "learning_rate": 0.001,
+    "residual_scale": 0.01,
+    "optimizer_steps": 3,
+    "max_grad_norm": 1.0,
+    "gates": {
+      "fp64_norm_limit": 10000.0,
+      "clip_coefficient_min": 0.0001,
+      "hook_amplification_limit": 1000000.0
+    },
+    "experiment_id": "a712381c0406b141"
+  },
+  "status": "complete",
+  "created_at": "2026-07-31T17:54:58+00:00",
+  "updated_at": "2026-07-31T17:59:34+00:00",
+  "runs": {
+    "g0_depth08_snapshot": {
+      "run_id": "g0_depth08_snapshot",
+      "status": "completed",
+      "started_at": "2026-07-31T17:54:58+00:00",
+      "completed_at": "2026-07-31T17:55:21+00:00",
+      "return_code": 0,
+      "output_dir": "results/gnn_v2/nbfnet_propagation/gradient_stabilization/runs/g0/depth_08/snapshot",
+      "log": "results/gnn_v2/nbfnet_propagation/gradient_stabilization/logs/g0_depth08_snapshot.log",
+      "command": [
+        "./.venv-gnn/bin/python",
+        "./scripts/diagnose_demand_field_gradients.py",
+        "--output-dir",
+        "./results/gnn_v2/nbfnet_propagation/gradient_stabilization/runs/g0/depth_08/snapshot",
+        "--mode",
+        "snapshot",
+        "--variant",
+        "propagation_doubling",
+        "--propagation-structure",
+        "g0",
+        "--propagation-residual-scale",
+        "0.01",
+        "--seed",
+        "42",
+        "--hidden-dim",
+        "32",
+        "--layers",
+        "8",
+        "--prototype-batch-size",
+        "4",
+        "--learning-rate",
+        "0.001",
+        "--max-grad-norm",
+        "1.0",
+        "--hook-depths",
+        "doubling"
+      ],
+      "gate": {
+        "passed": true,
+        "checks": {
+          "gradient_elements_finite": true,
+          "raw_fp32_norm_finite": true,
+          "fp64_norm_within_limit": true,
+          "clip_coefficient_within_limit": true,
+          "hooks_finite": true,
+          "hook_amplification_within_limit": true
+        },
+        "metrics": {
+          "raw_l2_norm_fp32": 837.8282470703125,
+          "finite_l2_norm_fp64": 837.8282489168276,
+          "clip_coefficient": 0.0011935620472248738,
+          "hook_amplification": 584865.4510238878
+        }
+      }
+    },
+    "g0_depth16_snapshot": {
+      "run_id": "g0_depth16_snapshot",
+      "status": "completed",
+      "started_at": "2026-07-31T17:55:21+00:00",
+      "completed_at": "2026-07-31T17:56:01+00:00",
+      "return_code": 0,
+      "output_dir": "results/gnn_v2/nbfnet_propagation/gradient_stabilization/runs/g0/depth_16/snapshot",
+      "log": "results/gnn_v2/nbfnet_propagation/gradient_stabilization/logs/g0_depth16_snapshot.log",
+      "command": [
+        "./.venv-gnn/bin/python",
+        "./scripts/diagnose_demand_field_gradients.py",
+        "--output-dir",
+        "./results/gnn_v2/nbfnet_propagation/gradient_stabilization/runs/g0/depth_16/snapshot",
+        "--mode",
+        "snapshot",
+        "--variant",
+        "propagation_doubling",
+        "--propagation-structure",
+        "g0",
+        "--propagation-residual-scale",
+        "0.01",
+        "--seed",
+        "42",
+        "--hidden-dim",
+        "32",
+        "--layers",
+        "16",
+        "--prototype-batch-size",
+        "4",
+        "--learning-rate",
+        "0.001",
+        "--max-grad-norm",
+        "1.0",
+        "--hook-depths",
+        "doubling"
+      ],
+      "gate": {
+        "passed": false,
+        "checks": {
+          "gradient_elements_finite": true,
+          "raw_fp32_norm_finite": true,
+          "fp64_norm_within_limit": false,
+          "clip_coefficient_within_limit": false,
+          "hooks_finite": true,
+          "hook_amplification_within_limit": false
+        },
+        "metrics": {
+          "raw_l2_norm_fp32": 8275762688.0,
+          "finite_l2_norm_fp64": 8275763031.5540285,
+          "clip_coefficient": 1.2083477936562175e-10,
+          "hook_amplification": 1624862332113.3853
+        }
+      }
+    },
+    "g0_depth32_snapshot": {
+      "run_id": "g0_depth32_snapshot",
+      "status": "completed",
+      "started_at": "2026-07-31T17:56:01+00:00",
+      "completed_at": "2026-07-31T17:57:14+00:00",
+      "return_code": 0,
+      "output_dir": "results/gnn_v2/nbfnet_propagation/gradient_stabilization/runs/g0/depth_32/snapshot",
+      "log": "results/gnn_v2/nbfnet_propagation/gradient_stabilization/logs/g0_depth32_snapshot.log",
+      "command": [
+        "./.venv-gnn/bin/python",
+        "./scripts/diagnose_demand_field_gradients.py",
+        "--output-dir",
+        "./results/gnn_v2/nbfnet_propagation/gradient_stabilization/runs/g0/depth_32/snapshot",
+        "--mode",
+        "snapshot",
+        "--variant",
+        "propagation_doubling",
+        "--propagation-structure",
+        "g0",
+        "--propagation-residual-scale",
+        "0.01",
+        "--seed",
+        "42",
+        "--hidden-dim",
+        "32",
+        "--layers",
+        "32",
+        "--prototype-batch-size",
+        "4",
+        "--learning-rate",
+        "0.001",
+        "--max-grad-norm",
+        "1.0",
+        "--hook-depths",
+        "doubling"
+      ],
+      "gate": {
+        "passed": false,
+        "checks": {
+          "gradient_elements_finite": true,
+          "raw_fp32_norm_finite": false,
+          "fp64_norm_within_limit": false,
+          "clip_coefficient_within_limit": false,
+          "hooks_finite": true,
+          "hook_amplification_within_limit": false
+        },
+        "metrics": {
+          "raw_l2_norm_fp32": Infinity,
+          "finite_l2_norm_fp64": 2.3438734927436176e+23,
+          "clip_coefficient": 4.266441866832375e-24,
+          "hook_amplification": 9.197505928830992e+25
+        }
+      }
+    },
+    "g1_depth08_snapshot": {
+      "run_id": "g1_depth08_snapshot",
+      "status": "completed",
+      "started_at": "2026-07-31T17:57:14+00:00",
+      "completed_at": "2026-07-31T17:57:38+00:00",
+      "return_code": 0,
+      "output_dir": "results/gnn_v2/nbfnet_propagation/gradient_stabilization/runs/g1/depth_08/snapshot",
+      "log": "results/gnn_v2/nbfnet_propagation/gradient_stabilization/logs/g1_depth08_snapshot.log",
+      "command": [
+        "./.venv-gnn/bin/python",
+        "./scripts/diagnose_demand_field_gradients.py",
+        "--output-dir",
+        "./results/gnn_v2/nbfnet_propagation/gradient_stabilization/runs/g1/depth_08/snapshot",
+        "--mode",
+        "snapshot",
+        "--variant",
+        "propagation_doubling",
+        "--propagation-structure",
+        "g1",
+        "--propagation-residual-scale",
+        "0.01",
+        "--seed",
+        "42",
+        "--hidden-dim",
+        "32",
+        "--layers",
+        "8",
+        "--prototype-batch-size",
+        "4",
+        "--learning-rate",
+        "0.001",
+        "--max-grad-norm",
+        "1.0",
+        "--hook-depths",
+        "doubling"
+      ],
+      "gate": {
+        "passed": false,
+        "checks": {
+          "gradient_elements_finite": true,
+          "raw_fp32_norm_finite": true,
+          "fp64_norm_within_limit": false,
+          "clip_coefficient_within_limit": false,
+          "hooks_finite": true,
+          "hook_amplification_within_limit": false
+        },
+        "metrics": {
+          "raw_l2_norm_fp32": 270520243191808.0,
+          "finite_l2_norm_fp64": 270520248058222.44,
+          "clip_coefficient": 3.696580966408015e-15,
+          "hook_amplification": 2.5569938714774464e+17
+        }
+      }
+    },
+    "g1_depth16_snapshot": {
+      "run_id": "g1_depth16_snapshot",
+      "status": "completed",
+      "started_at": "2026-07-31T17:57:38+00:00",
+      "completed_at": "2026-07-31T17:58:19+00:00",
+      "return_code": 0,
+      "output_dir": "results/gnn_v2/nbfnet_propagation/gradient_stabilization/runs/g1/depth_16/snapshot",
+      "log": "results/gnn_v2/nbfnet_propagation/gradient_stabilization/logs/g1_depth16_snapshot.log",
+      "command": [
+        "./.venv-gnn/bin/python",
+        "./scripts/diagnose_demand_field_gradients.py",
+        "--output-dir",
+        "./results/gnn_v2/nbfnet_propagation/gradient_stabilization/runs/g1/depth_16/snapshot",
+        "--mode",
+        "snapshot",
+        "--variant",
+        "propagation_doubling",
+        "--propagation-structure",
+        "g1",
+        "--propagation-residual-scale",
+        "0.01",
+        "--seed",
+        "42",
+        "--hidden-dim",
+        "32",
+        "--layers",
+        "16",
+        "--prototype-batch-size",
+        "4",
+        "--learning-rate",
+        "0.001",
+        "--max-grad-norm",
+        "1.0",
+        "--hook-depths",
+        "doubling"
+      ],
+      "gate": {
+        "passed": false,
+        "checks": {
+          "gradient_elements_finite": true,
+          "raw_fp32_norm_finite": false,
+          "fp64_norm_within_limit": false,
+          "clip_coefficient_within_limit": false,
+          "hooks_finite": true,
+          "hook_amplification_within_limit": false
+        },
+        "metrics": {
+          "raw_l2_norm_fp32": Infinity,
+          "finite_l2_norm_fp64": 3.8341777989867854e+34,
+          "clip_coefficient": 2.608121095125684e-35,
+          "hook_amplification": 1.533794263654039e+37
+        }
+      }
+    },
+    "g1_depth32_snapshot": {
+      "run_id": "g1_depth32_snapshot",
+      "status": "completed",
+      "started_at": "2026-07-31T17:58:19+00:00",
+      "completed_at": "2026-07-31T17:59:34+00:00",
+      "return_code": 0,
+      "output_dir": "results/gnn_v2/nbfnet_propagation/gradient_stabilization/runs/g1/depth_32/snapshot",
+      "log": "results/gnn_v2/nbfnet_propagation/gradient_stabilization/logs/g1_depth32_snapshot.log",
+      "command": [
+        "./.venv-gnn/bin/python",
+        "./scripts/diagnose_demand_field_gradients.py",
+        "--output-dir",
+        "./results/gnn_v2/nbfnet_propagation/gradient_stabilization/runs/g1/depth_32/snapshot",
+        "--mode",
+        "snapshot",
+        "--variant",
+        "propagation_doubling",
+        "--propagation-structure",
+        "g1",
+        "--propagation-residual-scale",
+        "0.01",
+        "--seed",
+        "42",
+        "--hidden-dim",
+        "32",
+        "--layers",
+        "32",
+        "--prototype-batch-size",
+        "4",
+        "--learning-rate",
+        "0.001",
+        "--max-grad-norm",
+        "1.0",
+        "--hook-depths",
+        "doubling"
+      ],
+      "gate": {
+        "passed": false,
+        "checks": {
+          "gradient_elements_finite": false,
+          "raw_fp32_norm_finite": false,
+          "fp64_norm_within_limit": false,
+          "clip_coefficient_within_limit": false,
+          "hooks_finite": false,
+          "hook_amplification_within_limit": false
+        },
+        "metrics": {
+          "raw_l2_norm_fp32": NaN,
+          "finite_l2_norm_fp64": 1.3038341995260528e+39,
+          "clip_coefficient": 7.669686838736879e-40,
+          "hook_amplification": 3.075473464025791e+44
+        }
+      }
+    }
+  }
+}

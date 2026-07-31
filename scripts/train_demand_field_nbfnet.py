@@ -114,6 +114,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prototype-batch-size", type=int, default=1)
     parser.add_argument("--max-epochs", type=int, default=100)
     parser.add_argument("--patience", type=int, default=20)
+    parser.add_argument(
+        "--head-warmup-steps",
+        type=int,
+        default=0,
+        help="Train only the final residual output layer for the first N steps.",
+    )
+    parser.add_argument(
+        "--withhold-holdout",
+        action="store_true",
+        help="Do not evaluate or write holdout predictions before protocol freeze.",
+    )
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--variant", choices=NBFNET_VARIANTS, default="base")
     parser.add_argument(
@@ -156,6 +167,14 @@ def main() -> None:
         raise SystemExit("a fixed prior is only supported by training-objective=rank_first")
     if args.fixed_prior == "z0" and args.variant not in PROPAGATION_ONLY_VARIANTS:
         raise SystemExit("the Z0 residual protocol requires a propagation-only variant")
+    if args.head_warmup_steps < 0:
+        raise SystemExit("head-warmup-steps must be non-negative")
+    if args.head_warmup_steps and (
+        args.training_objective != "rank_first" or args.fixed_prior == "none"
+    ):
+        raise SystemExit(
+            "head-warmup-steps requires rank_first with a fixed residual prior"
+        )
     config = NBFNetConfig(
         hidden_dim=args.hidden_dim,
         propagation_layers=args.layers,
@@ -207,6 +226,8 @@ def main() -> None:
             precision_policy,
             args.training_objective,
             args.fixed_prior,
+            args.head_warmup_steps,
+            ("train", "validation") if args.withhold_holdout else SPLIT_NAMES,
         )
         seed_dir = args.output_dir / f"seed_{seed}"
         seed_dir.mkdir(parents=True, exist_ok=True)
@@ -220,10 +241,12 @@ def main() -> None:
             _save_checkpoint(seed_dir / "model.pt", run, config, scalers, dataset)
         run.pop("prediction")
         runs.append(run)
+        selected_split = "holdout" if "holdout" in run["metrics"] else "validation"
+        selected_metrics = run["metrics"][selected_split]
         print(
             f"seed={seed} best_epoch={run['best_epoch']} "
-            f"holdout_spearman={run['metrics']['holdout']['spearman']:.4f} "
-            f"holdout_top_gain={run['metrics']['holdout']['top_k_mean_gain']:.3f}",
+            f"{selected_split}_spearman={selected_metrics['spearman']:.4f} "
+            f"{selected_split}_top_gain={selected_metrics['top_k_mean_gain']:.3f}",
             flush=True,
         )
 
@@ -240,6 +263,15 @@ def main() -> None:
         "config": asdict(config),
         "numerics": precision_policy.metadata(),
         "training_objective": args.training_objective,
+        "training_protocol": {
+            "head_warmup_steps": args.head_warmup_steps,
+            "evaluation_splits": (
+                ["train", "validation"]
+                if args.withhold_holdout
+                else list(SPLIT_NAMES)
+            ),
+            "holdout_withheld": args.withhold_holdout,
+        },
         "fixed_prior": prior_metadata,
         "seeds": seeds,
         "selected_seed": selected_seed,
@@ -616,6 +648,8 @@ def _train_one_seed(
     precision_policy: PrecisionPolicy,
     training_objective: str,
     fixed_prior: str,
+    head_warmup_steps: int = 0,
+    evaluation_splits: tuple[str, ...] = SPLIT_NAMES,
 ) -> dict:
     precision_policy.validate()
     torch.manual_seed(seed)
@@ -627,6 +661,7 @@ def _train_one_seed(
         edge_type_count=len(dataset.manifest["road_types"]),
         config=config,
     ).to(device)
+    _set_training_scope(model, "output_head" if head_warmup_steps else "all")
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay
     )
@@ -645,7 +680,7 @@ def _train_one_seed(
     best_state: dict[str, torch.Tensor] | None = None
     best_epoch = 0
     epochs_without_improvement = 0
-    history: list[dict[str, float | int]] = []
+    history: list[dict[str, float | int | str]] = []
     generator = torch.Generator(device=device)
     generator.manual_seed(seed)
     torch.cuda.reset_peak_memory_stats(device)
@@ -700,33 +735,36 @@ def _train_one_seed(
         initial_validation_prediction,
         validation_target,
     )
-    history.append(
-        _diagnostic_history_row(
-            epoch=0,
-            train_loss=initial_train_loss,
-            train_huber=initial_train_huber,
-            train_rank=float("nan"),
-            train_full_pairwise_loss=initial_train_rank,
-            train_pairwise_accuracy=initial_train_pairwise_accuracy,
-            train_prediction=initial_train_prediction,
-            validation_loss=initial_validation_loss,
-            validation_huber=initial_validation_huber,
-            validation_rank=initial_validation_rank,
-            validation_pairwise_accuracy=initial_validation_pairwise_accuracy,
-            validation_spearman=initial_validation_metrics["spearman"],
-            validation_prediction=initial_validation_prediction,
-            scaler_scale_before=gradient_scaler.get_scale(),
-            scaler_scale_after=gradient_scaler.get_scale(),
-            optimizer_state_step_before=0,
-            optimizer_state_step_after=0,
-            optimizer_step_skipped=False,
-            optimizer_step_effective=False,
-            gradient_norm_before_clip=float("nan"),
-            gradient_norm_after_clip=float("nan"),
-            parameter_delta_norm=0.0,
-            learning_rate=optimizer.param_groups[0]["lr"],
-        )
+    initial_history_row = _diagnostic_history_row(
+        epoch=0,
+        train_loss=initial_train_loss,
+        train_huber=initial_train_huber,
+        train_rank=float("nan"),
+        train_full_pairwise_loss=initial_train_rank,
+        train_pairwise_accuracy=initial_train_pairwise_accuracy,
+        train_prediction=initial_train_prediction,
+        validation_loss=initial_validation_loss,
+        validation_huber=initial_validation_huber,
+        validation_rank=initial_validation_rank,
+        validation_pairwise_accuracy=initial_validation_pairwise_accuracy,
+        validation_spearman=initial_validation_metrics["spearman"],
+        validation_prediction=initial_validation_prediction,
+        scaler_scale_before=gradient_scaler.get_scale(),
+        scaler_scale_after=gradient_scaler.get_scale(),
+        optimizer_state_step_before=0,
+        optimizer_state_step_after=0,
+        optimizer_step_skipped=False,
+        optimizer_step_effective=False,
+        gradient_norm_before_clip=float("nan"),
+        gradient_norm_after_clip=float("nan"),
+        parameter_delta_norm=0.0,
+        learning_rate=optimizer.param_groups[0]["lr"],
     )
+    initial_history_row["trainable_scope"] = (
+        "output_head" if head_warmup_steps else "all"
+    )
+    initial_history_row["trainable_parameter_count"] = _trainable_parameter_count(model)
+    history.append(initial_history_row)
     print(
         f"seed={seed} epoch=000/{config.max_epochs} "
         f"validation_loss={initial_validation_loss:.6f} "
@@ -741,10 +779,15 @@ def _train_one_seed(
         0 if initial_validation_metrics["spearman"] > 0.0 else None
     )
     best_checkpoint_effective_step_count = 0
+    backbone_effective_optimizer_steps = 0
+    first_backbone_effective_optimizer_epoch: int | None = None
+    best_checkpoint_backbone_effective_step_count = 0
     stopped_reason = "max_epochs"
 
     for epoch in range(1, config.max_epochs + 1):
         epoch_started = time.perf_counter()
+        trainable_scope = "output_head" if epoch <= head_warmup_steps else "all"
+        _set_training_scope(model, trainable_scope)
         model.train()
         optimizer.zero_grad(set_to_none=True)
         with torch.no_grad():
@@ -825,6 +868,10 @@ def _train_one_seed(
             effective_optimizer_steps += 1
             if first_effective_optimizer_epoch is None:
                 first_effective_optimizer_epoch = epoch
+            if trainable_scope == "all":
+                backbone_effective_optimizer_steps += 1
+                if first_backbone_effective_optimizer_epoch is None:
+                    first_backbone_effective_optimizer_epoch = epoch
 
         model.eval()
         with torch.no_grad():
@@ -850,45 +897,50 @@ def _train_one_seed(
             validation_prediction,
             validation_target,
         )
-        history.append(
-            _diagnostic_history_row(
-                epoch=epoch,
-                train_loss=float(train_loss.detach()),
-                train_huber=float(train_huber.detach()),
-                train_rank=float(train_rank.detach()),
-                train_full_pairwise_loss=train_full_pairwise_loss,
-                train_pairwise_accuracy=train_pairwise_accuracy,
-                train_prediction=full_train_prediction,
-                validation_loss=validation_loss,
-                validation_huber=validation_huber,
-                validation_rank=validation_rank,
-                validation_pairwise_accuracy=validation_pairwise_accuracy,
-                validation_spearman=validation_metrics["spearman"],
-                validation_prediction=validation_prediction,
-                scaler_scale_before=scaler_scale_before,
-                scaler_scale_after=scaler_scale_after,
-                optimizer_state_step_before=optimizer_state_step_before,
-                optimizer_state_step_after=optimizer_state_step_after,
-                optimizer_step_skipped=optimizer_step_skipped,
-                optimizer_step_effective=optimizer_step_effective,
-                gradient_norm_before_clip=gradient_norm_before_clip,
-                gradient_norm_after_clip=gradient_norm_after_clip,
-                parameter_delta_norm=parameter_delta_norm,
-                learning_rate=optimizer.param_groups[0]["lr"],
-            )
+        history_row = _diagnostic_history_row(
+            epoch=epoch,
+            train_loss=float(train_loss.detach()),
+            train_huber=float(train_huber.detach()),
+            train_rank=float(train_rank.detach()),
+            train_full_pairwise_loss=train_full_pairwise_loss,
+            train_pairwise_accuracy=train_pairwise_accuracy,
+            train_prediction=full_train_prediction,
+            validation_loss=validation_loss,
+            validation_huber=validation_huber,
+            validation_rank=validation_rank,
+            validation_pairwise_accuracy=validation_pairwise_accuracy,
+            validation_spearman=validation_metrics["spearman"],
+            validation_prediction=validation_prediction,
+            scaler_scale_before=scaler_scale_before,
+            scaler_scale_after=scaler_scale_after,
+            optimizer_state_step_before=optimizer_state_step_before,
+            optimizer_state_step_after=optimizer_state_step_after,
+            optimizer_step_skipped=optimizer_step_skipped,
+            optimizer_step_effective=optimizer_step_effective,
+            gradient_norm_before_clip=gradient_norm_before_clip,
+            gradient_norm_after_clip=gradient_norm_after_clip,
+            parameter_delta_norm=parameter_delta_norm,
+            learning_rate=optimizer.param_groups[0]["lr"],
         )
+        history_row["trainable_scope"] = trainable_scope
+        history_row["trainable_parameter_count"] = _trainable_parameter_count(model)
+        history.append(history_row)
         if (
             first_positive_validation_epoch is None
             and validation_metrics["spearman"] > 0.0
         ):
             first_positive_validation_epoch = epoch
         checkpoint_is_eligible = (
-            training_objective != "rank_first" or optimizer_step_effective
+            training_objective != "rank_first"
+            or (
+                optimizer_step_effective
+                and trainable_scope == "all"
+                and backbone_effective_optimizer_steps > 0
+            )
         )
         if (
             checkpoint_is_eligible
-            and
-            validation_metrics["spearman"]
+            and validation_metrics["spearman"]
             > best_validation_spearman + config.min_improvement
         ):
             best_validation_spearman = validation_metrics["spearman"]
@@ -898,6 +950,9 @@ def _train_one_seed(
             }
             best_epoch = epoch
             best_checkpoint_effective_step_count = effective_optimizer_steps
+            best_checkpoint_backbone_effective_step_count = (
+                backbone_effective_optimizer_steps
+            )
             epochs_without_improvement = 0
         else:
             epochs_without_improvement += 1
@@ -933,6 +988,12 @@ def _train_one_seed(
             )
             break
 
+    evaluation_mask = np.zeros(dataset.region_ids.size, dtype=bool)
+    for split_name in evaluation_splits:
+        evaluation_mask |= dataset.split_mask(split_name)
+    evaluation_indices = torch.as_tensor(
+        np.flatnonzero(evaluation_mask), device=device, dtype=torch.long
+    )
     if best_state is None and (
         training_objective != "rank_first" or fixed_prior == "none"
     ):
@@ -943,9 +1004,10 @@ def _train_one_seed(
             flush=True,
         )
         model_state = None
-        prediction = tensors["fixed_prior"].detach().clone()
+        selected_prediction = tensors["fixed_prior"][evaluation_indices].detach().clone()
         best_epoch = 0
         best_checkpoint_effective_step_count = 0
+        best_checkpoint_backbone_effective_step_count = 0
         stopped_reason = "no_effective_optimizer_checkpoint"
     else:
         print(
@@ -956,16 +1018,32 @@ def _train_one_seed(
         model.to(device)
         model.eval()
         with torch.no_grad():
-            prediction = _predict_weighted(
+            selected_prediction = _predict_weighted(
                 model,
                 tensors,
-                torch.arange(dataset.region_ids.size, device=device),
+                evaluation_indices,
                 config.prototype_batch_size,
                 precision_policy,
             )
         model_state = best_state
+    prediction = torch.full(
+        (dataset.region_ids.size,),
+        float("nan"),
+        device=device,
+        dtype=selected_prediction.dtype,
+    )
+    prediction[evaluation_indices] = selected_prediction
     torch.cuda.synchronize(device)
     unscaled_prediction = _unscale_prediction(prediction, scalers)
+    optimizer_history = history[1:]
+    finite_gradient_norms = [
+        float(row["gradient_norm_before_clip"])
+        for row in optimizer_history
+        if np.isfinite(float(row["gradient_norm_before_clip"]))
+    ]
+    nonfinite_gradient_norm_steps = (
+        len(optimizer_history) - len(finite_gradient_norms)
+    )
     return {
         "seed": seed,
         "best_epoch": best_epoch,
@@ -974,7 +1052,11 @@ def _train_one_seed(
         "peak_allocated_bytes": int(torch.cuda.max_memory_allocated(device)),
         "peak_reserved_bytes": int(torch.cuda.max_memory_reserved(device)),
         "parameter_count": sum(parameter.numel() for parameter in model.parameters()),
-        "metrics": _all_split_metrics(dataset, unscaled_prediction),
+        "metrics": _all_split_metrics(
+            dataset,
+            unscaled_prediction,
+            split_names=evaluation_splits,
+        ),
         "diagnostics": {
             "numerics": precision_policy.metadata(),
             "epoch_zero_validation_spearman": initial_validation_metrics["spearman"],
@@ -984,6 +1066,27 @@ def _train_one_seed(
             "skipped_optimizer_steps": skipped_optimizer_steps,
             "best_checkpoint_effective_step_count": (
                 best_checkpoint_effective_step_count
+            ),
+            "head_warmup_steps": head_warmup_steps,
+            "first_backbone_effective_optimizer_epoch": (
+                first_backbone_effective_optimizer_epoch
+            ),
+            "backbone_effective_optimizer_steps": backbone_effective_optimizer_steps,
+            "best_checkpoint_backbone_effective_step_count": (
+                best_checkpoint_backbone_effective_step_count
+            ),
+            "nonfinite_gradient_norm_steps": nonfinite_gradient_norm_steps,
+            "maximum_finite_gradient_norm_before_clip": (
+                max(finite_gradient_norms) if finite_gradient_norms else None
+            ),
+            "maximum_consecutive_zero_gradient_steps_after_clip": (
+                _maximum_consecutive_matches(
+                    optimizer_history,
+                    lambda row: float(row["gradient_norm_after_clip"]) == 0.0,
+                )
+            ),
+            "unrecovered_validation_loss_doublings": (
+                _unrecovered_validation_loss_doublings(history)
             ),
             "initialization_dominant": (
                 best_checkpoint_effective_step_count == 0
@@ -1218,6 +1321,47 @@ def _diagnostic_history_row(
     }
 
 
+def _set_training_scope(model: BidirectionalNBFNet, scope: str) -> None:
+    for parameter in model.parameters():
+        parameter.requires_grad_(scope == "all")
+    if scope == "output_head":
+        output_layer = model.prediction_head[-1]
+        for parameter in output_layer.parameters():
+            parameter.requires_grad_(True)
+    elif scope != "all":
+        raise ValueError(f"unsupported training scope: {scope}")
+
+
+def _trainable_parameter_count(model: torch.nn.Module) -> int:
+    return sum(parameter.numel() for parameter in model.parameters() if parameter.requires_grad)
+
+
+def _maximum_consecutive_matches(
+    rows: list[dict[str, float | int | str]],
+    predicate,
+) -> int:
+    maximum = 0
+    current = 0
+    for row in rows:
+        current = current + 1 if predicate(row) else 0
+        maximum = max(maximum, current)
+    return maximum
+
+
+def _unrecovered_validation_loss_doublings(
+    history: list[dict[str, float | int | str]],
+) -> int:
+    losses = [float(row["validation_loss"]) for row in history]
+    unrecovered = 0
+    for index in range(1, len(losses)):
+        previous = losses[index - 1]
+        if losses[index] >= 2.0 * previous and not any(
+            later <= previous for later in losses[index + 1 :]
+        ):
+            unrecovered += 1
+    return unrecovered
+
+
 def _global_gradient_norm(model: torch.nn.Module) -> float:
     total = torch.zeros((), device=next(model.parameters()).device)
     for parameter in model.parameters():
@@ -1280,9 +1424,11 @@ def _unscale_prediction(
 def _all_split_metrics(
     dataset: DemandFieldDataset,
     prediction: np.ndarray,
+    *,
+    split_names: tuple[str, ...] = SPLIT_NAMES,
 ) -> dict[str, dict]:
     metrics: dict[str, dict] = {}
-    for name in SPLIT_NAMES:
+    for name in split_names:
         mask = dataset.split_mask(name)
         split_prediction = prediction[mask]
         split_target = dataset.labels[mask]
@@ -1317,7 +1463,10 @@ def _architecture_metadata(config: NBFNetConfig) -> dict[str, object]:
     }
 
 
-def _write_history(path: Path, history: list[dict[str, float | int]]) -> None:
+def _write_history(
+    path: Path,
+    history: list[dict[str, float | int | str]],
+) -> None:
     with path.open("w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=list(history[0]))
         writer.writeheader()
@@ -1329,6 +1478,8 @@ def _write_predictions(path: Path, dataset: DemandFieldDataset, prediction: np.n
         writer = csv.writer(file)
         writer.writerow(("region_id", "split", "label_avg_workload_gain", "prediction"))
         for index, region_id in enumerate(dataset.region_ids):
+            if not np.isfinite(prediction[index]):
+                continue
             writer.writerow(
                 (
                     int(region_id),
@@ -1362,7 +1513,7 @@ def _save_checkpoint(
 
 def _aggregate_runs(runs: list[dict]) -> dict[str, dict[str, dict[str, float]]]:
     result: dict[str, dict[str, dict[str, float]]] = {}
-    for split_name in SPLIT_NAMES:
+    for split_name in runs[0]["metrics"]:
         result[split_name] = {}
         for metric_name in ("mae", "huber", "spearman", "ndcg_at_k", "top_k_mean_gain"):
             values = [run["metrics"][split_name][metric_name] for run in runs]
@@ -1376,7 +1527,11 @@ def _aggregate_runs(runs: list[dict]) -> dict[str, dict[str, dict[str, float]]]:
 
 
 def _render_report(summary: dict) -> str:
-    holdout = summary["aggregate"]["holdout"]
+    reported_split = (
+        "holdout" if "holdout" in summary["aggregate"] else "validation"
+    )
+    reported = summary["aggregate"][reported_split]
+    split_label = "Holdout" if reported_split == "holdout" else "Validation"
     return "\n".join(
         (
             "# OD 条件化双向 NBFNet 训练结果",
@@ -1387,11 +1542,15 @@ def _render_report(summary: dict) -> str:
             f"- 数据摘要：`{summary['dataset_sha256']}`",
             f"- 候选摘要：`{summary['candidate_sha256']}`",
             f"- 选定种子：`{summary['selected_seed']}`（仅按验证集 Spearman 选择）",
-            f"- Holdout Spearman：`{holdout['spearman']['mean']:.4f} ± {holdout['spearman']['std']:.4f}`",
-            f"- Holdout NDCG@K：`{holdout['ndcg_at_k']['mean']:.4f} ± {holdout['ndcg_at_k']['std']:.4f}`",
-            f"- Holdout Top-K 收益：`{holdout['top_k_mean_gain']['mean']:.3f} ± {holdout['top_k_mean_gain']['std']:.3f}`",
+            f"- {split_label} Spearman：`{reported['spearman']['mean']:.4f} ± {reported['spearman']['std']:.4f}`",
+            f"- {split_label} NDCG@K：`{reported['ndcg_at_k']['mean']:.4f} ± {reported['ndcg_at_k']['std']:.4f}`",
+            f"- {split_label} Top-K 收益：`{reported['top_k_mean_gain']['mean']:.3f} ± {reported['top_k_mean_gain']['std']:.3f}`",
             "",
-            "这是同一 H→Y 内的候选泛化结果，不代替冻结未来时间窗口测试。",
+            (
+                "Holdout 已按协议锁定，本报告只包含 train/validation。"
+                if reported_split == "validation"
+                else "这是同一 H→Y 内的候选泛化结果，不代替冻结未来时间窗口测试。"
+            ),
             "",
         )
     )
