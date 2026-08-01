@@ -1,0 +1,43 @@
+built g4_seed42_cost_0p100.k18: regions=18 internal=8486 shortcuts=14480 seconds=0.802
+g4_seed42_cost_0p100.k18.current_y: completed 10/20 paired chunks
+g4_seed42_cost_0p100.k18.current_y: completed 20/20 paired chunks
+complete g4_seed42_cost_0p100.k18.current_y: indexed=4.799ms expanded=2667.1 correctness=1.000000
+g4_seed42_cost_0p100.k18.future_f: completed 10/20 paired chunks
+g4_seed42_cost_0p100.k18.future_f: completed 20/20 paired chunks
+complete g4_seed42_cost_0p100.k18.future_f: indexed=4.497ms expanded=2576.3 correctness=1.000000
+built g4_seed42_cost_0p300.k18: regions=18 internal=8473 shortcuts=13874 seconds=0.819
+g4_seed42_cost_0p300.k18.current_y: completed 10/20 paired chunks
+g4_seed42_cost_0p300.k18.current_y: completed 20/20 paired chunks
+complete g4_seed42_cost_0p300.k18.current_y: indexed=4.754ms expanded=2683.3 correctness=1.000000
+g4_seed42_cost_0p300.k18.future_f: completed 10/20 paired chunks
+g4_seed42_cost_0p300.k18.future_f: completed 20/20 paired chunks
+complete g4_seed42_cost_0p300.k18.future_f: indexed=4.577ms expanded=2609.0 correctness=1.000000
+built g4_seed43_cost_0p100.k18: regions=18 internal=8459 shortcuts=15122 seconds=0.939
+g4_seed43_cost_0p100.k18.current_y: completed 10/20 paired chunks
+g4_seed43_cost_0p100.k18.current_y: completed 20/20 paired chunks
+complete g4_seed43_cost_0p100.k18.current_y: indexed=4.728ms expanded=2670.5 correctness=1.000000
+g4_seed43_cost_0p100.k18.future_f: completed 10/20 paired chunks
+g4_seed43_cost_0p100.k18.future_f: completed 20/20 paired chunks
+complete g4_seed43_cost_0p100.k18.future_f: indexed=4.569ms expanded=2580.4 correctness=1.000000
+built g4_seed43_cost_0p300.k18: regions=18 internal=8510 shortcuts=13452 seconds=0.829
+g4_seed43_cost_0p300.k18.current_y: completed 10/20 paired chunks
+g4_seed43_cost_0p300.k18.current_y: completed 20/20 paired chunks
+complete g4_seed43_cost_0p300.k18.current_y: indexed=4.639ms expanded=2608.3 correctness=1.000000
+g4_seed43_cost_0p300.k18.future_f: completed 10/20 paired chunks
+g4_seed43_cost_0p300.k18.future_f: completed 20/20 paired chunks
+complete g4_seed43_cost_0p300.k18.future_f: indexed=4.377ms expanded=2512.1 correctness=1.000000
+built g4_seed44_cost_0p100.k18: regions=18 internal=8480 shortcuts=14675 seconds=0.901
+g4_seed44_cost_0p100.k18.current_y: completed 10/20 paired chunks
+g4_seed44_cost_0p100.k18.current_y: completed 20/20 paired chunks
+complete g4_seed44_cost_0p100.k18.current_y: indexed=4.833ms expanded=2655.0 correctness=1.000000
+g4_seed44_cost_0p100.k18.future_f: completed 10/20 paired chunks
+g4_seed44_cost_0p100.k18.future_f: completed 20/20 paired chunks
+complete g4_seed44_cost_0p100.k18.future_f: indexed=4.666ms expanded=2569.2 correctness=1.000000
+built g4_seed44_cost_0p300.k18: regions=18 internal=8508 shortcuts=13049 seconds=0.992
+g4_seed44_cost_0p300.k18.current_y: completed 10/20 paired chunks
+g4_seed44_cost_0p300.k18.current_y: completed 20/20 paired chunks
+complete g4_seed44_cost_0p300.k18.current_y: indexed=4.724ms expanded=2640.3 correctness=1.000000
+g4_seed44_cost_0p300.k18.future_f: completed 10/20 paired chunks
+g4_seed44_cost_0p300.k18.future_f: completed 20/20 paired chunks
+complete g4_seed44_cost_0p300.k18.future_f: indexed=4.510ms expanded=2546.0 correctness=1.000000
+summary=results/chicago/gnn_v2/g5_cost_aware_exploration/e0_online_k18/summary.json
