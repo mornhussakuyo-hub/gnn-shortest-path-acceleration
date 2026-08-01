@@ -179,6 +179,8 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
 - 两机已确认快进到 `ee6b92b`，`tests.test_demand_field_nbfnet` 各 25 项全部通过。
 - S1 两城 seed 42、12 epoch、冻结全候选和 K=18 Y/F 精确在线门已全部完成，服务器
   GPU 已回到约 15 MiB、0%。结果和完整原始日志已回传本机。
+- S2 两城 seed 42、12 epoch CUDA 短训已启动；启动检查时两机 GPU 均为 100%、进程与
+  日志正常，runner PID 已分别落盘。
 - 二号机访问 GitHub 时曾超时，本轮通过本机生成的增量 `git bundle` 快进；没有修改、删除或
   覆盖任何服务器训练产物。
 - 服务器保留 S0 与旧 G4 未跟踪产物，不删除。本机的旧 launcher/PID 和新同步原始日志也
@@ -189,8 +191,8 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
 1. S1 通过了 validation 头部安全保持门：两城全局/holdout Spearman 改善，最佳 checkpoint 的
    Top-3 收益与成本均不劣于 Z0；但尚未通过全候选增量部署门，Top-18 与 S0 完全相同；
    Porto Y/F 展开节点相对 Z0 多 `10.346/14.495`，Chicago 多 `73.720/68.171`。
-2. **下一步执行 S2**：仅将头部收益权重从 `0.25` 增大到 `1.0`，其余与 S1 完全一致；
-   仍是两城 seed 42、12 epoch CUDA 短训，不进入长训。
+2. **S2 正在执行**：仅将头部收益权重从 `0.25` 增大到 `1.0`，其余与 S1 完全一致；
+   两城 seed 42、12 epoch CUDA 短训已启动，不进入长训。
 3. S2 完成后仍必须冻结最佳 validation checkpoint、导出 1,200 全候选分数，再用 K=18
    hard-disjoint Y/F 精确在线门决策。
 4. 若 S2 仍不改变 Top-18，停止单纯放大 gain weight，改为设计直接反映扫边/查询工作量的
