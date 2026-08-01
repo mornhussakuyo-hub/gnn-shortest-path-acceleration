@@ -7,6 +7,9 @@
 
 - `main.tex`：完整初稿正文，包含摘要、引言、相关工作、问题定义、方法、实验、结果、讨论、
   局限性和结论；
+- `main.pdf`：15 页单栏审阅版；
+- `main_twocolumn.tex`：复用 `main.tex` 正文的双栏预览入口；
+- `main_twocolumn.pdf`：10 页双栏预览版，宽表和占位图自动跨栏；
 - `references.bib`：正文实际引用的参考文献；
 - `EVIDENCE.md`：正文数字到仓库冻结报告和机器可读产物的对应关系；
 - `figures/README.md`：正式制图清单和每张图的数据来源；
@@ -22,7 +25,7 @@
 
 ## 编译
 
-已在本机使用 XeLaTeX 与 BibTeX 成功生成 `main.pdf`。当前版本为 A4 纸、14 页。
+已在本机使用 XeLaTeX 与 BibTeX 成功生成单栏和双栏两版 PDF。
 需要重新生成时，可在本目录运行：
 
 ```bash
@@ -36,6 +39,7 @@ xelatex main.tex
 
 ```bash
 latexmk -xelatex -bibtex main.tex
+latexmk -xelatex -bibtex main_twocolumn.tex
 ```
 
 正文采用 `ctexart`，必须使用 XeLaTeX 或 LuaLaTeX，不建议使用 pdfLaTeX。

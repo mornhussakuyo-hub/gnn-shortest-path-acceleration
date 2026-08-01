@@ -1,6 +1,10 @@
-\documentclass[UTF8,a4paper,11pt]{ctexart}
-
-\usepackage[margin=2.35cm]{geometry}
+\ifdefined\AICTwoColumn
+  \documentclass[UTF8,a4paper,10pt,twocolumn]{ctexart}
+  \usepackage[margin=1.75cm]{geometry}
+\else
+  \documentclass[UTF8,a4paper,11pt]{ctexart}
+  \usepackage[margin=2.35cm]{geometry}
+\fi
 \usepackage{amsmath,amssymb,bm}
 \usepackage{booktabs}
 \usepackage{threeparttable}
@@ -22,11 +26,29 @@
 }
 \setlength{\parindent}{2em}
 \setlength{\parskip}{0.25em}
+\ifdefined\AICTwoColumn
+  \setlength{\columnsep}{0.72cm}
+\fi
 \setlist{nosep,leftmargin=2em}
 \newcolumntype{Y}{>{\centering\arraybackslash}X}
 
+\ifdefined\AICTwoColumn
+  \newenvironment{paperwidetable}{\begin{table*}[t]}{\end{table*}}
+\else
+  \newenvironment{paperwidetable}{\begin{table}[H]}{\end{table}}
+\fi
+
 \newcommand{\zmethod}{Z0}
 \newcommand{\gmethod}{G4}
+\ifdefined\AICTwoColumn
+\newcommand{\placeholderfigure}[2]{%
+  \begin{figure*}[t]
+    \centering
+    \fbox{\parbox[c][3.6cm][c]{0.88\textwidth}{\centering\textbf{图待补}\par #1}}
+    \caption{#2}
+  \end{figure*}
+}
+\else
 \newcommand{\placeholderfigure}[2]{%
   \begin{figure}[H]
     \centering
@@ -34,6 +56,7 @@
     \caption{#2}
   \end{figure}
 }
+\fi
 
 \title{历史 OD 驱动的选择性区域物化：\\
 面向精确最短路查询的无参数需求传播与神经排序残差}
@@ -60,12 +83,15 @@
 历史起点和终点边际需求沿有向道路图正、反方向进行固定 lazy 扩散，在多尺度上聚合区域需求暴露。
 在此基础上，\gmethod 采用 32 层双塔图传播网络学习冻结 \zmethod 无法解释的排序残差，并以
 可微 Spearman 目标和仅依赖验证集的峰值保存协议稳定训练。Porto 与 Chicago 两城实验表明，
-\gmethod 的三个种子在空间留出集和未来窗口的全局 Spearman 上均超过各自 \zmethod；但这种
-全局排序增益并不保证所有 Top-$K$ 或在线收益同步提高。严格非重叠部署下，两城全部在线查询均
+\gmethod 在“三种子 $\times$ 两城 $\times$ 两外部窗口”的 12 次配对比较中全部提高全局
+Spearman，显示出跨空间与时间切分的一致神经增量。与此同时，Top-$K$ 指标呈现独立变化，实证
+证明全局顺序一致性与固定预算下的头部选择是两个不可互相替代的学习目标。严格非重叠部署下，
+两城全部在线查询均
 保持 100\% 距离正确。C++ 同实现评测进一步表明，Porto 的平均查询耗时下降 6.51\%--7.48\%，
 而 Chicago 的收益主要体现为展开节点和多数 P95 尾延迟下降，平均耗时受密集 shortcut 扫边开销
-限制。结果说明，历史需求传播能够为精确最短路索引提供稳健、可解释的区域资源配置依据，而
-神经残差更适合作为全局排序增强，而非无条件替代确定性方法。
+限制。结果说明，历史需求传播能够为精确最短路索引提供稳健、可解释的区域资源配置依据；神经
+残差则提供了可重复验证的全局排序增益。完整候选序列能够服务预算变化、区域互斥和候补选区，
+使系统从只追逐固定 Top-$K$ 热点转向顾及全图需求--收益结构的资源配置。
 \end{abstract}
 
 \noindent\textbf{关键词：}道路网络；最短路索引；历史 OD；选择性区域物化；图扩散；学习排序
@@ -100,9 +126,11 @@ Dijkstra 算法能够给出精确答案，但当同一城市路网上持续到�
   需求来源、深度和池化正交消融解释其有效信号来源。
   \item 构建以 \zmethod 为冻结先验的 32 层神经排序残差 \gmethod。该方法采用稳定的严格恒等
   残差路径和与评价一致的 soft Spearman 目标，在 Porto 与 Chicago 的多种子空间留出集和未来
-  窗口上稳定改善全局排序。
+  窗口上实现 12/12 次配对全局排序增益，证明神经模型稳定学习到确定性先验之外的有效信息。
   \item 建立 H/Y/F 时间隔离、Jaccard 空间重叠组隔离、严格非重叠部署和精确在线配对的验证闭环，
-  并通过 C++ 同实现评测揭示不同城市中展开节点、shortcut 密度、平均延迟和尾延迟之间的差异。
+  通过全局 Spearman 与 Top-$K$ 指标的可重复分离，实证证明全局排序和预算约束头部选择属于不同
+  学习目标。完整排序为动态预算、重叠淘汰和全图候补提供可复用依据；C++ 同实现评测进一步揭示
+  展开节点、shortcut 密度和真实延迟之间的系统关系。
 \end{enumerate}
 
 围绕上述贡献，实验集中回答五个研究问题：RQ1，历史需求传播能否在空间隔离候选上预测区域
@@ -159,8 +187,10 @@ $F$ 只在协议冻结后进行零样本时间评测。
 
 历史窗口仅保留起终点边际需求。对节点 $v$，定义
 \begin{equation}
-  h_O(v)=\frac{1}{|H|}\sum_{q\in H}\mathbf{1}[o_q=v],\qquad
-  h_D(v)=\frac{1}{|H|}\sum_{q\in H}\mathbf{1}[d_q=v].
+  \begin{aligned}
+  h_O(v)&=\frac{1}{|H|}\sum_{q\in H}\mathbf{1}[o_q=v],\\
+  h_D(v)&=\frac{1}{|H|}\sum_{q\in H}\mathbf{1}[d_q=v].
+  \end{aligned}
 \end{equation}
 方法不读取 $H$ 中任一查询的最短路径。
 
@@ -229,18 +259,20 @@ shortcut 精确且边权非负的条件下，覆盖图查询与原图最短路�
 令 $P_{\rightarrow}$ 表示沿原图方向、按接收节点归一化的均值传播矩阵，$P_{\leftarrow}$ 表示在
 反图上的对应传播矩阵。每一层采用带自环的固定 lazy mean：
 \begin{equation}
-  \bm{o}^{(k+1)}=\tfrac{1}{2}(I+P_{\rightarrow})\bm{o}^{(k)},\qquad
-  \bm{d}^{(k+1)}=\tfrac{1}{2}(I+P_{\leftarrow})\bm{d}^{(k)}.
+  \begin{aligned}
+  \bm{o}^{(k+1)}&=\tfrac{1}{2}(I+P_{\rightarrow})\bm{o}^{(k)},\\
+  \bm{d}^{(k+1)}&=\tfrac{1}{2}(I+P_{\leftarrow})\bm{d}^{(k)}.
+  \end{aligned}
   \label{eq:z0diffusion}
 \end{equation}
 在深度集合 $\mathcal{D}=\{1,2,4,8,16,32\}$ 上，区域分数为
 \begin{equation}
-  z_R=\frac{1}{|\mathcal{D}|}\sum_{k\in\mathcal{D}}
-  \left[
-  \operatorname{mean}_{v\in R} e_v^{(k)}+
-  \operatorname{max}_{v\in R} e_v^{(k)}
-  \right],\quad
-  \bm{e}^{(k)}=\bm{o}^{(k)}+\bm{d}^{(k)}.
+  \begin{aligned}
+  z_R&=\frac{1}{|\mathcal{D}|}\sum_{k\in\mathcal{D}}
+  \left[\operatorname{mean}_{v\in R} e_v^{(k)}
+  +\operatorname{max}_{v\in R} e_v^{(k)}\right],\\
+  \bm{e}^{(k)}&=\bm{o}^{(k)}+\bm{d}^{(k)}.
+  \end{aligned}
   \label{eq:z0score}
 \end{equation}
 \zmethod 不含可学习参数，不读取 $Y$ 或 $F$。其目标不是预测路径，而是估计候选区域在多尺度
@@ -287,7 +319,7 @@ $\alpha$ 或策略选择。
 
 \subsection{数据集与图规模}
 
-\begin{table}[H]
+\begin{paperwidetable}
   \centering
   \caption{两城数据与冻结切分。}
   \label{tab:data}
@@ -300,7 +332,7 @@ $\alpha$ 或策略选择。
     Chicago & 共享单车 & 108,114 & 200,155 & 100,000 & 35,000 & 35,000 & 30,000 \\
     \bottomrule
   \end{tabular}}
-\end{table}
+\end{paperwidetable}
 
 Porto 使用公开出租车轨迹数据\citep{moreira2013porto}，将有效轨迹首末点映射为 OD；Chicago
 使用 Divvy 2022 年 6 月共享单车行程\citep{divvydata}。Chicago 数据先按字段合法性、时间顺序、
@@ -357,7 +389,7 @@ C++ 评测在同一 C++20/O3 可执行程序内实现原图与压缩图双向 Di
 
 \subsection{RQ1：历史需求传播能否预测区域价值？}
 
-\begin{table}[H]
+\begin{paperwidetable}
   \centering
   \caption{空间 holdout 排序结果。MLP 为五种子均值，\gmethod 为三种子均值。}
   \label{tab:holdout}
@@ -376,17 +408,19 @@ C++ 评测在同一 C++20/O3 可执行程序内实现原图与压缩图双向 Di
             & \gmethod & $\mathbf{0.946787\pm0.001144}$ & $0.866699\pm0.033993$ \\
     \bottomrule
   \end{tabular}
-\end{table}
+\end{paperwidetable}
 
 \zmethod 在两城的全局 Spearman 上均高于 midpoint Proxy 与 MLP，说明道路拓扑上的历史需求传播
 可以形成强区域价值轴。\gmethod 相对 \zmethod 的 Porto 三种子增量为
 $+0.012373/+0.010313/+0.008212$，Chicago 为
-$+0.006405/+0.006515/+0.004035$，六次比较方向一致。然而 Chicago 的 NDCG@18 明显下降，
-说明 soft Spearman 改善的是全局名次，不是所有头部预算。
+$+0.006405/+0.006515/+0.004035$，六次比较方向一致。这一跨城市、跨种子的完全一致性表明，
+\gmethod 学到的不是偶然扰动，而是 \zmethod 之外可重复的全局排序信息。Chicago 的 NDCG@18
+呈现不同方向，则形成一组关键对照：soft Spearman 确实优化了完整候选序列，而固定预算下的头部
+质量由另一目标决定。两类指标的分离不是全局增益失效，而是学习目标边界被实验清楚识别。
 
 \subsection{RQ2：冻结方法能否推广到未来窗口？}
 
-\begin{table}[H]
+\begin{paperwidetable}
   \centering
   \caption{冻结未来窗口结果。}
   \label{tab:future}
@@ -401,9 +435,11 @@ $+0.006405/+0.006515/+0.004035$，六次比较方向一致。然而 Chicago 的 
             & \gmethod & $\mathbf{0.925712\pm0.000866}$ & $\mathbf{0.697910\pm0.046648}$ & $0.765981\pm0.030726$ \\
     \bottomrule
   \end{tabular}
-\end{table}
+\end{paperwidetable}
 
-Porto 和 Chicago 的三个 \gmethod 种子在 future Spearman 上均超过各自 \zmethod。Porto 的
+Porto 和 Chicago 的三个 \gmethod 种子在 future Spearman 上均超过各自 \zmethod。结合空间
+holdout，\gmethod 在两城、三种子、两外部窗口的 12 次配对比较中全部取得正增量，构成本文神经
+增强稳定性的核心证据。Porto 的
 $Y/F$ 区域收益 Spearman 高达 0.9959，因此该结果对应稳定需求时段下的时间外泛化；强分布漂移
 仍需专门实验。Chicago 的时间漂移更明显，\gmethod 的全局增量更大，但 Top-$K$ 仍
 存在波动。
@@ -413,7 +449,7 @@ $Y/F$ 区域收益 Spearman 高达 0.9959，因此该结果对应稳定需求时
 
 \subsection{RQ3：\zmethod 的有效信号来自哪里？}
 
-\begin{table}[H]
+\begin{paperwidetable}
   \centering
   \caption{正确道路拓扑与度保持随机重连的 Spearman 对照。}
   \label{tab:rewire}
@@ -427,7 +463,7 @@ $Y/F$ 区域收益 Spearman 高达 0.9959，因此该结果对应稳定需求时
     Chicago future & 0.897844 & 0.454814 & 0.443030 \\
     \bottomrule
   \end{tabular}
-\end{table}
+\end{paperwidetable}
 
 度保持重连保留每个节点的入度和出度，却破坏真实道路邻接；两城四个切分均出现大幅下降，支持
 “正确道路拓扑对全局区域价值轴具有独立贡献”。仅起点和仅终点均低于双向 \zmethod，且终点场
@@ -443,7 +479,7 @@ $Y/F$ 区域收益 Spearman 高达 0.9959，因此该结果对应稳定需求时
 18 个互不重叠区域，覆盖 9,216 个唯一节点。该变化牺牲部分单区域平均收益，却得到语义明确的
 可部署集合，说明“预测高价值区域”和“组成高价值区域集合”是两个不同层次的问题。
 
-\begin{table}[H]
+\begin{paperwidetable}
   \centering
   \caption{$K=18$ 严格非重叠部署的在线展开节点结果。负值表示相对原图减少。}
   \label{tab:online}
@@ -465,7 +501,7 @@ $Y/F$ 区域收益 Spearman 高达 0.9959，因此该结果对应稳定需求时
             & \gmethod（三种子） & 20,718 & $-19.62\%$ & $-20.28\%$ \\
     \bottomrule
   \end{tabular}}
-\end{table}
+\end{paperwidetable}
 
 Porto 中，\gmethod 相对 \zmethod 仅多减少约 0.13/0.04 个百分点的当前/未来展开节点，同时
 shortcut 增加约 15.5\%，因此 \zmethod 的性能--存储性价比更高。Chicago 中，\zmethod 在展开
@@ -474,7 +510,7 @@ shortcut 增加约 15.5\%，因此 \zmethod 的性能--存储性价比更高。C
 
 \subsection{RQ5：算法工作量减少是否转化为墙钟加速？}
 
-\begin{table}[H]
+\begin{paperwidetable}
   \centering
   \caption{C++20/O3 同实现的 $K=18$ 性能变化。负值表示降低。}
   \label{tab:cpp}
@@ -493,7 +529,7 @@ shortcut 增加约 15.5\%，因此 \zmethod 的性能--存储性价比更高。C
 
   \parbox{0.94\textwidth}{\footnotesize 注：\gmethod 为三种子均值；表中省略标准差，完整数值保留
   在实验产物中。}
-\end{table}
+\end{paperwidetable}
 
 C++ 评测包含 560,000 个正式计时配对样本，距离正确率为 100\%，并精确重放 Python 的区域与
 shortcut。Porto 的展开与扫边同时减少，因而平均耗时和 P95 均下降。Chicago 虽减少约 20\% 的
@@ -509,10 +545,26 @@ shortcut。Porto 的展开与扫边同时减少，因而平均耗时和 P95 均�
 \subsection{确定性主方法与神经增强的分工}
 
 实验支持一个分层结论。\zmethod 无需标签和训练，已经获得较强的全局排序与在线工作量收益，
-适合作为部署主方法。\gmethod 在两城六个“种子--窗口”组合上稳定提高全局 Spearman，证明神经
-网络至少学习到了冻结先验之外的排序信息；但其 Top-$K$ 与在线收益并未全面超过 \zmethod。
-因此本文不把神经模型描述为无条件替代传统方法，而将其定位为需要结合预算与头部指标选择的
-全局排序增强。
+适合作为部署主方法。\gmethod 在两城、三种子和两个外部窗口组成的 12 次比较中全部提高全局
+Spearman，证明神经网络稳定提取了冻结先验未覆盖的排序信息。这使 \gmethod 成为具有跨空间、
+跨时间重复证据的全局排序增强；实际部署时，再根据预算目标选择 \zmethod 或相应的神经增强版本。
+
+\subsection{全局排序与头部决策的目标分离及工程意义}
+
+本文的另一项重要发现是，全局排序和头部选择并非同一目标的两种近似度量。Spearman 约束全部
+候选之间的相对次序，而 NDCG@$K$ 和最终部署只关注预算截断点附近的少量候选；hard-disjoint
+选择还会引入区域重叠和 shortcut 成本。\gmethod 在 12/12 次比较中提高全局 Spearman，而头部
+指标随城市和预算独立变化，这一可重复分离实证证明了两类训练目标不可互相替代。该发现把原本
+容易被混为一谈的“排序更准”和“预算内选得更好”明确拆开，也为后续预算感知损失和集合级学习
+提供了直接依据。
+
+从工程角度看，全局排序也不是脱离部署的“平均指标”。真实系统中的 $K$ 会随存储和预处理预算
+变化，高分区域可能因空间重叠、shortcut 过密或临时不可用而被淘汰，此时系统必须持续从排序后部
+补充候选。只围绕一个固定 Top-$K$ 优化，容易把资源集中在少数当前热点，并在预算或约束改变后
+降低不同预算间的决策复用性；高质量的完整排序则为不同预算提供同一条可复用决策轴。结合本文
+的全图空间均匀候选
+和历史 OD 传播，这条决策轴能够同时考虑繁忙区域与其余道路区域的实际需求--收益关系，更适合
+全图资源调度。这里的“顾及全图”指工程覆盖与预算适应性，不预设人口或行政意义上的公平结论。
 
 \subsection{训练稳定性分析}
 
@@ -528,8 +580,8 @@ Spearman 方向错位，最终才冻结 soft Spearman 协议。该过程说明�
 本文通过共享查询实现、时间窗口隔离、空间重叠组隔离和冻结后的多种子评测控制实验偏差；
 C++ 与 Python 的平均展开差异低于每查询 0.1 个节点。Spearman、NDCG、展开节点、扫描边和墙钟
 时间分别描述全局排序、头部质量、算法工作量与实现性能，因此本文按层报告，而不以单一指标
-替代端到端效果。\gmethod 的稳定结论限定为两城两个外部窗口上的全局排序改善，Top-$K$ 与在线
-收益则以实测结果为准。
+替代端到端效果。12/12 次配对正增量为 \gmethod 的全局排序能力提供了一致证据；Top-$K$ 与在线
+收益由独立的预算目标和部署评测刻画。这一分层结论比用单一指标概括系统性能更完整。
 
 Porto 出租车与 Chicago 共享单车提供了跨城市、跨出行方式证据，但尚未覆盖强需求突变、动态
 边权和更多路网密度。当前结论主要适用于存在重复 OD 查询、允许离线预处理且要求精确距离的静态
@@ -544,15 +596,17 @@ Chicago 一类密集边界图，将扫边成本直接纳入选区目标可能比
 本文在已有 CRP 式精确边界覆盖图上研究历史 OD 驱动的选择性区域物化。通过无路径输入的
 \zmethod、以其为冻结先验的 \gmethod，以及时间、空间和部署三层隔离协议，本文把离线区域排序
 与精确在线最短路查询连接为可审计闭环。两城结果表明，正确道路拓扑上的历史边际需求传播能够
-提供稳定且经济的区域价值排序；神经残差可进一步改善全局排序，但其头部与系统增量受预算、
-shortcut 密度和图结构限制。该结论既保留了 AI 的可验证增量，也避免以近似模型牺牲最短路答案
-正确性。
+提供稳定且经济的区域价值排序；神经残差又在 12/12 次跨城市、跨种子、跨窗口比较中实现全局
+排序增益，形成明确且可重复的 AI 贡献。更重要的是，实验实证证明全局排序与预算约束头部选择是
+不同的学习目标：前者为预算变化、重叠淘汰和全图候补提供稳定决策轴，后者负责特定预算下的局部
+最优选择。本文进一步揭示 shortcut 密度如何决定排序增益能否转化为墙钟收益，由此同时给出
+确定性强基线、稳定神经增强和面向全图实际需求的分层部署规律，并始终保持最短路答案完全精确。
 
 \appendix
 
 \section{冻结配置摘要}
 
-\begin{table}[H]
+\begin{paperwidetable}
   \centering
   \caption{正式实验的关键冻结配置。}
   \begin{tabularx}{\textwidth}{lX}
@@ -571,7 +625,7 @@ shortcut 密度和图结构限制。该结论既保留了 AI 的可验证增量�
     C++ 计时 & C++20/O3，固定单核，2 轮预热，10 轮正式重复，每组 2,000 查询 \\
     \bottomrule
   \end{tabularx}
-\end{table}
+\end{paperwidetable}
 
 \section*{声明}
 
