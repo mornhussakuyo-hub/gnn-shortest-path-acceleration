@@ -158,63 +158,55 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
 - 完整结果位于 `results/gnn_v2/nbfnet_propagation/gradient_anatomy/`，主要报告为
   `reports/阶段四_NBFNet传播诊断与深层纯传播实验.md`。
 
+## BRIDGE 与成本感知扩展
+
+- G4 是本项目自主组合设计的任务化神经模型：32 层 G3 稳定双向 OD 传播、多深度读出、
+  `frozen_z0 + learned_residual` 和 soft Spearman 目标。论文暂命名为 **BRIDGE**
+  (Bidirectional Residual Index Deployment Gain Estimator)；定稿前必须做同名检索。
+- G4/BRIDGE 在 Porto 和 Chicago 三种子 holdout 与 future 全局 Spearman 均稳定高于 Z0，
+  但 Top-K 和在线部署指标不全面超过 Z0；因此它是“全局排序神经增强”，不是 Z0 的全面替代。
+- 阶段七新增 G5，论文暂称 **BRIDGE-B**：在 G4 上直接加入头部收益、shortcut 预算和
+  区域冲突目标，每轮保存 validation 快照，并用真实 K=18 非重叠在线部署作最终门。
+- G5-S0 两城 seed 42、12 epoch 全部有效；两城 validation/global Spearman 和 shortcut 成本均改善，
+  但真实 K=18 在线展开节点均退化。这是目标错位，不是训练失败，不得直接扩大长训。
+- S1 只修正 split 内 Top-K 比例：全候选部署仍为 `18/1200`，train 改为 `13/840`，
+  validation 改为 `3/180`；学习率、损失权重、结构、seed 和 12 epoch 保持不变。
+
 ## 服务器训练最终状态
 
 - 两台服务器仓库均为 `~/gnn-shortest-path-acceleration`，GPU 均为 RTX 4090 D 24 GB。
 - 一号使用 `.server.env`，二号使用 `.server2.env`；SSH 必须加 `-F /dev/null`。
-- 当前两台服务器在调度版三种子完成后均无相关训练进程，GPU 最近确认均为约 15 MiB、
-  0% 利用率；不要恢复旧 runner。
-- 四组 screening、旧协议五种子重复、B1～B4、Z0/Z1/Z2、两组失败 rank-first 和梯度解剖均已
-  完成或按机制停止；相关完整/摘要产物已同步本机。
-- gradient anatomy 一号完成深度 `1/2/4/8/16/32` 与 32 层 scale `1/64`；二号完成 32 层
-  `head_only` 和 Z0 输出头预热后快照。两组 runner 已结束，服务器 GPU 空闲。
-- 服务器最后确认包含代码提交 `c3eb918`；本机 `main` 将继续推进未来窗口验证提交。下一次运行前先看
-  远端 `git status --short`，再 fast-forward 到本机已推送的最新 `main`，不得在服务器改文件。
-- 本机保留四个旧未跟踪运行文件，不提交、不删除：
-  `gradient_anatomy/server1_launcher.log`、`server1_runner.pid`、`server2_launcher.log`、
-  `train_free_baselines_launcher.log`。新同步的 scheduler launcher、PID 与逐 seed 原始日志也不提交、
-  不删除；正式结果只提交 manifest、summary、checkpoint、prediction 和 history。
+- 两机已确认快进到 `9624f11`，`tests.test_demand_field_nbfnet` 各 25 项全部通过；检查时
+  GPU 均为约 15 MiB、0% 利用率，S1 尚未启动。
+- 二号机访问 GitHub 时曾超时，本轮通过本机生成的增量 `git bundle` 快进；没有修改、删除或
+  覆盖任何服务器训练产物。
+- 服务器保留 S0 与旧 G4 未跟踪产物，不删除。本机的旧 launcher/PID 和新同步原始日志也
+  不删除；提交时不得用宽泛 `git add`误纳入。
 
 ## 后续实验顺序
 
-1. 阶段五 G 线已经完成并按性能门停止；当前进入
-   `reports/阶段六_最终对比与扩展验证.md` 的 Z0 未来时间窗口验证。
-2. S0/S1 已完成并同步本机。G0/G1 在深层失败；G2/G3 的 32 层 FP64 范数约为
-   `0.04306 / 0.04317`，裁剪系数均为 `1.0`、Hook 放大约 `6`，连续三步均为 3/3 有效。
-3. G2/G3 seed 42 的 `5e-3` 结构筛选已完成，G3 仅按 validation 胜出。恒定 `5e-3` 的 G3
-   seeds 42/43/44 Spearman 平均相对 Z0 为 `+0.004807`，但 NDCG@5 平均为 `-0.003448`，
-   因此 S4 头部排序门未通过。
-4. 调度版 seeds 42/43/44 已完成，全部数值稳定但性能门未过；不追加 scheduler、学习率、损失或
-   残差尺度搜索，不跑 seed 45/46。
-5. **下一步立即生成 F=`[0.70,1.00)` 的 1,200×2,000 精确区域收益标签，并用最早 H 构造的
-   冻结 Z0 做零样本排序评测**。先报告全候选，再报告空间 train/validation/holdout 子集。
-6. 同时报告 Y 标签对 F 标签的排序保持程度，区分需求传播失效与真实收益本身的时间漂移。
-7. 未来标签不得用于重新定向、校准或选 Z0；滚动更新需求场若后续执行，必须作为独立实验。
-8. 未来窗口后依次做正确拓扑/方向对照、非重叠集合选择、精确在线配对和跨城市验证。
+1. **立即执行 S1**：一号 Porto、二号 Chicago，先各跑 1 epoch CUDA 冒烟，通过后各跑
+   seed 42、12 epoch 短训。
+2. 短训只确认进程、GPU 和日志正常，不长时轮询；结束后回传本机、校验摘要和快照完整性。
+3. 冻结 S1 最佳 validation checkpoint，导出 1,200 个全候选分数，仅用真实 K=18 hard-disjoint
+   Y/F 精确在线结果决定是否进入下一轮。
+4. 若两城均稳定改善真实部署指标，再扩展 epoch 和重复种子；若仍只降成本但降低在线收益，
+   下一轮只调整收益/成本权重或直接纳入扫边工作量，不同时改多个因素。
+5. 任何不利结果均保留并写入阶段日志；不事后删除种子、epoch 或在线方法。
 
-## 阶段五时间预算
+## 阶段七时间预算
 
-- 已有实测基准：32 层单次快照约 83 秒；正式 32 层训练约 50～68 秒/epoch；95 epoch 约 79 分钟。
-- S0 编码、测试和 runner 已完成；服务器 CUDA 测试为 `61/61` 通过。
-- S1 四结构深度扫描与三步门已完成，G2/G3 通过。
-- G2/G3 seed 42 的 40 epoch 短训两机并行预计约 35～50 分钟。
-- P0 教师场约 5～20 分钟；P1 双塔逐层预训练两机并行约 1～2 小时；P2/P3 约 30～60 分钟。
-- S2 三协议 40 epoch 两机约 1.2～1.8 小时；S3 最多两个补充对照约 40～60 分钟。
-- S4 三种子 80 epoch 两机约 2.5～3.5 小时，属于第一次大规模训练。
-- S5 五种子若按 80 epoch 约 3.5～5 小时；若恢复旧 300 epoch 上限，最坏约 13～17 小时。
-- 任何阶段未过预注册门即停止，不提前运行后续大规模任务。
+- 32 层 G3/BRIDGE 单 epoch 实测约 60～70 秒；S1 两城 12 epoch 并行约 15～20 分钟。
+- 冻结全候选导出约数分钟；两城 K=18、Y/F 在线复核的时间视现有缓存与服务器负载而定。
+- 未通过真实部署门前不启动长训或三/五种子队列。
 
 ## 仓库状态交接
 
-- 交接前分支为 `main`。
-- 本次衰减更新前最新提交为 `027f1a2 固化S1结果并加入G线短训门`。
-- 梯度解剖代码提交为 `8ea0fa2 加入深层传播梯度解剖诊断`；结果与结论提交为
-  `06989a2 固化深层传播梯度解剖结论`。
-- 阶段五计划提交为 `0523135 制定阶段五梯度稳定化实验计划`，双塔预训练补充为 `1a0c8e0`。
-- S0 结构与 S1 runner 提交为 `09a22a1`；S1 结果位于
-  `results/gnn_v2/nbfnet_propagation/gradient_stabilization/`。
-- 恒定 `5e-3` 的 G2/G3 seed 42 与 G3 seeds 43/44 结果分别位于
-  `gradient_structure_screening/` 和 `gradient_structure_confirmation/`。
-- 主要诊断报告：`reports/阶段四_NBFNet传播诊断与深层纯传播实验.md`。
-- 当前执行计划：`reports/阶段五_梯度稳定化与Z0神经残差.md`。
-- 阶段六占位：`reports/阶段六_最终对比与扩展验证.md`。
+- 当前分支为 `main`；S1 split-scaled Top-K 代码、测试和阶段报告提交为
+  `9624f11 按候选比例校准部署目标TopK`。
+- G5 训练目标实现为 `f801d97`；冻结推理与诊断修正为 `630d916` / `0c7b8d3`。
+- S0 两城训练、冻结全候选和 K=18 在线产物已回传本机，位于两城
+  `results/.../g5_cost_aware_exploration/s0_short_seed42*`，尚未统一筛选提交。
+- 当前详细执行记录：`reports/阶段七_成本感知神经部署优化.md`。
+- 已完成的总结与纸面边界：`reports/最终研究成果与论文结论.md`、
+  `reports/文献新颖性审查与论文定位.md`。阶段七若成功，再统一更新 README、总结、论文初稿和 PDF。
