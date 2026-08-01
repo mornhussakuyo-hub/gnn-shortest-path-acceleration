@@ -181,6 +181,8 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
   GPU 已回到约 15 MiB、0%。结果和完整原始日志已回传本机。
 - S2 两城 seed 42、12 epoch、冻结全候选和 K=18 Y/F 在线门已完成并回传本机，
   GPU 已空闲。Porto 首次在两窗口部署工作量与 shortcut 成本上同时超过 Z0。
+- S3 两城 seed 43/44 已以单队列启动，当前均从 seed 43 开始；runner PID 已落盘，
+  启动检查时两机 GPU 均为 100%，进程和日志正常。
 - 二号机访问 GitHub 时曾超时，本轮通过本机生成的增量 `git bundle` 快进；没有修改、删除或
   覆盖任何服务器训练产物。
 - 服务器保留 S0 与旧 G4 未跟踪产物，不删除。本机的旧 launcher/PID 和新同步原始日志也
@@ -193,7 +195,7 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
    Porto Y/F 展开节点相对 Z0 多 `10.346/14.495`，Chicago 多 `73.720/68.171`。
 2. S2 seed 42 已改变两城 Top-18。Porto Y/F 相对 Z0 少展开 `75.478/76.202`，shortcuts
    `6712→6644`；Chicago 相对 S1 改善 `19.470/6.068`，但仍未超过 Z0。
-3. **下一步执行 S3**：不再调参，完全冻结 S2 协议，两城各补 seed 43/44、12 epoch CUDA 短训。
+3. **S3 正在执行**：不再调参，完全冻结 S2 协议，两城各补 seed 43/44、12 epoch CUDA 短训。
 4. S3 完成后冻结各 seed validation checkpoint，一次性导出全候选并完成 K=18 Y/F 精确在线门；
    不在看到 seed 43 后再改 seed 44 协议。
 5. 任何不利结果均保留并写入阶段日志；不事后删除种子、epoch 或在线方法。
