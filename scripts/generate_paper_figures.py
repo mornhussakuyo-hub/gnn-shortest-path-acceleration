@@ -185,8 +185,8 @@ def make_pipeline(output: Path) -> None:
 
     draw_box(ax, (0.02, 0.46), 0.15, 0.20, "Road graph\n+ historical OD", face="#F4F6F7", edge="#8A989E", fontsize=7.2, weight="bold")
     draw_box(ax, (0.215, 0.46), 0.18, 0.20, "Z0\nparameter-free\nbidirectional diffusion", face=PALE_BLUE, edge=BLUE, fontsize=7.2, weight="bold")
-    draw_box(ax, (0.44, 0.46), 0.18, 0.20, "BRIDGE (G4)\nfrozen Z0\n+ neural residual", face=PALE_ORANGE, edge=ORANGE, fontsize=7.2, weight="bold")
-    draw_box(ax, (0.665, 0.46), 0.145, 0.20, "Global ranking\nbudget-aware head", face=PALE_GREEN, edge=GREEN, fontsize=6.8, weight="bold")
+    draw_box(ax, (0.44, 0.46), 0.18, 0.20, "BRIDGE\nfrozen Z0\n+ neural residual", face=PALE_ORANGE, edge=ORANGE, fontsize=7.2, weight="bold")
+    draw_box(ax, (0.665, 0.46), 0.145, 0.20, "BRIDGE-B\nbudget-aware head", face=PALE_GREEN, edge=GREEN, fontsize=6.8, weight="bold")
     draw_box(ax, (0.855, 0.46), 0.125, 0.20, "Hard-disjoint\nregion set", face="#F2EFFA", edge=PURPLE, fontsize=6.8, weight="bold")
 
     for start, end in [
@@ -460,12 +460,7 @@ def make_bridge_b_progression(output: Path, rows: list[dict[str, object]]) -> No
             "dir": ROOT / "results/chicago/gnn_v2/g5_cost_aware_exploration",
         },
     }
-    stages = [
-        ("Z0", None),
-        ("S0", "s0_short_seed42_online_k18"),
-        ("S1", "s1_scaled_topk_short_seed42_online_k18"),
-        ("S2", "s2_gain1_short_seed42_online_k18"),
-    ]
+    stage_names = ["Z0", "S0", "S1", "S2", "S3"]
     figure_data: dict[str, list[dict[str, float | str]]] = {}
 
     for city, paths in city_sources.items():
@@ -476,50 +471,87 @@ def make_bridge_b_progression(output: Path, rows: list[dict[str, object]]) -> No
             for window in ("current_y", "future_f")
         }
         base_shortcuts = float(base_run["current_y"]["shortcut_count"])
+        seed42_source = paths["dir"] / "s2_gain1_short_seed42_online_k18" / "summary.json"
+        seed42_run = select_online_run(load_json(seed42_source), k=18)
+        s3_source = paths["dir"] / "s3_gain1_seeds43_44_short_online_k18" / "summary.json"
+        s3_runs = list(load_json(s3_source)["runs"].values())
+        stage_runs = [
+            ("Z0", [("deterministic", base_run, paths["base"])], "frozen"),
+            ("S0", [("seed42", select_online_run(load_json(
+                paths["dir"] / "s0_short_seed42_online_k18" / "summary.json"), k=18),
+                paths["dir"] / "s0_short_seed42_online_k18" / "summary.json")], "exploratory_seed42"),
+            ("S1", [("seed42", select_online_run(load_json(
+                paths["dir"] / "s1_scaled_topk_short_seed42_online_k18" / "summary.json"), k=18),
+                paths["dir"] / "s1_scaled_topk_short_seed42_online_k18" / "summary.json")], "exploratory_seed42"),
+            ("S2", [("seed42", seed42_run, seed42_source)], "exploratory_seed42"),
+            ("S3", [
+                ("seed42", seed42_run, seed42_source),
+                ("seed43", s3_runs[0], s3_source),
+                ("seed44", s3_runs[1], s3_source),
+            ], "confirmation_3seeds"),
+        ]
         city_data = []
-        for stage, folder in stages:
-            source = paths["base"] if folder is None else paths["dir"] / folder / "summary.json"
-            run = base_run if folder is None else select_online_run(load_json(source), k=18)
+        for stage, run_specs, stage_status in stage_runs:
+            deltas = {
+                window: [float(run[window]["indexed_avg_expanded"]) - base_expanded[window]
+                         for _, run, _ in run_specs]
+                for window in ("current_y", "future_f")
+            }
+            shortcut_deltas = [
+                float(run["current_y"]["shortcut_count"]) - base_shortcuts
+                for _, run, _ in run_specs
+            ]
             entry: dict[str, float | str] = {
                 "stage": stage,
-                "current_y": float(run["current_y"]["indexed_avg_expanded"]) - base_expanded["current_y"],
-                "future_f": float(run["future_f"]["indexed_avg_expanded"]) - base_expanded["future_f"],
-                "shortcuts": float(run["current_y"]["shortcut_count"]) - base_shortcuts,
+                "current_y": fmean(deltas["current_y"]),
+                "current_y_std": pstdev(deltas["current_y"]),
+                "future_f": fmean(deltas["future_f"]),
+                "future_f_std": pstdev(deltas["future_f"]),
+                "shortcuts": fmean(shortcut_deltas),
+                "shortcuts_std": pstdev(shortcut_deltas),
             }
             city_data.append(entry)
-            for window in ("current_y", "future_f"):
-                add_row(rows, figure="bridge_b_progression", city=city, window=window,
-                        method=stage, metric="expanded_nodes_delta_vs_z0",
-                        value=float(entry[window]), unit="nodes/query", status="exploratory_seed42",
-                        source=source)
-            add_row(rows, figure="bridge_b_progression", city=city, window="Y/F",
-                    method=stage, metric="shortcut_delta_vs_z0",
-                    value=float(entry["shortcuts"]), unit="shortcuts", status="exploratory_seed42",
-                    source=source)
+            for seed_label, run, source in run_specs:
+                method = stage if len(run_specs) == 1 else f"{stage}-{seed_label}"
+                for window in ("current_y", "future_f"):
+                    add_row(rows, figure="bridge_b_progression", city=city, window=window,
+                            method=method, metric="expanded_nodes_delta_vs_z0",
+                            value=float(run[window]["indexed_avg_expanded"]) - base_expanded[window],
+                            unit="nodes/query", status=stage_status, source=source)
+                add_row(rows, figure="bridge_b_progression", city=city, window="Y/F",
+                        method=method, metric="shortcut_delta_vs_z0",
+                        value=float(run["current_y"]["shortcut_count"]) - base_shortcuts,
+                        unit="shortcuts", status=stage_status, source=source)
         figure_data[city] = city_data
 
     fig, axes = plt.subplots(1, 2, figsize=(7.2, 3.35))
-    x = np.arange(len(stages))
+    x = np.arange(len(stage_names))
     width = 0.30
     twin_axes = []
     for ax, city in zip(axes, city_sources):
         data = figure_data[city]
         y_delta = [float(d["current_y"]) for d in data]
+        y_std = [float(d["current_y_std"]) for d in data]
         f_delta = [float(d["future_f"]) for d in data]
+        f_std = [float(d["future_f_std"]) for d in data]
         shortcuts = [float(d["shortcuts"]) for d in data]
-        ax.bar(x - width / 2, y_delta, width, color=ORANGE, label="Current Y", zorder=3)
-        ax.bar(x + width / 2, f_delta, width, color=GREEN, label="Future F", zorder=3)
+        shortcut_std = [float(d["shortcuts_std"]) for d in data]
+        ax.bar(x - width / 2, y_delta, width, yerr=y_std, color=ORANGE,
+               error_kw={"elinewidth": 0.8, "capsize": 2}, label="Current Y", zorder=3)
+        ax.bar(x + width / 2, f_delta, width, yerr=f_std, color=GREEN,
+               error_kw={"elinewidth": 0.8, "capsize": 2}, label="Future F", zorder=3)
         ax.axhline(0, color=INK, linewidth=0.8)
         ax.grid(axis="y", color=GRID, linewidth=0.65, zorder=0)
-        ax.set_xticks(x, [s[0] for s in stages])
+        ax.set_xticks(x, stage_names)
         if city == "Porto":
             ax.set_ylabel("Expanded-node delta vs. Z0\n(nodes/query; lower is better)")
         ax.set_title(city, weight="bold")
         twin = ax.twinx()
         twin_axes.append(twin)
         twin.spines["right"].set_visible(True)
-        twin.plot(x, shortcuts, color=PURPLE, marker="o", markersize=4.5,
-                  linewidth=1.4, label="Shortcut delta")
+        twin.errorbar(x, shortcuts, yerr=shortcut_std, color=PURPLE, marker="o",
+                      markersize=4.5, linewidth=1.4, capsize=2,
+                      label="Shortcut delta")
         twin.axhline(0, color=PURPLE, linewidth=0.55, alpha=0.4, linestyle="--")
         if city == "Chicago":
             twin.set_ylabel("Shortcut delta vs. Z0", color=PURPLE)
@@ -534,7 +566,7 @@ def make_bridge_b_progression(output: Path, rows: list[dict[str, object]]) -> No
     fig.legend(bar_handles + line_handles, bar_labels + line_labels,
                loc="upper center", ncol=3, frameon=False, bbox_to_anchor=(0.5, 1.03))
     fig.text(0.5, 0.01,
-             "Exploratory seed 42 only. S2 increases the differentiable gain term; S3 tests repeatability.",
+             "S0–S2: seed 42 development; S3: mean ± SD over frozen seeds 42–44.",
              ha="center", color=MUTED, fontsize=8, style="italic")
     fig.subplots_adjust(wspace=0.48, top=0.83, bottom=0.19)
     save_figure(fig, output, "bridge_b_progression")
@@ -562,7 +594,7 @@ def write_rows(output: Path, rows: list[dict[str, object]]) -> None:
         "data_table": "main_results.csv",
         "notes": {
             "BRIDGE": "Frozen G4 global-Spearman checkpoints, three seeds.",
-            "BRIDGE-B": "S0-S2 are exploratory seed-42 results; S3 repeatability is not included.",
+            "BRIDGE-B": "S0-S2 are exploratory seed-42 results; S3 reports frozen seeds 42-44.",
             "error_bars": "Population standard deviation across seeds.",
         },
     }

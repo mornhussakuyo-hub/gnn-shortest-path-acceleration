@@ -111,9 +111,9 @@ system_results,Chicago,future_f,Z0,Mean latency,0.717286928969,0,%,1,frozen,resu
 system_results,Chicago,future_f,BRIDGE,Mean latency,3.02387702539,0.838541592979,%,3,frozen,results/cpp_online_benchmark/chicago/summary.csv
 system_results,Chicago,future_f,Z0,P95 latency,-3.84944228773,0,%,1,frozen,results/cpp_online_benchmark/chicago/summary.csv
 system_results,Chicago,future_f,BRIDGE,P95 latency,-1.3311719414,1.37039930635,%,3,frozen,results/cpp_online_benchmark/chicago/summary.csv
-bridge_b_progression,Porto,current_y,Z0,expanded_nodes_delta_vs_z0,0,0,nodes/query,1,exploratory_seed42,results/gnn_v2/multi_region_online/summary.json
-bridge_b_progression,Porto,future_f,Z0,expanded_nodes_delta_vs_z0,0,0,nodes/query,1,exploratory_seed42,results/gnn_v2/multi_region_online/summary.json
-bridge_b_progression,Porto,Y/F,Z0,shortcut_delta_vs_z0,0,0,shortcuts,1,exploratory_seed42,results/gnn_v2/multi_region_online/summary.json
+bridge_b_progression,Porto,current_y,Z0,expanded_nodes_delta_vs_z0,0,0,nodes/query,1,frozen,results/gnn_v2/multi_region_online/summary.json
+bridge_b_progression,Porto,future_f,Z0,expanded_nodes_delta_vs_z0,0,0,nodes/query,1,frozen,results/gnn_v2/multi_region_online/summary.json
+bridge_b_progression,Porto,Y/F,Z0,shortcut_delta_vs_z0,0,0,shortcuts,1,frozen,results/gnn_v2/multi_region_online/summary.json
 bridge_b_progression,Porto,current_y,S0,expanded_nodes_delta_vs_z0,10.346,0,nodes/query,1,exploratory_seed42,results/gnn_v2/g5_cost_aware_exploration/s0_short_seed42_online_k18/summary.json
 bridge_b_progression,Porto,future_f,S0,expanded_nodes_delta_vs_z0,14.4945,0,nodes/query,1,exploratory_seed42,results/gnn_v2/g5_cost_aware_exploration/s0_short_seed42_online_k18/summary.json
 bridge_b_progression,Porto,Y/F,S0,shortcut_delta_vs_z0,-193,0,shortcuts,1,exploratory_seed42,results/gnn_v2/g5_cost_aware_exploration/s0_short_seed42_online_k18/summary.json
@@ -123,9 +123,18 @@ bridge_b_progression,Porto,Y/F,S1,shortcut_delta_vs_z0,-193,0,shortcuts,1,explor
 bridge_b_progression,Porto,current_y,S2,expanded_nodes_delta_vs_z0,-75.478,0,nodes/query,1,exploratory_seed42,results/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/summary.json
 bridge_b_progression,Porto,future_f,S2,expanded_nodes_delta_vs_z0,-76.2015,0,nodes/query,1,exploratory_seed42,results/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/summary.json
 bridge_b_progression,Porto,Y/F,S2,shortcut_delta_vs_z0,-68,0,shortcuts,1,exploratory_seed42,results/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/summary.json
-bridge_b_progression,Chicago,current_y,Z0,expanded_nodes_delta_vs_z0,0,0,nodes/query,1,exploratory_seed42,results/chicago/gnn_v2/multi_region_online_g4_clean_rerun/summary.json
-bridge_b_progression,Chicago,future_f,Z0,expanded_nodes_delta_vs_z0,0,0,nodes/query,1,exploratory_seed42,results/chicago/gnn_v2/multi_region_online_g4_clean_rerun/summary.json
-bridge_b_progression,Chicago,Y/F,Z0,shortcut_delta_vs_z0,0,0,shortcuts,1,exploratory_seed42,results/chicago/gnn_v2/multi_region_online_g4_clean_rerun/summary.json
+bridge_b_progression,Porto,current_y,S3-seed42,expanded_nodes_delta_vs_z0,-75.478,0,nodes/query,1,confirmation_3seeds,results/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/summary.json
+bridge_b_progression,Porto,future_f,S3-seed42,expanded_nodes_delta_vs_z0,-76.2015,0,nodes/query,1,confirmation_3seeds,results/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/summary.json
+bridge_b_progression,Porto,Y/F,S3-seed42,shortcut_delta_vs_z0,-68,0,shortcuts,1,confirmation_3seeds,results/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/summary.json
+bridge_b_progression,Porto,current_y,S3-seed43,expanded_nodes_delta_vs_z0,-75.478,0,nodes/query,1,confirmation_3seeds,results/gnn_v2/g5_cost_aware_exploration/s3_gain1_seeds43_44_short_online_k18/summary.json
+bridge_b_progression,Porto,future_f,S3-seed43,expanded_nodes_delta_vs_z0,-76.2015,0,nodes/query,1,confirmation_3seeds,results/gnn_v2/g5_cost_aware_exploration/s3_gain1_seeds43_44_short_online_k18/summary.json
+bridge_b_progression,Porto,Y/F,S3-seed43,shortcut_delta_vs_z0,-68,0,shortcuts,1,confirmation_3seeds,results/gnn_v2/g5_cost_aware_exploration/s3_gain1_seeds43_44_short_online_k18/summary.json
+bridge_b_progression,Porto,current_y,S3-seed44,expanded_nodes_delta_vs_z0,-75.478,0,nodes/query,1,confirmation_3seeds,results/gnn_v2/g5_cost_aware_exploration/s3_gain1_seeds43_44_short_online_k18/summary.json
+bridge_b_progression,Porto,future_f,S3-seed44,expanded_nodes_delta_vs_z0,-76.2015,0,nodes/query,1,confirmation_3seeds,results/gnn_v2/g5_cost_aware_exploration/s3_gain1_seeds43_44_short_online_k18/summary.json
+bridge_b_progression,Porto,Y/F,S3-seed44,shortcut_delta_vs_z0,-68,0,shortcuts,1,confirmation_3seeds,results/gnn_v2/g5_cost_aware_exploration/s3_gain1_seeds43_44_short_online_k18/summary.json
+bridge_b_progression,Chicago,current_y,Z0,expanded_nodes_delta_vs_z0,0,0,nodes/query,1,frozen,results/chicago/gnn_v2/multi_region_online_g4_clean_rerun/summary.json
+bridge_b_progression,Chicago,future_f,Z0,expanded_nodes_delta_vs_z0,0,0,nodes/query,1,frozen,results/chicago/gnn_v2/multi_region_online_g4_clean_rerun/summary.json
+bridge_b_progression,Chicago,Y/F,Z0,shortcut_delta_vs_z0,0,0,shortcuts,1,frozen,results/chicago/gnn_v2/multi_region_online_g4_clean_rerun/summary.json
 bridge_b_progression,Chicago,current_y,S0,expanded_nodes_delta_vs_z0,73.72,0,nodes/query,1,exploratory_seed42,results/chicago/gnn_v2/g5_cost_aware_exploration/s0_short_seed42_online_k18/summary.json
 bridge_b_progression,Chicago,future_f,S0,expanded_nodes_delta_vs_z0,68.171,0,nodes/query,1,exploratory_seed42,results/chicago/gnn_v2/g5_cost_aware_exploration/s0_short_seed42_online_k18/summary.json
 bridge_b_progression,Chicago,Y/F,S0,shortcut_delta_vs_z0,-3394,0,shortcuts,1,exploratory_seed42,results/chicago/gnn_v2/g5_cost_aware_exploration/s0_short_seed42_online_k18/summary.json
@@ -135,3 +144,12 @@ bridge_b_progression,Chicago,Y/F,S1,shortcut_delta_vs_z0,-3394,0,shortcuts,1,exp
 bridge_b_progression,Chicago,current_y,S2,expanded_nodes_delta_vs_z0,54.25,0,nodes/query,1,exploratory_seed42,results/chicago/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/summary.json
 bridge_b_progression,Chicago,future_f,S2,expanded_nodes_delta_vs_z0,62.103,0,nodes/query,1,exploratory_seed42,results/chicago/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/summary.json
 bridge_b_progression,Chicago,Y/F,S2,shortcut_delta_vs_z0,-274,0,shortcuts,1,exploratory_seed42,results/chicago/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/summary.json
+bridge_b_progression,Chicago,current_y,S3-seed42,expanded_nodes_delta_vs_z0,54.25,0,nodes/query,1,confirmation_3seeds,results/chicago/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/summary.json
+bridge_b_progression,Chicago,future_f,S3-seed42,expanded_nodes_delta_vs_z0,62.103,0,nodes/query,1,confirmation_3seeds,results/chicago/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/summary.json
+bridge_b_progression,Chicago,Y/F,S3-seed42,shortcut_delta_vs_z0,-274,0,shortcuts,1,confirmation_3seeds,results/chicago/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/summary.json
+bridge_b_progression,Chicago,current_y,S3-seed43,expanded_nodes_delta_vs_z0,54.25,0,nodes/query,1,confirmation_3seeds,results/chicago/gnn_v2/g5_cost_aware_exploration/s3_gain1_seeds43_44_short_online_k18/summary.json
+bridge_b_progression,Chicago,future_f,S3-seed43,expanded_nodes_delta_vs_z0,62.103,0,nodes/query,1,confirmation_3seeds,results/chicago/gnn_v2/g5_cost_aware_exploration/s3_gain1_seeds43_44_short_online_k18/summary.json
+bridge_b_progression,Chicago,Y/F,S3-seed43,shortcut_delta_vs_z0,-274,0,shortcuts,1,confirmation_3seeds,results/chicago/gnn_v2/g5_cost_aware_exploration/s3_gain1_seeds43_44_short_online_k18/summary.json
+bridge_b_progression,Chicago,current_y,S3-seed44,expanded_nodes_delta_vs_z0,89.34,0,nodes/query,1,confirmation_3seeds,results/chicago/gnn_v2/g5_cost_aware_exploration/s3_gain1_seeds43_44_short_online_k18/summary.json
+bridge_b_progression,Chicago,future_f,S3-seed44,expanded_nodes_delta_vs_z0,91.889,0,nodes/query,1,confirmation_3seeds,results/chicago/gnn_v2/g5_cost_aware_exploration/s3_gain1_seeds43_44_short_online_k18/summary.json
+bridge_b_progression,Chicago,Y/F,S3-seed44,shortcut_delta_vs_z0,-797,0,shortcuts,1,confirmation_3seeds,results/chicago/gnn_v2/g5_cost_aware_exploration/s3_gain1_seeds43_44_short_online_k18/summary.json

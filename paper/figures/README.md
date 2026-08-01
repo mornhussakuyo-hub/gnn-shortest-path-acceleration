@@ -56,8 +56,8 @@
 
 ## 图 5：BRIDGE-B 探索轨迹
 
-已生成：`bridge_b_progression.pdf`。该图只使用 S0--S2 的 seed 42 探索结果，并明确标注为
-`exploratory_seed42`；S3 重复种子未完成前，不把该图写成稳定性结论。
+已生成：`bridge_b_progression.pdf`。S0--S2 明确标注为 seed 42 方法开发结果；S3 汇总冻结协议下
+seeds 42/43/44 的均值与总体标准差。Porto 三种子稳定优于 Z0，Chicago 则完整保留不利在线结果。
 
 ## 图 6：典型区域地图（可选）
 

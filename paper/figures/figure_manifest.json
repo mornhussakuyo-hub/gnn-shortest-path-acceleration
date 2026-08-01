@@ -11,7 +11,7 @@
   "data_table": "main_results.csv",
   "notes": {
     "BRIDGE": "Frozen G4 global-Spearman checkpoints, three seeds.",
-    "BRIDGE-B": "S0-S2 are exploratory seed-42 results; S3 repeatability is not included.",
+    "BRIDGE-B": "S0-S2 are exploratory seed-42 results; S3 reports frozen seeds 42-44.",
     "error_bars": "Population standard deviation across seeds."
   }
 }
