@@ -177,9 +177,8 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
 - 两台服务器仓库均为 `~/gnn-shortest-path-acceleration`，GPU 均为 RTX 4090 D 24 GB。
 - 一号使用 `.server.env`，二号使用 `.server2.env`；SSH 必须加 `-F /dev/null`。
 - 两机已确认快进到 `ee6b92b`，`tests.test_demand_field_nbfnet` 各 25 项全部通过。
-- S1 两城串行队列已启动：一号 Porto、二号 Chicago，各先跑 1 epoch CUDA 冒烟，成功后自动接
-  seed 42、12 epoch 正式短训；唯一 runner PID 均已补充落盘。启动检查时两机 GPU 均为 100%，
-  显存约 13.6/13.9 GiB，日志无异常。
+- S1 两城 seed 42、12 epoch、冻结全候选和 K=18 Y/F 精确在线门已全部完成，服务器
+  GPU 已回到约 15 MiB、0%。结果和完整原始日志已回传本机。
 - 二号机访问 GitHub 时曾超时，本轮通过本机生成的增量 `git bundle` 快进；没有修改、删除或
   覆盖任何服务器训练产物。
 - 服务器保留 S0 与旧 G4 未跟踪产物，不删除。本机的旧 launcher/PID 和新同步原始日志也
@@ -187,13 +186,15 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
 
 ## 后续实验顺序
 
-1. **立即执行 S1**：一号 Porto、二号 Chicago，先各跑 1 epoch CUDA 冒烟，通过后各跑
-   seed 42、12 epoch 短训。
-2. 短训只确认进程、GPU 和日志正常，不长时轮询；结束后回传本机、校验摘要和快照完整性。
-3. 冻结 S1 最佳 validation checkpoint，导出 1,200 个全候选分数，仅用真实 K=18 hard-disjoint
-   Y/F 精确在线结果决定是否进入下一轮。
-4. 若两城均稳定改善真实部署指标，再扩展 epoch 和重复种子；若仍只降成本但降低在线收益，
-   下一轮只调整收益/成本权重或直接纳入扫边工作量，不同时改多个因素。
+1. S1 通过了 validation 头部安全保持门：两城全局/holdout Spearman 改善，最佳 checkpoint 的
+   Top-3 收益与成本均不劣于 Z0；但尚未通过全候选增量部署门，Top-18 与 S0 完全相同；
+   Porto Y/F 展开节点相对 Z0 多 `10.346/14.495`，Chicago 多 `73.720/68.171`。
+2. **下一步执行 S2**：仅将头部收益权重从 `0.25` 增大到 `1.0`，其余与 S1 完全一致；
+   仍是两城 seed 42、12 epoch CUDA 短训，不进入长训。
+3. S2 完成后仍必须冻结最佳 validation checkpoint、导出 1,200 全候选分数，再用 K=18
+   hard-disjoint Y/F 精确在线门决策。
+4. 若 S2 仍不改变 Top-18，停止单纯放大 gain weight，改为设计直接反映扫边/查询工作量的
+   部署代理目标。
 5. 任何不利结果均保留并写入阶段日志；不事后删除种子、epoch 或在线方法。
 
 ## 阶段七时间预算
@@ -207,8 +208,8 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
 - 当前分支为 `main`；S1 split-scaled Top-K 代码、测试和阶段报告提交为
   `9624f11 按候选比例校准部署目标TopK`。
 - G5 训练目标实现为 `f801d97`；冻结推理与诊断修正为 `630d916` / `0c7b8d3`。
-- S0 两城训练、冻结全候选和 K=18 在线产物已回传本机，位于两城
-  `results/.../g5_cost_aware_exploration/s0_short_seed42*`，尚未统一筛选提交。
+- S0/S1 两城训练、冻结全候选和 K=18 在线产物已回传本机，位于两城
+  `results/.../g5_cost_aware_exploration/s0_short_seed42*` 与 `s1_scaled_topk_short_seed42*`，尚未统一筛选提交。
 - 当前详细执行记录：`reports/阶段七_成本感知神经部署优化.md`。
 - 已完成的总结与纸面边界：`reports/最终研究成果与论文结论.md`、
   `reports/文献新颖性审查与论文定位.md`。阶段七若成功，再统一更新 README、总结、论文初稿和 PDF。
