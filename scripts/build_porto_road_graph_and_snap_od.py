@@ -1,4 +1,4 @@
-"""从 OSM PBF 中抽取波尔图路网，并将 OD 坐标吸附到道路节点。"""
+"""从 OSM PBF 中抽取城市路网，并将 OD 坐标吸附到道路节点。"""
 
 from __future__ import annotations
 
@@ -81,6 +81,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--report-out", type=Path, default=DEFAULT_REPORT_OUT)
     parser.add_argument("--snap-threshold-m", type=float, default=200.0)
     parser.add_argument("--grid-cell-m", type=float, default=300.0)
+    parser.add_argument(
+        "--projected-crs",
+        default="EPSG:3763",
+        help="Local projected CRS used for metre distances (Porto default: EPSG:3763).",
+    )
+    parser.add_argument("--city-name", default="波尔图")
     return parser.parse_args()
 
 
@@ -125,11 +131,18 @@ def is_reverse_oneway(tags: osmium.osm.TagList) -> bool:
 
 
 class RoadGraphCollector(osmium.SimpleHandler):
-    def __init__(self, xlim: tuple[float, float], ylim: tuple[float, float]) -> None:
+    def __init__(
+        self,
+        xlim: tuple[float, float],
+        ylim: tuple[float, float],
+        projected_crs: str,
+    ) -> None:
         super().__init__()
         self.xlim = xlim
         self.ylim = ylim
-        self.transformer = Transformer.from_crs("EPSG:4326", "EPSG:3763", always_xy=True)
+        self.transformer = Transformer.from_crs(
+            "EPSG:4326", projected_crs, always_xy=True
+        )
         self.nodes: dict[int, RoadNode] = {}
         self.edges: list[RoadEdge] = []
 
@@ -181,8 +194,9 @@ def extract_road_graph(
     osm_input: Path,
     xlim: tuple[float, float],
     ylim: tuple[float, float],
+    projected_crs: str = "EPSG:3763",
 ) -> tuple[list[RoadNode], list[RoadEdge]]:
-    collector = RoadGraphCollector(xlim, ylim)
+    collector = RoadGraphCollector(xlim, ylim, projected_crs)
     collector.apply_file(str(osm_input), locations=True)
     nodes = sorted(collector.nodes.values(), key=lambda node: node.node_id)
     return nodes, collector.edges
@@ -207,11 +221,18 @@ def write_edges(edges: list[RoadEdge], path: Path) -> None:
 
 
 class GridNearestIndex:
-    def __init__(self, nodes: list[RoadNode], cell_size_m: float) -> None:
+    def __init__(
+        self,
+        nodes: list[RoadNode],
+        cell_size_m: float,
+        projected_crs: str = "EPSG:3763",
+    ) -> None:
         self.nodes = nodes
         self.cell_size_m = cell_size_m
         self.grid: dict[tuple[int, int], list[int]] = defaultdict(list)
-        self.transformer = Transformer.from_crs("EPSG:4326", "EPSG:3763", always_xy=True)
+        self.transformer = Transformer.from_crs(
+            "EPSG:4326", projected_crs, always_xy=True
+        )
 
         for idx, node in enumerate(nodes):
             self.grid[self.cell_key(node.x, node.y)].append(idx)
@@ -258,8 +279,9 @@ def snap_queries(
     rows: list[ODRow],
     nodes: list[RoadNode],
     cell_size_m: float,
+    projected_crs: str = "EPSG:3763",
 ) -> list[dict[str, object]]:
-    index = GridNearestIndex(nodes, cell_size_m)
+    index = GridNearestIndex(nodes, cell_size_m, projected_crs)
     snapped: list[dict[str, object]] = []
 
     for query_id, row in enumerate(rows):
@@ -339,6 +361,7 @@ def write_report(
     xlim: tuple[float, float],
     ylim: tuple[float, float],
     threshold_m: float,
+    city_name: str = "波尔图",
 ) -> None:
     origin_distances = np.array([float(row["origin_snap_distance_m"]) for row in rows], dtype=float)
     dest_distances = np.array([float(row["dest_snap_distance_m"]) for row in rows], dtype=float)
@@ -363,7 +386,7 @@ def write_report(
     dest_stats = stats(dest_valid)
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    text = f"""# 波尔图起终点吸附质量报告
+    text = f"""# {city_name}起终点吸附质量报告
 
 ## 输入范围
 
@@ -417,18 +440,31 @@ def main() -> None:
     od_rows = read_od_rows(args.od_input)
     xlim, ylim = od_bounds(od_rows)
 
-    nodes, edges = extract_road_graph(args.osm_input, xlim, ylim)
+    nodes, edges = extract_road_graph(
+        args.osm_input, xlim, ylim, args.projected_crs
+    )
     if not nodes or not edges:
         raise SystemExit("没有抽取到路网节点或边，请检查 OSM 文件和 OD 范围。")
 
     write_nodes(nodes, args.node_out)
     write_edges(edges, args.edge_out)
 
-    snapped_rows = snap_queries(od_rows, nodes, args.grid_cell_m)
+    snapped_rows = snap_queries(
+        od_rows, nodes, args.grid_cell_m, args.projected_crs
+    )
     mark_usable(snapped_rows, args.snap_threshold_m)
     write_snapped_queries(snapped_rows, args.query_out)
     usable_count = write_usable_queries(snapped_rows, args.usable_query_out)
-    write_report(args.report_out, snapped_rows, nodes, edges, xlim, ylim, args.snap_threshold_m)
+    write_report(
+        args.report_out,
+        snapped_rows,
+        nodes,
+        edges,
+        xlim,
+        ylim,
+        args.snap_threshold_m,
+        args.city_name,
+    )
 
     print(f"nodes={len(nodes)}")
     print(f"edges={len(edges)}")

@@ -1,0 +1,42 @@
+{
+  "schema": "aic.divvy_od_presample.v1",
+  "source": {
+    "dataset": "Divvy public trip history",
+    "release": "202206-divvy-tripdata.zip",
+    "source_url": "https://divvy-tripdata.s3.amazonaws.com/202206-divvy-tripdata.zip",
+    "license_url": "https://divvybikes.com/data-license-agreement",
+    "path": "data/compressed/chicago/202206-divvy-tripdata.zip",
+    "size_bytes": 26903847,
+    "sha256": "bdf56f46d94fd98c92011d02e3e825cd2df27ed8f424f7fbf911233f38617179",
+    "zip_member": "202206-divvy-tripdata.csv"
+  },
+  "quality_protocol": {
+    "strictly_positive_duration": true,
+    "maximum_duration_seconds": 86400,
+    "coordinate_bounds": {
+      "min_lon": -89.0,
+      "max_lon": -86.0,
+      "min_lat": 40.0,
+      "max_lat": 43.0
+    },
+    "selection": "global chronological equal-index sample; stable ride_id tie order",
+    "requested_sample_count": 120000,
+    "uses_membership_or_bike_type_for_filtering": false
+  },
+  "audit_counts": {
+    "field_valid": 768069,
+    "invalid_coordinates": 92,
+    "invalid_duration": 1043,
+    "total_trip_records": 769204
+  },
+  "field_valid_trip_count": 768069,
+  "selected_trip_count": 120000,
+  "selected_time_range": [
+    1654041604,
+    1656633598
+  ],
+  "selected_unique_origin_coordinates": 36953,
+  "selected_unique_destination_coordinates": 1436,
+  "output": "data/processed/chicago/chicago_od_presample_120k.csv",
+  "output_sha256": "f0065de2262c8b891e2e83ec042ccdb5ba5eb8cb955d22f745da0b2612bc3d9f"
+}

@@ -1,4 +1,4 @@
-"""加载波尔图道路图 CSV 文件。"""
+"""加载道路图 CSV 文件。"""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 from .graph_types import GraphSummary, WeightedDiGraph
 
 
-def load_porto_graph(node_csv: Path, edge_csv: Path) -> WeightedDiGraph:
+def load_road_graph(node_csv: Path, edge_csv: Path) -> WeightedDiGraph:
     graph = WeightedDiGraph()
 
     with node_csv.open("r", encoding="utf-8", newline="") as file:
@@ -20,6 +20,12 @@ def load_porto_graph(node_csv: Path, edge_csv: Path) -> WeightedDiGraph:
             graph.add_edge(int(row["source"]), int(row["target"]), float(row["length_m"]))
 
     return graph
+
+
+def load_porto_graph(node_csv: Path, edge_csv: Path) -> WeightedDiGraph:
+    """Backward-compatible alias for older experiment scripts."""
+
+    return load_road_graph(node_csv, edge_csv)
 
 
 def summarize_graph(graph: WeightedDiGraph) -> GraphSummary:

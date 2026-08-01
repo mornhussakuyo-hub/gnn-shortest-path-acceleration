@@ -7,6 +7,10 @@ __pycache__/
 *.pyc
 .cache/
 data/compressed/porto/
+data/compressed/chicago/
+data/processed/chicago/chicago_od_presample_120k.csv
+data/processed/chicago/chicago_queries_snap_usable_120k.csv
+data/processed/chicago/chicago_queries_snapped_120k.csv
 .server.env
 .server2.env
 archive/gnn_v1/results/gnn_ablation/**/*.log

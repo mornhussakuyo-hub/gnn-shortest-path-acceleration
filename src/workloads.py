@@ -8,7 +8,7 @@ from pathlib import Path
 from .graph_types import Query
 
 
-def load_porto_queries(query_csv: Path, limit: int | None = None) -> list[Query]:
+def load_queries(query_csv: Path, limit: int | None = None) -> list[Query]:
     queries: list[Query] = []
     with query_csv.open("r", encoding="utf-8", newline="") as file:
         for row in csv.DictReader(file):
@@ -25,6 +25,12 @@ def load_porto_queries(query_csv: Path, limit: int | None = None) -> list[Query]
             if limit is not None and len(queries) >= limit:
                 break
     return queries
+
+
+def load_porto_queries(query_csv: Path, limit: int | None = None) -> list[Query]:
+    """Backward-compatible alias for older experiment scripts."""
+
+    return load_queries(query_csv, limit)
 
 
 def split_queries_chronologically(

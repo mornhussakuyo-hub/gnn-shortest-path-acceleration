@@ -101,6 +101,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--proxy-predictions", type=Path, default=DEFAULT_PROXY_PREDICTIONS
     )
+    parser.add_argument(
+        "--g3-predictions-dir",
+        type=Path,
+        default=None,
+        help=(
+            "Directory containing predictions_seed_42/43/44.csv. "
+            "Defaults to the frozen Porto export paths."
+        ),
+    )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--workers", type=int, default=min(40, os.cpu_count() or 1))
     parser.add_argument("--chunk-size", type=int, default=100)
@@ -223,10 +232,19 @@ def main() -> None:
 
 
 def _load_score_sources(args: argparse.Namespace, dataset) -> tuple[dict[str, np.ndarray], dict[str, Path]]:
+    g3_paths = (
+        {
+            f"g3_seed{seed}": args.g3_predictions_dir
+            / f"predictions_seed_{seed}.csv"
+            for seed in (42, 43, 44)
+        }
+        if args.g3_predictions_dir is not None
+        else DEFAULT_G3_PREDICTIONS
+    )
     score_paths = {
         "midpoint_proxy": args.proxy_predictions,
         "z0": args.z0_predictions,
-        **DEFAULT_G3_PREDICTIONS,
+        **g3_paths,
     }
     scores = {
         "random_seed42": np.random.default_rng(42).standard_normal(len(dataset.region_ids)),
@@ -236,7 +254,7 @@ def _load_score_sources(args: argparse.Namespace, dataset) -> tuple[dict[str, np
         ),
         "z0": _load_column(args.z0_predictions, dataset.region_ids, "z0_score"),
     }
-    for method, path in DEFAULT_G3_PREDICTIONS.items():
+    for method, path in g3_paths.items():
         scores[method] = _load_column(path, dataset.region_ids, "prediction")
     if tuple(scores) != METHOD_NAMES:
         raise ValueError("score method order does not match frozen protocol")

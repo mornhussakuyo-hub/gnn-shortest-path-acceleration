@@ -1,0 +1,80 @@
+{
+  "schema": "aic.chicago_queries.v1",
+  "protocol": {
+    "snap_threshold_m": 200,
+    "different_endpoint_nodes_required": true,
+    "same_strong_component_required": true,
+    "target_count": 100000,
+    "minimum_count": 90000,
+    "minimum_unique_origins_and_destinations": 500,
+    "selection": "chronological equal-index sample; stable trip-id tie order",
+    "history_fraction": [
+      0.0,
+      0.35
+    ],
+    "current_label_fraction": [
+      0.35,
+      0.7
+    ],
+    "future_fraction": [
+      0.7,
+      1.0
+    ]
+  },
+  "graph": {
+    "node_count": 108114,
+    "edge_count": 200155,
+    "strong_component_count": 701,
+    "largest_strong_component_nodes": 107273
+  },
+  "filter_counts": {
+    "different_scc_rejected": 114,
+    "quality_kept_before_final_sample": 109657,
+    "same_node_rejected": 7780,
+    "snap_rejected": 2449,
+    "snapped_input": 120000
+  },
+  "final_query_count": 100000,
+  "unique_origin_nodes": 2220,
+  "unique_destination_nodes": 1013,
+  "time_range": [
+    1654041604,
+    1656633598
+  ],
+  "windows": {
+    "history": {
+      "start_fraction": 0.0,
+      "end_fraction": 0.35,
+      "count": 35000,
+      "time_range": [
+        1654041604,
+        1655033371
+      ]
+    },
+    "current": {
+      "start_fraction": 0.35,
+      "end_fraction": 0.7,
+      "count": 35000,
+      "time_range": [
+        1655033422,
+        1655917182
+      ]
+    },
+    "future": {
+      "start_fraction": 0.7,
+      "end_fraction": 1.0,
+      "count": 30000,
+      "time_range": [
+        1655917194,
+        1656633598
+      ]
+    }
+  },
+  "source_sha256": {
+    "nodes": "12e99301c7e9fa527e5c48998bcfdf79c3520636d89b1271f388961605a96e02",
+    "edges": "0444ab45253f26a33d0f5654a85e4e24489266666b110d38a93437a97794cf15",
+    "snapped_queries": "56847b5839077bc7a78506f4e3e27c81d6321416f33aecf3bebb6db7395f969c"
+  },
+  "output": "/home/MornHus/Projects/AIC/data/processed/chicago/chicago_queries_100k.csv",
+  "output_sha256": "d85f831cfdee0010efac090308c9f67d628c0ca0c59a5177a3714fddd6913071"
+}
