@@ -137,7 +137,7 @@ Spearman 暂时保持 `0.9411`。以上只是训练早期诊断，不替代 seed
 training history，本机已同步并校验两份完整 launcher 日志：
 `results/gnn_v2/nbfnet_propagation/rank_first_z0_residual/launcher.log` 与
 `results/gnn_v2/nbfnet_propagation/rank_first_full/launcher.log`。这两组定义为“机制诊断充分后
-主动停止”的失败训练，不纳入多种子性能汇总，也不把 weight decay 漂移称为有效 epoch。
+主动停止”的诊断训练，不纳入多种子性能汇总，也不把 weight decay 漂移称为有效 epoch。
 
 两组差异与零初始化残差头形成了近似因果定位。残差模型最终线性层在训练前权重和 bias 均为
 零。epoch 1 时，输出层之前的主干梯度包含乘子 `W_out=0`，因此梯度不能进入 32 层传播主干，
@@ -188,7 +188,7 @@ LayerNorm 单独写成唯一根因。
 
 固定 32 层把 loss scale 从 `1` 改为 `1/64` 后，缩放态 FP64 梯度范数降为 `3.662e21`，但
 unscale 后仍恢复为 `2.344e23`，原始 FP32 全局范数仍为 `inf`。所以小 loss scale 可以帮助 FP16
-中间反向避免更早溢出，却不能修复 rank-first 解缩放后的结构性巨梯度和全局裁剪失败。旧平台期
+中间反向避免更早溢出，却不能修复 rank-first 解缩放后的结构性巨梯度和全局裁剪失效。旧平台期
 确由 GradScaler 连续跳步造成，但“恢复 GradScaler”不是根治方案。
 
 冻结传播主干后，最终线性头连续 8 个 optimizer step 均正常应用，梯度 FP64 范数稳定在
@@ -355,7 +355,7 @@ validation loss 从约 `0.5424` 下降，Spearman 反而小幅下降。这不是
 
 五种子 holdout Spearman 为 `0.8860 ± 0.1149`，NDCG@18 为 `0.8656 ± 0.2594`，Top-18
 收益为 `129.138 ± 26.705`。seed 43 的最佳 checkpoint 位于 epoch 1，应继续标为
-`initialization_dominant`；seed 45 则在全局 Spearman 和 Top-K 上同时失败。完整统一摘要见
+`initialization_dominant`；seed 45 则在全局 Spearman 和 Top-K 上均未形成有效提升。完整统一摘要见
 `results/gnn_v2/nbfnet_propagation/propagation_doubling_repeats/`。
 
 ### 零训练基线揭示的潜在一维排序轴
