@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import statistics
 import sys
@@ -33,6 +34,7 @@ from src.demand_field_nbfnet import (
     iter_slices,
 )
 from src.demand_field_torch_model import cuda_environment, require_cuda
+from src.region_selection import select_region_indices
 from src.train_free_demand_field import (
     deterministic_diffusion_batch_scores,
 )
@@ -41,10 +43,18 @@ from src.train_free_demand_field import (
 DEFAULT_DATASET = ROOT_DIR / "results" / "gnn_v2" / "demand_field_dataset.npz"
 DEFAULT_DATASET_MANIFEST = ROOT_DIR / "results" / "gnn_v2" / "demand_field_dataset.json"
 DEFAULT_OUTPUT_DIR = ROOT_DIR / "results" / "gnn_v2" / "nbfnet_base"
+DEFAULT_COST_LABELS = ROOT_DIR / "results" / "gnn_v2" / "region_training_labels.csv"
 EXPERIMENT_SCHEMA = "aic.gnn_v2.od_conditioned_bidirectional_nbfnet.v4"
 PRECISION_MODES = ("fp16", "bf16", "fp32")
-TRAINING_OBJECTIVES = ("regression_rank", "rank_first", "soft_spearman")
-RANK_ONLY_OBJECTIVES = frozenset({"rank_first", "soft_spearman"})
+TRAINING_OBJECTIVES = (
+    "regression_rank",
+    "rank_first",
+    "soft_spearman",
+    "deployment_aware",
+)
+RANK_ONLY_OBJECTIVES = frozenset(
+    {"rank_first", "soft_spearman", "deployment_aware"}
+)
 FIXED_PRIORS = ("none", "z0")
 LR_SCHEDULERS = ("none", "reduce_on_plateau")
 
@@ -86,6 +96,53 @@ class PrecisionPolicy:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class DeploymentObjective:
+    shortcut_cost: torch.Tensor
+    train_conflict: torch.Tensor
+    validation_conflict: torch.Tensor
+    top_k: int
+    topk_temperature: float
+    topk_gain_weight: float
+    budget_weight: float
+    conflict_weight: float
+    shortcut_budget_ratio: float
+    spearman_tolerance: float
+    train_soft_budget: float
+    validation_soft_budget: float
+    train_hard_budget: float
+    validation_hard_budget: float
+    train_z0_gain: float
+    validation_z0_gain: float
+    train_z0_spearman: float
+    validation_z0_spearman: float
+    cost_source: str
+    cost_source_sha256: str
+
+    def metadata(self) -> dict[str, object]:
+        return {
+            "top_k": self.top_k,
+            "topk_temperature": self.topk_temperature,
+            "topk_gain_weight": self.topk_gain_weight,
+            "budget_weight": self.budget_weight,
+            "conflict_weight": self.conflict_weight,
+            "shortcut_budget_ratio": self.shortcut_budget_ratio,
+            "spearman_tolerance": self.spearman_tolerance,
+            "train_soft_budget": self.train_soft_budget,
+            "validation_soft_budget": self.validation_soft_budget,
+            "train_hard_budget": self.train_hard_budget,
+            "validation_hard_budget": self.validation_hard_budget,
+            "train_z0_gain": self.train_z0_gain,
+            "validation_z0_gain": self.validation_z0_gain,
+            "train_z0_spearman": self.train_z0_spearman,
+            "validation_z0_spearman": self.validation_z0_spearman,
+            "cost_source": self.cost_source,
+            "cost_source_sha256": self.cost_source_sha256,
+            "selection_data": "train and validation only",
+            "future_or_holdout_used_for_selection": False,
+        }
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Train the base OD-conditioned bidirectional NBFNet on CUDA."
@@ -118,6 +175,14 @@ def parse_args() -> argparse.Namespace:
         default=0.1,
         help="Temperature after score standardization for soft_spearman ranks.",
     )
+    parser.add_argument("--cost-labels", type=Path, default=DEFAULT_COST_LABELS)
+    parser.add_argument("--deployment-k", type=int, default=18)
+    parser.add_argument("--deployment-topk-temperature", type=float, default=0.15)
+    parser.add_argument("--deployment-topk-gain-weight", type=float, default=0.25)
+    parser.add_argument("--deployment-budget-weight", type=float, default=1.0)
+    parser.add_argument("--deployment-conflict-weight", type=float, default=0.10)
+    parser.add_argument("--deployment-shortcut-budget-ratio", type=float, default=1.0)
+    parser.add_argument("--deployment-spearman-tolerance", type=float, default=0.005)
     parser.add_argument(
         "--residual-gate-grid",
         default="1",
@@ -218,6 +283,27 @@ def main() -> None:
         )
     if args.soft_rank_temperature <= 0.0:
         raise SystemExit("--soft-rank-temperature must be positive")
+    if args.training_objective == "deployment_aware":
+        if args.fixed_prior != "z0":
+            raise SystemExit("deployment_aware requires --fixed-prior z0")
+        if residual_gate_grid != (1.0,):
+            raise SystemExit("deployment_aware currently requires --residual-gate-grid 1")
+        if args.deployment_k <= 0:
+            raise SystemExit("--deployment-k must be positive")
+        if args.deployment_topk_temperature <= 0.0:
+            raise SystemExit("--deployment-topk-temperature must be positive")
+        if any(
+            value < 0.0
+            for value in (
+                args.deployment_topk_gain_weight,
+                args.deployment_budget_weight,
+                args.deployment_conflict_weight,
+                args.deployment_spearman_tolerance,
+            )
+        ):
+            raise SystemExit("deployment loss weights and tolerance must be non-negative")
+        if not 0.0 < args.deployment_shortcut_budget_ratio <= 1.0:
+            raise SystemExit("--deployment-shortcut-budget-ratio must be in (0, 1]")
     if residual_gate_grid != (1.0,) and args.fixed_prior == "none":
         raise SystemExit("a residual gate grid requires a fixed prior")
     if args.lr_scheduler != "none":
@@ -262,6 +348,22 @@ def main() -> None:
         args.fixed_prior,
         config.prototype_batch_size,
     )
+    deployment_objective = (
+        _prepare_deployment_objective(
+            dataset=dataset,
+            tensors=tensors,
+            cost_labels=args.cost_labels,
+            top_k=args.deployment_k,
+            topk_temperature=args.deployment_topk_temperature,
+            topk_gain_weight=args.deployment_topk_gain_weight,
+            budget_weight=args.deployment_budget_weight,
+            conflict_weight=args.deployment_conflict_weight,
+            shortcut_budget_ratio=args.deployment_shortcut_budget_ratio,
+            spearman_tolerance=args.deployment_spearman_tolerance,
+        )
+        if args.training_objective == "deployment_aware"
+        else None
+    )
     args.output_dir.mkdir(parents=True, exist_ok=True)
     runs: list[dict] = []
 
@@ -294,6 +396,7 @@ def main() -> None:
             args.lr_scheduler_patience,
             args.lr_scheduler_threshold,
             args.lr_scheduler_min_lr,
+            deployment_objective,
         )
         _write_history(seed_dir / "training_history.csv", run.pop("history"))
         snapshot_catalog = run.pop("validation_snapshot_catalog")
@@ -320,9 +423,22 @@ def main() -> None:
             flush=True,
         )
 
-    selected_seed = max(runs, key=lambda run: run["metrics"]["validation"]["spearman"])[
-        "seed"
-    ]
+    selected_seed = max(
+        runs,
+        key=(
+            lambda run: (
+                run.get("deployment_validation", {}).get(
+                    "mean_gain", float("-inf")
+                ),
+                -run.get("deployment_validation", {}).get(
+                    "shortcut_count", float("inf")
+                ),
+                run["metrics"]["validation"]["spearman"],
+            )
+            if args.training_objective == "deployment_aware"
+            else (run["metrics"]["validation"]["spearman"], 0.0, 0.0)
+        ),
+    )["seed"]
     summary = {
         "schema": EXPERIMENT_SCHEMA,
         "model": "od_conditioned_bidirectional_nbfnet",
@@ -333,6 +449,11 @@ def main() -> None:
         "config": asdict(config),
         "numerics": precision_policy.metadata(),
         "training_objective": args.training_objective,
+        "deployment_objective": (
+            deployment_objective.metadata()
+            if deployment_objective is not None
+            else None
+        ),
         "training_protocol": {
             "head_warmup_steps": args.head_warmup_steps,
             "soft_rank_temperature": args.soft_rank_temperature,
@@ -362,8 +483,17 @@ def main() -> None:
         "seeds": seeds,
         "selected_seed": selected_seed,
         "selection_rule": (
-            "highest validation Spearman among post-update checkpoints; holdout is "
-            "never used"
+            (
+                "highest validation hard-disjoint Top-K mean gain among post-update "
+                "checkpoints whose shortcut cost is within the Z0 validation budget "
+                "and whose global Spearman is within the frozen tolerance; holdout and "
+                "future windows are never used"
+            )
+            if args.training_objective == "deployment_aware"
+            else (
+                "highest validation Spearman among post-update checkpoints; holdout is "
+                "never used"
+            )
             if args.training_objective in RANK_ONLY_OBJECTIVES
             else "highest validation Spearman; holdout is never used"
         ),
@@ -380,7 +510,12 @@ def main() -> None:
                 "memory chunk at a time and accumulates its exact gradient contribution."
             ),
             "ranking_loss": (
-                "scale-invariant differentiable soft Spearman"
+                (
+                    "soft Spearman plus differentiable Top-K gain, Z0-relative shortcut "
+                    "budget, and overlap-conflict penalties"
+                )
+                if args.training_objective == "deployment_aware"
+                else "scale-invariant differentiable soft Spearman"
                 if args.training_objective == "soft_spearman"
                 else (
                     "all unique training candidate pairs"
@@ -574,6 +709,133 @@ def _attach_fixed_prior(
     }
 
 
+def _prepare_deployment_objective(
+    *,
+    dataset: DemandFieldDataset,
+    tensors: dict[str, torch.Tensor],
+    cost_labels: Path,
+    top_k: int,
+    topk_temperature: float,
+    topk_gain_weight: float,
+    budget_weight: float,
+    conflict_weight: float,
+    shortcut_budget_ratio: float,
+    spearman_tolerance: float,
+) -> DeploymentObjective:
+    if "fixed_prior" not in tensors:
+        raise ValueError("deployment objective requires a fixed prior")
+    shortcut_cost_values = _load_shortcut_costs(cost_labels, dataset.region_ids)
+    shortcut_cost = torch.as_tensor(
+        shortcut_cost_values,
+        device=tensors["labels"].device,
+        dtype=torch.float32,
+    )
+    split_context: dict[str, dict[str, object]] = {}
+    conflicts: dict[str, torch.Tensor] = {}
+    for split_name in ("train", "validation"):
+        mask = dataset.split_mask(split_name)
+        indices = np.flatnonzero(mask)
+        if len(indices) < top_k:
+            raise ValueError(f"{split_name} has fewer candidates than deployment K")
+        split_scores = tensors["fixed_prior"][torch.as_tensor(
+            indices, device=shortcut_cost.device, dtype=torch.long
+        )]
+        split_cost = shortcut_cost[torch.as_tensor(
+            indices, device=shortcut_cost.device, dtype=torch.long
+        )]
+        split_weights = _soft_topk_weights(
+            split_scores,
+            top_k,
+            topk_temperature,
+        )
+        soft_budget = float((split_weights * split_cost).sum().item())
+        hard_metrics = _hard_disjoint_deployment_metrics(
+            prediction=split_scores.detach().float().cpu().numpy(),
+            target=dataset.labels[mask],
+            region_nodes=dataset.region_nodes[mask],
+            shortcut_cost=shortcut_cost_values[mask],
+            top_k=top_k,
+        )
+        split_context[split_name] = {
+            "soft_budget": soft_budget * shortcut_budget_ratio,
+            "hard_budget": float(hard_metrics["shortcut_count"])
+            * shortcut_budget_ratio,
+            "z0_gain": float(hard_metrics["mean_gain"]),
+            "z0_spearman": regression_metrics(
+                split_scores.detach().float().cpu().numpy(),
+                dataset.labels[mask],
+            )["spearman"],
+        }
+        conflicts[split_name] = torch.as_tensor(
+            _region_conflict_matrix(dataset.region_nodes[mask]),
+            device=shortcut_cost.device,
+            dtype=torch.float32,
+        )
+    return DeploymentObjective(
+        shortcut_cost=shortcut_cost,
+        train_conflict=conflicts["train"],
+        validation_conflict=conflicts["validation"],
+        top_k=top_k,
+        topk_temperature=topk_temperature,
+        topk_gain_weight=topk_gain_weight,
+        budget_weight=budget_weight,
+        conflict_weight=conflict_weight,
+        shortcut_budget_ratio=shortcut_budget_ratio,
+        spearman_tolerance=spearman_tolerance,
+        train_soft_budget=float(split_context["train"]["soft_budget"]),
+        validation_soft_budget=float(split_context["validation"]["soft_budget"]),
+        train_hard_budget=float(split_context["train"]["hard_budget"]),
+        validation_hard_budget=float(split_context["validation"]["hard_budget"]),
+        train_z0_gain=float(split_context["train"]["z0_gain"]),
+        validation_z0_gain=float(split_context["validation"]["z0_gain"]),
+        train_z0_spearman=float(split_context["train"]["z0_spearman"]),
+        validation_z0_spearman=float(
+            split_context["validation"]["z0_spearman"]
+        ),
+        cost_source=_display_path(cost_labels),
+        cost_source_sha256=_sha256(cost_labels),
+    )
+
+
+def _load_shortcut_costs(path: Path, region_ids: np.ndarray) -> np.ndarray:
+    with path.open(newline="", encoding="utf-8") as file:
+        reader = csv.DictReader(file)
+        if not reader.fieldnames or not {"region_id", "shortcut_count"}.issubset(
+            reader.fieldnames
+        ):
+            raise ValueError("cost labels must contain region_id and shortcut_count")
+        rows: dict[int, float] = {}
+        for row in reader:
+            region_id = int(row["region_id"])
+            if region_id in rows:
+                raise ValueError(f"duplicate cost row for region {region_id}")
+            rows[region_id] = float(row["shortcut_count"])
+    expected = set(map(int, region_ids))
+    if set(rows) != expected:
+        raise ValueError("cost label region ids do not exactly match the dataset")
+    values = np.asarray([rows[int(region_id)] for region_id in region_ids], dtype=np.float32)
+    if not np.all(np.isfinite(values)) or np.any(values < 0.0):
+        raise ValueError("shortcut costs must be finite and non-negative")
+    return values
+
+
+def _region_conflict_matrix(region_nodes: np.ndarray) -> np.ndarray:
+    if region_nodes.ndim != 2:
+        raise ValueError("region nodes must be a two-dimensional array")
+    matrix = np.zeros((len(region_nodes), len(region_nodes)), dtype=np.float32)
+    containing_regions: dict[int, list[int]] = {}
+    for region_index, nodes in enumerate(region_nodes):
+        prior_conflicts: set[int] = set()
+        for node in map(int, nodes):
+            prior_conflicts.update(containing_regions.get(node, ()))
+        for other_index in prior_conflicts:
+            matrix[region_index, other_index] = 1.0
+            matrix[other_index, region_index] = 1.0
+        for node in map(int, nodes):
+            containing_regions.setdefault(node, []).append(region_index)
+    return matrix
+
+
 def _marginal_preserving_od_shuffle(
     origin_fields: torch.Tensor,
     destination_fields: torch.Tensor,
@@ -748,8 +1010,13 @@ def _train_one_seed(
     lr_scheduler_patience: int = 3,
     lr_scheduler_threshold: float = 1.0e-4,
     lr_scheduler_min_lr: float = 5.0e-4,
+    deployment_objective: DeploymentObjective | None = None,
 ) -> dict:
     precision_policy.validate()
+    if (training_objective == "deployment_aware") != (
+        deployment_objective is not None
+    ):
+        raise ValueError("deployment objective configuration mismatch")
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.benchmark = False
@@ -783,6 +1050,8 @@ def _train_one_seed(
         np.flatnonzero(dataset.split_mask("validation")), device=device, dtype=torch.long
     )
     best_validation_spearman = float("-inf")
+    best_validation_deployment: dict[str, float | int | bool] | None = None
+    best_validation_key: tuple[float, float, float] | None = None
     best_state: dict[str, torch.Tensor] | None = None
     best_epoch = 0
     best_residual_gate = 1.0
@@ -829,6 +1098,47 @@ def _train_one_seed(
         training_objective,
         soft_rank_temperature,
     )
+    initial_train_deployment_components = None
+    initial_validation_deployment_components = None
+    if deployment_objective is not None:
+        initial_train_total, initial_train_deployment_components = (
+            _deployment_aware_loss_tensor(
+                prediction=initial_train_prediction,
+                target=train_target,
+                shortcut_cost=deployment_objective.shortcut_cost[train_indices],
+                conflict_matrix=deployment_objective.train_conflict,
+                top_k=deployment_objective.top_k,
+                temperature=deployment_objective.topk_temperature,
+                soft_budget=deployment_objective.train_soft_budget,
+                topk_gain_weight=deployment_objective.topk_gain_weight,
+                budget_weight=deployment_objective.budget_weight,
+                conflict_weight=deployment_objective.conflict_weight,
+                soft_rank_temperature=soft_rank_temperature,
+            )
+        )
+        initial_validation_total, initial_validation_deployment_components = (
+            _deployment_aware_loss_tensor(
+                prediction=initial_validation_prediction,
+                target=validation_target,
+                shortcut_cost=deployment_objective.shortcut_cost[validation_indices],
+                conflict_matrix=deployment_objective.validation_conflict,
+                top_k=deployment_objective.top_k,
+                temperature=deployment_objective.topk_temperature,
+                soft_budget=deployment_objective.validation_soft_budget,
+                topk_gain_weight=deployment_objective.topk_gain_weight,
+                budget_weight=deployment_objective.budget_weight,
+                conflict_weight=deployment_objective.conflict_weight,
+                soft_rank_temperature=soft_rank_temperature,
+            )
+        )
+        initial_train_loss = float(initial_train_total.item())
+        initial_train_rank = float(
+            initial_train_deployment_components["global_rank_loss"].item()
+        )
+        initial_validation_loss = float(initial_validation_total.item())
+        initial_validation_rank = float(
+            initial_validation_deployment_components["global_rank_loss"].item()
+        )
     validation_prior = (
         tensors["fixed_prior"][validation_indices]
         if "fixed_prior" in tensors
@@ -851,6 +1161,16 @@ def _train_one_seed(
     initial_validation_metrics = regression_metrics(
         initial_validation_unscaled,
         dataset.labels[dataset.split_mask("validation")],
+    )
+    initial_validation_deployment = (
+        _validation_deployment_metrics(
+            prediction=initial_gated_validation_prediction,
+            dataset=dataset,
+            shortcut_cost=deployment_objective.shortcut_cost,
+            objective=deployment_objective,
+        )
+        if deployment_objective is not None
+        else None
     )
     initial_train_pairwise_accuracy = _full_pairwise_accuracy(
         initial_train_prediction,
@@ -892,6 +1212,13 @@ def _train_one_seed(
     initial_history_row["trainable_parameter_count"] = _trainable_parameter_count(model)
     initial_history_row["validation_raw_spearman"] = initial_raw_validation_spearman
     initial_history_row["residual_gate"] = initial_residual_gate
+    if deployment_objective is not None:
+        _attach_deployment_history(
+            initial_history_row,
+            initial_train_deployment_components,
+            initial_validation_deployment_components,
+            initial_validation_deployment,
+        )
     history.append(initial_history_row)
     _record_validation_snapshot(
         snapshot_dir=validation_snapshot_dir,
@@ -911,6 +1238,12 @@ def _train_one_seed(
         residual_gate_grid=residual_gate_grid,
         validation_loss=initial_validation_loss,
         optimizer_step_effective=False,
+        deployment_objective=(
+            deployment_objective.metadata()
+            if deployment_objective is not None
+            else None
+        ),
+        deployment_validation=initial_validation_deployment,
     )
     print(
         f"seed={seed} epoch=000/{config.max_epochs} "
@@ -918,7 +1251,13 @@ def _train_one_seed(
             f"validation_spearman={initial_validation_metrics['spearman']:.4f} "
             f"raw_spearman={initial_raw_validation_spearman:.4f} "
             f"residual_gate={initial_residual_gate:g} "
-        f"precision={precision_policy.mode} optimizer_step=none",
+        f"precision={precision_policy.mode} optimizer_step=none"
+        + (
+            f" validation_deploy_gain={initial_validation_deployment['mean_gain']:.6f}"
+            f" validation_shortcuts={initial_validation_deployment['shortcut_count']}"
+            if initial_validation_deployment is not None
+            else ""
+        ),
         flush=True,
     )
     effective_optimizer_steps = 0
@@ -958,18 +1297,37 @@ def _train_one_seed(
             train_target,
         )
         prediction_leaf = full_train_prediction.detach().requires_grad_(True)
+        train_deployment_components = None
         if training_objective in RANK_ONLY_OBJECTIVES:
             train_huber = prediction_leaf.sum() * 0.0
-            train_rank = (
-                _soft_spearman_loss_tensor(
-                    prediction_leaf,
-                    train_target,
-                    soft_rank_temperature,
+            if deployment_objective is not None:
+                train_loss, train_deployment_components = (
+                    _deployment_aware_loss_tensor(
+                        prediction=prediction_leaf,
+                        target=train_target,
+                        shortcut_cost=deployment_objective.shortcut_cost[train_indices],
+                        conflict_matrix=deployment_objective.train_conflict,
+                        top_k=deployment_objective.top_k,
+                        temperature=deployment_objective.topk_temperature,
+                        soft_budget=deployment_objective.train_soft_budget,
+                        topk_gain_weight=deployment_objective.topk_gain_weight,
+                        budget_weight=deployment_objective.budget_weight,
+                        conflict_weight=deployment_objective.conflict_weight,
+                        soft_rank_temperature=soft_rank_temperature,
+                    )
                 )
-                if training_objective == "soft_spearman"
-                else _full_pairwise_loss_tensor(prediction_leaf, train_target)
-            )
-            train_loss = train_rank
+                train_rank = train_deployment_components["global_rank_loss"]
+            else:
+                train_rank = (
+                    _soft_spearman_loss_tensor(
+                        prediction_leaf,
+                        train_target,
+                        soft_rank_temperature,
+                    )
+                    if training_objective == "soft_spearman"
+                    else _full_pairwise_loss_tensor(prediction_leaf, train_target)
+                )
+                train_loss = train_rank
         else:
             train_huber = functional.huber_loss(
                 prediction_leaf,
@@ -1048,6 +1406,29 @@ def _train_one_seed(
                 training_objective,
                 soft_rank_temperature,
             )
+            validation_deployment_components = None
+            if deployment_objective is not None:
+                validation_total, validation_deployment_components = (
+                    _deployment_aware_loss_tensor(
+                        prediction=validation_prediction,
+                        target=validation_target,
+                        shortcut_cost=deployment_objective.shortcut_cost[
+                            validation_indices
+                        ],
+                        conflict_matrix=deployment_objective.validation_conflict,
+                        top_k=deployment_objective.top_k,
+                        temperature=deployment_objective.topk_temperature,
+                        soft_budget=deployment_objective.validation_soft_budget,
+                        topk_gain_weight=deployment_objective.topk_gain_weight,
+                        budget_weight=deployment_objective.budget_weight,
+                        conflict_weight=deployment_objective.conflict_weight,
+                        soft_rank_temperature=soft_rank_temperature,
+                    )
+                )
+                validation_loss = float(validation_total.item())
+                validation_rank = float(
+                    validation_deployment_components["global_rank_loss"].item()
+                )
             (
                 residual_gate,
                 gated_validation_prediction,
@@ -1065,6 +1446,16 @@ def _train_one_seed(
             validation_metrics = regression_metrics(
                 validation_unscaled,
                 dataset.labels[dataset.split_mask("validation")],
+            )
+            validation_deployment = (
+                _validation_deployment_metrics(
+                    prediction=gated_validation_prediction,
+                    dataset=dataset,
+                    shortcut_cost=deployment_objective.shortcut_cost,
+                    objective=deployment_objective,
+                )
+                if deployment_objective is not None
+                else None
             )
         validation_pairwise_accuracy = _full_pairwise_accuracy(
             validation_prediction,
@@ -1106,6 +1497,13 @@ def _train_one_seed(
         history_row["trainable_parameter_count"] = _trainable_parameter_count(model)
         history_row["validation_raw_spearman"] = raw_validation_spearman
         history_row["residual_gate"] = residual_gate
+        if deployment_objective is not None:
+            _attach_deployment_history(
+                history_row,
+                train_deployment_components,
+                validation_deployment_components,
+                validation_deployment,
+            )
         history.append(history_row)
         _record_validation_snapshot(
             snapshot_dir=validation_snapshot_dir,
@@ -1125,6 +1523,12 @@ def _train_one_seed(
             residual_gate_grid=residual_gate_grid,
             validation_loss=validation_loss,
             optimizer_step_effective=optimizer_step_effective,
+            deployment_objective=(
+                deployment_objective.metadata()
+                if deployment_objective is not None
+                else None
+            ),
+            deployment_validation=validation_deployment,
         )
         if (
             first_positive_validation_epoch is None
@@ -1139,12 +1543,35 @@ def _train_one_seed(
                 and backbone_effective_optimizer_steps > 0
             )
         )
-        if (
-            checkpoint_is_eligible
-            and validation_metrics["spearman"]
+        deployment_checkpoint_eligible = (
+            deployment_objective is not None
+            and validation_deployment is not None
+            and bool(validation_deployment["budget_feasible"])
+            and bool(validation_deployment["spearman_safe"])
+            and float(validation_deployment["mean_gain"])
+            >= deployment_objective.validation_z0_gain
+        )
+        validation_key = (
+            (
+                float(validation_deployment["mean_gain"]),
+                -float(validation_deployment["shortcut_count"]),
+                float(validation_metrics["spearman"]),
+            )
+            if validation_deployment is not None
+            else None
+        )
+        checkpoint_improved = (
+            validation_key is not None
+            and deployment_checkpoint_eligible
+            and (best_validation_key is None or validation_key > best_validation_key)
+            if deployment_objective is not None
+            else validation_metrics["spearman"]
             > best_validation_spearman + config.min_improvement
-        ):
+        )
+        if checkpoint_is_eligible and checkpoint_improved:
             best_validation_spearman = validation_metrics["spearman"]
+            best_validation_deployment = validation_deployment
+            best_validation_key = validation_key
             best_state = {
                 name: value.detach().cpu().clone()
                 for name, value in model.state_dict().items()
@@ -1176,7 +1603,15 @@ def _train_one_seed(
             f"grad_norm={gradient_norm_before_clip:.3e}->{gradient_norm_after_clip:.3e} "
             f"param_delta={parameter_delta_norm:.3e} "
             f"lr={learning_rate_used:.3e}->{next_learning_rate:.3e} "
-            f"best_epoch={best_epoch:03d} "
+            + (
+                f"deploy_gain={validation_deployment['mean_gain']:.6f} "
+                f"shortcuts={validation_deployment['shortcut_count']} "
+                f"budget_ok={int(validation_deployment['budget_feasible'])} "
+                f"spearman_ok={int(validation_deployment['spearman_safe'])} "
+                if validation_deployment is not None
+                else ""
+            )
+            + f"best_epoch={best_epoch:03d} "
             f"patience={epochs_without_improvement:02d}/{config.patience} "
             f"epoch_time={_format_duration(epoch_seconds)} "
             f"elapsed={_format_duration(elapsed_seconds)} "
@@ -1184,7 +1619,11 @@ def _train_one_seed(
             flush=True,
         )
         if epochs_without_improvement >= config.patience:
-            stopped_reason = "validation_spearman_patience"
+            stopped_reason = (
+                "validation_deployment_patience"
+                if deployment_objective is not None
+                else "validation_spearman_patience"
+            )
             print(
                 f"seed={seed} early_stop epoch={epoch} "
                 f"best_epoch={best_epoch} "
@@ -1214,7 +1653,12 @@ def _train_one_seed(
         best_residual_gate = 0.0
         best_checkpoint_effective_step_count = 0
         best_checkpoint_backbone_effective_step_count = 0
-        stopped_reason = "no_effective_optimizer_checkpoint"
+        stopped_reason = (
+            "no_validation_deployment_safe_checkpoint"
+            if deployment_objective is not None
+            else "no_effective_optimizer_checkpoint"
+        )
+        selected_validation_deployment = initial_validation_deployment
     else:
         print(
             f"seed={seed} evaluating_best_checkpoint best_epoch={best_epoch}",
@@ -1239,6 +1683,7 @@ def _train_one_seed(
                     best_residual_gate,
                 )
         model_state = best_state
+        selected_validation_deployment = best_validation_deployment
     prediction = torch.full(
         (dataset.region_ids.size,),
         float("nan"),
@@ -1311,11 +1756,18 @@ def _train_one_seed(
             ),
             "selection_requires_effective_optimizer_step": training_objective
             in RANK_ONLY_OBJECTIVES,
+            "selection_requires_deployment_gate": deployment_objective is not None,
             "fixed_prior": fixed_prior,
             "stopped_reason": stopped_reason,
         },
         "prediction": unscaled_prediction,
         "training_objective": training_objective,
+        "deployment_objective": (
+            deployment_objective.metadata()
+            if deployment_objective is not None
+            else None
+        ),
+        "deployment_validation": selected_validation_deployment,
         "soft_rank_temperature": soft_rank_temperature,
         "residual_gate": {
             "alpha": best_residual_gate,
@@ -1332,6 +1784,11 @@ def _train_one_seed(
                 soft_rank_temperature,
                 residual_gate_grid,
                 validation_snapshot_entries,
+                (
+                    deployment_objective.metadata()
+                    if deployment_objective is not None
+                    else None
+                ),
             )
             if validation_snapshot_dir is not None
             else None
@@ -1437,7 +1894,7 @@ def _evaluation_loss(
     )
     rank = (
         _soft_spearman_loss_tensor(prediction, target, soft_rank_temperature)
-        if training_objective == "soft_spearman"
+        if training_objective in {"soft_spearman", "deployment_aware"}
         else _full_pairwise_loss_tensor(prediction, target)
     )
     total = (
@@ -1491,6 +1948,167 @@ def _soft_spearman_loss_tensor(
         centered_soft_ranks * centered_target_ranks
     ).mean() / denominator
     return 1.0 - correlation.clamp(-1.0, 1.0)
+
+
+def _soft_topk_weights(
+    prediction: torch.Tensor,
+    top_k: int,
+    temperature: float,
+) -> torch.Tensor:
+    if prediction.ndim != 1 or not len(prediction):
+        raise ValueError("soft Top-K prediction must be a non-empty vector")
+    if top_k <= 0 or top_k > len(prediction):
+        raise ValueError("soft Top-K must be in [1, candidate_count]")
+    if temperature <= 0.0:
+        raise ValueError("soft Top-K temperature must be positive")
+    if top_k == len(prediction):
+        return torch.ones_like(prediction)
+    centered = prediction - prediction.mean()
+    standardized = centered / centered.square().mean().sqrt().clamp_min(1.0e-6)
+    threshold = torch.topk(standardized.detach(), top_k).values[-1]
+    raw_weights = torch.sigmoid((standardized - threshold) / temperature)
+    scale = float(top_k) / raw_weights.sum().detach().clamp_min(1.0e-6)
+    return raw_weights * scale
+
+
+def _deployment_aware_loss_tensor(
+    *,
+    prediction: torch.Tensor,
+    target: torch.Tensor,
+    shortcut_cost: torch.Tensor,
+    conflict_matrix: torch.Tensor,
+    top_k: int,
+    temperature: float,
+    soft_budget: float,
+    topk_gain_weight: float,
+    budget_weight: float,
+    conflict_weight: float,
+    soft_rank_temperature: float,
+) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+    if prediction.ndim != 1 or target.shape != prediction.shape:
+        raise ValueError("deployment prediction and target must be aligned vectors")
+    if shortcut_cost.shape != prediction.shape:
+        raise ValueError("shortcut costs must align with deployment prediction")
+    if conflict_matrix.shape != (len(prediction), len(prediction)):
+        raise ValueError("conflict matrix must align with deployment prediction")
+    if soft_budget <= 0.0:
+        raise ValueError("soft shortcut budget must be positive")
+    if any(weight < 0.0 for weight in (topk_gain_weight, budget_weight, conflict_weight)):
+        raise ValueError("deployment loss weights must be non-negative")
+    weights = _soft_topk_weights(prediction, top_k, temperature)
+    weight_sum = weights.sum().clamp_min(1.0e-6)
+    global_rank_loss = _soft_spearman_loss_tensor(
+        prediction,
+        target,
+        soft_rank_temperature,
+    )
+    soft_topk_gain = (weights * target).sum() / weight_sum
+    soft_shortcut_cost = (weights * shortcut_cost).sum()
+    shortcut_budget_ratio = soft_shortcut_cost / soft_budget
+    budget_penalty = 0.05 * functional.softplus(
+        (shortcut_budget_ratio - 1.0) / 0.05
+    )
+    conflicting_pair_mass = 0.5 * torch.dot(
+        weights,
+        torch.mv(conflict_matrix, weights),
+    )
+    all_pair_mass = (0.5 * weight_sum * (weight_sum - 1.0)).clamp_min(1.0)
+    conflict_penalty = conflicting_pair_mass / all_pair_mass
+    total = (
+        global_rank_loss
+        - topk_gain_weight * soft_topk_gain
+        + budget_weight * budget_penalty
+        + conflict_weight * conflict_penalty
+    )
+    return total, {
+        "global_rank_loss": global_rank_loss,
+        "soft_topk_gain": soft_topk_gain,
+        "soft_shortcut_cost": soft_shortcut_cost,
+        "shortcut_budget_ratio": shortcut_budget_ratio,
+        "budget_penalty": budget_penalty,
+        "conflict_penalty": conflict_penalty,
+    }
+
+
+def _hard_disjoint_deployment_metrics(
+    *,
+    prediction: np.ndarray,
+    target: np.ndarray,
+    region_nodes: np.ndarray,
+    shortcut_cost: np.ndarray,
+    top_k: int,
+) -> dict[str, float | int]:
+    selected = select_region_indices(
+        prediction,
+        region_nodes,
+        top_k,
+        "hard_disjoint",
+    )
+    if len(selected) != top_k:
+        raise ValueError("hard-disjoint deployment could not fill the requested budget")
+    return {
+        "selected_count": int(len(selected)),
+        "mean_gain": float(np.mean(target[selected])),
+        "shortcut_count": int(round(float(np.sum(shortcut_cost[selected])))),
+    }
+
+
+def _validation_deployment_metrics(
+    *,
+    prediction: torch.Tensor,
+    dataset: DemandFieldDataset,
+    shortcut_cost: torch.Tensor,
+    objective: DeploymentObjective,
+) -> dict[str, float | int | bool]:
+    mask = dataset.split_mask("validation")
+    prediction_values = prediction.detach().float().cpu().numpy()
+    metrics = _hard_disjoint_deployment_metrics(
+        prediction=prediction_values,
+        target=dataset.labels[mask],
+        region_nodes=dataset.region_nodes[mask],
+        shortcut_cost=shortcut_cost.detach().float().cpu().numpy()[mask],
+        top_k=objective.top_k,
+    )
+    spearman = regression_metrics(prediction_values, dataset.labels[mask])["spearman"]
+    metrics.update(
+        {
+            "gain_delta_vs_z0": float(metrics["mean_gain"])
+            - objective.validation_z0_gain,
+            "shortcut_delta_vs_z0": float(metrics["shortcut_count"])
+            - objective.validation_hard_budget,
+            "budget_feasible": float(metrics["shortcut_count"])
+            <= objective.validation_hard_budget + 1.0e-6,
+            "spearman": spearman,
+            "spearman_delta_vs_z0": spearman - objective.validation_z0_spearman,
+            "spearman_safe": spearman
+            >= objective.validation_z0_spearman - objective.spearman_tolerance,
+        }
+    )
+    return metrics
+
+
+def _attach_deployment_history(
+    row: dict[str, float | int | str],
+    train_components: dict[str, torch.Tensor] | None,
+    validation_components: dict[str, torch.Tensor] | None,
+    validation_deployment: dict[str, float | int | bool] | None,
+) -> None:
+    if (
+        train_components is None
+        or validation_components is None
+        or validation_deployment is None
+    ):
+        raise ValueError("deployment history requires complete components")
+    for prefix, components in (
+        ("train", train_components),
+        ("validation", validation_components),
+    ):
+        for name, value in components.items():
+            row[f"{prefix}_{name}"] = float(value.detach().item())
+    for name, value in validation_deployment.items():
+        row[f"validation_hard_{name}"] = (
+            int(value) if isinstance(value, bool) else value
+        )
 
 
 def _average_ranks(values: torch.Tensor) -> torch.Tensor:
@@ -1882,6 +2500,8 @@ def _save_checkpoint(
             "training_objective": run["training_objective"],
             "soft_rank_temperature": run["soft_rank_temperature"],
             "residual_gate": run["residual_gate"],
+            "deployment_objective": run.get("deployment_objective"),
+            "deployment_validation": run.get("deployment_validation"),
         },
         path,
     )
@@ -1906,6 +2526,8 @@ def _record_validation_snapshot(
     residual_gate_grid: tuple[float, ...],
     validation_loss: float,
     optimizer_step_effective: bool,
+    deployment_objective: dict[str, object] | None = None,
+    deployment_validation: dict[str, float | int | bool] | None = None,
 ) -> None:
     if snapshot_dir is None:
         return
@@ -1926,6 +2548,7 @@ def _record_validation_snapshot(
             "training_objective": training_objective,
             "soft_rank_temperature": soft_rank_temperature,
             "fixed_prior": fixed_prior_name,
+            "deployment_objective": deployment_objective,
             "validation_snapshot": {
                 "epoch": epoch,
                 "optimizer_step_effective": optimizer_step_effective,
@@ -1940,6 +2563,7 @@ def _record_validation_snapshot(
             "snapshot": str(Path("validation_snapshots") / snapshot_path.name),
             "validation_loss": validation_loss,
             "optimizer_step_effective": optimizer_step_effective,
+            "deployment_validation": deployment_validation,
             "gates": _residual_gate_metrics(
                 prediction,
                 fixed_prior,
@@ -1954,6 +2578,7 @@ def _record_validation_snapshot(
         soft_rank_temperature,
         residual_gate_grid,
         entries,
+        deployment_objective,
     )
     (snapshot_dir.parent / "validation_snapshot_catalog.json").write_text(
         json.dumps(catalog, ensure_ascii=False, indent=2) + "\n",
@@ -1967,6 +2592,7 @@ def _validation_snapshot_catalog(
     soft_rank_temperature: float,
     residual_gate_grid: tuple[float, ...],
     entries: list[dict[str, object]],
+    deployment_objective: dict[str, object] | None = None,
 ) -> dict[str, object]:
     return {
         "schema": "aic.gnn_v2.validation_snapshot_catalog.v1",
@@ -1976,6 +2602,7 @@ def _validation_snapshot_catalog(
         "holdout_evaluated": False,
         "training_objective": training_objective,
         "soft_rank_temperature": soft_rank_temperature,
+        "deployment_objective": deployment_objective,
         "residual_gate_grid": list(residual_gate_grid),
         "ranking_k_values": [5, 10, 18],
         "entries": entries,
@@ -2003,6 +2630,11 @@ def _render_report(summary: dict) -> str:
     )
     reported = summary["aggregate"][reported_split]
     split_label = "Holdout" if reported_split == "holdout" else "Validation"
+    selection_text = (
+        "validation 严格非重叠 Top-K 收益、Z0 shortcut 预算与全局排序安全门"
+        if summary["training_objective"] == "deployment_aware"
+        else "验证集 Spearman"
+    )
     return "\n".join(
         (
             "# OD 条件化双向 NBFNet 训练结果",
@@ -2012,7 +2644,7 @@ def _render_report(summary: dict) -> str:
             f"- 固定先验：`{summary['fixed_prior']['name']}`",
             f"- 数据摘要：`{summary['dataset_sha256']}`",
             f"- 候选摘要：`{summary['candidate_sha256']}`",
-            f"- 选定种子：`{summary['selected_seed']}`（仅按验证集 Spearman 选择）",
+            f"- 选定种子：`{summary['selected_seed']}`（仅按{selection_text}选择）",
             f"- {split_label} Spearman：`{reported['spearman']['mean']:.4f} ± {reported['spearman']['std']:.4f}`",
             f"- {split_label} NDCG@K：`{reported['ndcg_at_k']['mean']:.4f} ± {reported['ndcg_at_k']['std']:.4f}`",
             f"- {split_label} Top-K 收益：`{reported['top_k_mean_gain']['mean']:.3f} ± {reported['top_k_mean_gain']['std']:.3f}`",
@@ -2068,6 +2700,14 @@ def _resolve_precision_policy(
     )
     policy.validate()
     return policy
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as file:
+        for block in iter(lambda: file.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 def _display_path(path: Path) -> str:

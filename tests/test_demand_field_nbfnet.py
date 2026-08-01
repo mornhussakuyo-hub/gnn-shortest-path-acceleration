@@ -20,7 +20,9 @@ try:
     from scripts.train_demand_field_nbfnet import (
         PrecisionPolicy,
         _build_learning_rate_scheduler,
+        _deployment_aware_loss_tensor,
         _full_pairwise_accuracy,
+        _hard_disjoint_deployment_metrics,
         _optimizer_step_was_skipped,
         _optimizer_state_step,
         _parameter_delta_norm,
@@ -28,9 +30,11 @@ try:
         _parse_float_grid,
         _resolve_precision_policy,
         _residual_gate_metrics,
+        _region_conflict_matrix,
         _select_residual_gate,
         _set_training_scope,
         _soft_spearman_loss_tensor,
+        _soft_topk_weights,
         _trainable_parameter_count,
         _evaluation_loss,
     )
@@ -287,6 +291,57 @@ class BidirectionalNBFNetTest(unittest.TestCase):
         self.assertLess(aligned_loss.item(), reversed_loss.item())
         aligned_loss.backward()
         self.assertTrue(torch.isfinite(aligned.grad).all())
+
+    def test_soft_topk_has_fixed_mass_and_finite_gradient(self) -> None:
+        prediction = torch.tensor([3.0, 1.0, 0.0, 2.0], requires_grad=True)
+        weights = _soft_topk_weights(prediction, 2, 0.15)
+        self.assertAlmostEqual(float(weights.sum().item()), 2.0, places=5)
+        (weights * torch.arange(4.0)).sum().backward()
+        self.assertTrue(torch.isfinite(prediction.grad).all())
+
+    def test_deployment_loss_penalizes_budget_and_conflict(self) -> None:
+        prediction = torch.tensor([4.0, 3.0, 1.0, 0.0], requires_grad=True)
+        target = torch.tensor([2.0, 1.5, 0.0, -1.0])
+        shortcut_cost = torch.tensor([10.0, 10.0, 1.0, 1.0])
+        conflict = torch.tensor(
+            [
+                [0.0, 1.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0],
+            ]
+        )
+        loss, components = _deployment_aware_loss_tensor(
+            prediction=prediction,
+            target=target,
+            shortcut_cost=shortcut_cost,
+            conflict_matrix=conflict,
+            top_k=2,
+            temperature=0.15,
+            soft_budget=5.0,
+            topk_gain_weight=0.25,
+            budget_weight=1.0,
+            conflict_weight=0.1,
+            soft_rank_temperature=0.1,
+        )
+        self.assertGreater(float(components["budget_penalty"].item()), 0.0)
+        self.assertGreater(float(components["conflict_penalty"].item()), 0.0)
+        loss.backward()
+        self.assertTrue(torch.isfinite(prediction.grad).all())
+
+    def test_hard_deployment_enforces_zero_overlap(self) -> None:
+        region_nodes = np.asarray([[0, 1], [1, 2], [3, 4], [5, 6]])
+        conflicts = _region_conflict_matrix(region_nodes)
+        self.assertEqual(conflicts[0, 1], 1.0)
+        metrics = _hard_disjoint_deployment_metrics(
+            prediction=np.asarray([4.0, 3.0, 2.0, 1.0]),
+            target=np.asarray([8.0, 7.0, 6.0, 5.0]),
+            region_nodes=region_nodes,
+            shortcut_cost=np.asarray([10.0, 20.0, 3.0, 4.0]),
+            top_k=3,
+        )
+        self.assertEqual(metrics["selected_count"], 3)
+        self.assertEqual(metrics["shortcut_count"], 17)
 
     def test_residual_gate_can_fall_back_to_fixed_prior(self) -> None:
         target = np.asarray([0.0, 1.0, 2.0, 3.0])
