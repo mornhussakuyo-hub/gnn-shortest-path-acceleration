@@ -21,6 +21,9 @@ def deterministic_diffusion_batch_scores(
     receiver_normalizer_reverse: torch.Tensor,
     depths: tuple[int, ...] = DEFAULT_DIFFUSION_DEPTHS,
     demand_scale: float = 1000.0,
+    origin_weight: float = 1.0,
+    destination_weight: float = 1.0,
+    region_pooling: str = "mean_max",
 ) -> torch.Tensor:
     """Score regions using fixed bidirectional scalar diffusion only."""
 
@@ -34,6 +37,12 @@ def deterministic_diffusion_batch_scores(
         raise ValueError("depths must be strictly increasing")
     if demand_scale <= 0.0:
         raise ValueError("demand_scale must be positive")
+    if origin_weight < 0.0 or destination_weight < 0.0:
+        raise ValueError("direction weights must be non-negative")
+    if origin_weight == 0.0 and destination_weight == 0.0:
+        raise ValueError("at least one direction weight must be positive")
+    if region_pooling not in {"mean_max", "mean", "max"}:
+        raise ValueError("region_pooling must be one of mean_max, mean, max")
 
     origin_state = torch.log1p(origin_fields * demand_scale).unsqueeze(-1)
     destination_state = torch.log1p(destination_fields * demand_scale).unsqueeze(-1)
@@ -54,9 +63,18 @@ def deterministic_diffusion_batch_scores(
         )
         if depth not in requested_depths:
             continue
-        exposure = (origin_state + destination_state).squeeze(-1)
+        exposure = (
+            origin_weight * origin_state + destination_weight * destination_state
+        ).squeeze(-1)
         region_values = exposure[:, region_nodes]
-        scores += region_values.mean(dim=2) + region_values.amax(dim=2)
+        mean_score = region_values.mean(dim=2)
+        max_score = region_values.amax(dim=2)
+        if region_pooling == "mean_max":
+            scores += mean_score + max_score
+        elif region_pooling == "mean":
+            scores += mean_score
+        else:
+            scores += max_score
     return scores / len(depths)
 
 
