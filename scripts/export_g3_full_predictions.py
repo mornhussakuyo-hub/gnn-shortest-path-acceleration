@@ -199,7 +199,7 @@ def main() -> None:
         metrics = _all_split_metrics(dataset, prediction)
         runs[str(seed)] = {
             "seed": seed,
-            "checkpoint": str(checkpoint_path.relative_to(ROOT_DIR)),
+            "checkpoint": _display_path(checkpoint_path),
             "checkpoint_sha256": _sha256(checkpoint_path),
             "partial_predictions_sha256": _sha256(partial_path),
             "full_predictions_sha256": _sha256(output_path),
@@ -461,6 +461,14 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: file.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _display_path(path: Path) -> str:
+    absolute = path if path.is_absolute() else ROOT_DIR / path
+    try:
+        return str(absolute.resolve().relative_to(ROOT_DIR.resolve()))
+    except ValueError:
+        return str(path)
 
 
 if __name__ == "__main__":
