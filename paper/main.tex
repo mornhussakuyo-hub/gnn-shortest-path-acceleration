@@ -58,6 +58,24 @@
 }
 \fi
 
+\ifdefined\AICTwoColumn
+\newcommand{\paperfigure}[2]{%
+  \begin{figure*}[t]
+    \centering
+    \includegraphics[width=0.98\textwidth]{#1}
+    \caption{#2}
+  \end{figure*}
+}
+\else
+\newcommand{\paperfigure}[2]{%
+  \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\linewidth]{#1}
+    \caption{#2}
+  \end{figure}
+}
+\fi
+
 \title{历史 OD 驱动的选择性区域物化：\\
 面向精确最短路查询的无参数需求传播与神经排序残差}
 \author{席圣洋（第一作者） \and 肖逸涵（第二作者） \and 王加文（第二作者）}
@@ -139,9 +157,9 @@ Dijkstra 算法能够给出精确答案，但当同一城市路网上持续到�
 为精确查询工作量收益；RQ5，同实现下的工作量减少能否进一步转化为真实墙钟加速。本文按此顺序
 组织实验，避免用单一相关系数替代系统结论。
 
-\placeholderfigure{方法总图：H/Y/F 时间轴、候选区域、\zmethod、\gmethod、hard-disjoint 选择、
-CRP 式覆盖图和精确查询。}{本文端到端流程。底层覆盖图采用已有精确索引结构，本文研究重点是
-历史 OD 驱动的区域排序、隔离与选择性物化。}
+\paperfigure{figures/method_pipeline.pdf}{本文端到端流程。底层覆盖图采用已有精确索引结构，本文
+研究重点是历史 OD 驱动的区域排序、隔离与选择性物化；学习只负责离线资源配置，在线查询始终
+保持精确。}
 
 \section{相关工作}
 
@@ -444,8 +462,9 @@ $Y/F$ 区域收益 Spearman 高达 0.9959，因此该结果对应稳定需求时
 仍需专门实验。Chicago 的时间漂移更明显，\gmethod 的全局增量更大，但 Top-$K$ 仍
 存在波动。
 
-\placeholderfigure{两城 holdout/future 的 \zmethod 与 \gmethod Spearman、NDCG@5 和 NDCG@18
-分组图，误差线显示随机种子标准差。}{两城排序性能及全局指标与头部指标的差异。}
+\paperfigure{figures/ranking_results.pdf}{两城空间留出集（H/O）与未来窗口（F）的排序性能。\gmethod
+显示三个随机种子的均值与总体标准差。全局 Spearman 稳定提升，而头部 NDCG 独立变化，直观展示
+两类训练目标的差异。}
 
 \subsection{RQ3：\zmethod 的有效信号来自哪里？}
 
@@ -471,6 +490,9 @@ $Y/F$ 区域收益 Spearman 高达 0.9959，因此该结果对应稳定需求时
 保持两侧边际需求的 OD 重耦合几乎不改变结果，因此现有证据支持边际需求传播，不支持原始 OD
 配对关系是必要因素。max pooling 几乎复现全局排序，mean pooling 明显较弱；多深度读出在不同
 切分间更稳健，但不存在对所有指标都最优的单一深度。
+
+\paperfigure{figures/mechanism_ablation.pdf}{\zmethod 的正交机制消融。度保持随机重连在两城当前与未来
+窗口均显著破坏排序，单侧需求、池化与单深度读出则呈现城市和窗口依赖；完整结果均予展示。}
 
 \subsection{RQ4：排序能否转化为精确在线收益？}
 
@@ -537,8 +559,9 @@ shortcut。Porto 的展开与扫边同时减少，因而平均耗时和 P95 均�
 组合中仍有 11 个 P95 下降。区域物化是否加速因此取决于边界形状与 shortcut 密度，而不仅取决于
 区域排序精度。
 
-\placeholderfigure{Porto 与 Chicago 的展开节点变化、扫边变化、平均耗时和 P95 变化四联图。}
-{选择性物化在两城中的系统收益与 shortcut 扫边成本。}
+\paperfigure{figures/system_results.pdf}{C++20/O3 同实现下，选择性物化在两城中的系统收益与成本。
+负值表示相对原图减少；Chicago 虽减少展开节点，却因密集 shortcut 增加扫边量，说明排序收益与
+墙钟加速并不等价。}
 
 \section{讨论}
 

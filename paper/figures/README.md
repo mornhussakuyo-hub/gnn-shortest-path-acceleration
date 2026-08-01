@@ -1,6 +1,13 @@
-# 正式制图清单
+# 正式图表与复现说明
 
-初稿正文目前使用可编译的方框占位。正式图全部重画，不直接截图日志或表格。
+正式图全部从机器可读实验摘要生成，不直接截图日志或手工抄录表格。统一生成命令：
+
+```bash
+/home/MornHus/miniconda3/envs/mnist-v2/bin/python scripts/generate_paper_figures.py
+```
+
+每张图同时输出矢量 PDF 和高分辨率 PNG；`main_results.csv` 保存所有绘图数值、标准差、状态与
+来源文件，`figure_manifest.json` 保存图表口径。
 
 ## 图 1：端到端方法总图
 
@@ -13,7 +20,7 @@
 5. hard-disjoint 选择；
 6. CRP 式选择性物化、端点局部接入和精确查询。
 
-需要特别标注：底层覆盖图为既有结构，本文贡献位于区域排序和部署协议。
+已生成：`method_pipeline.pdf`。底层覆盖图明确标为既有精确结构，本文贡献位于区域排序和部署协议。
 
 ## 图 2：两城排序结果
 
@@ -23,8 +30,8 @@
 - `results/chicago/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/`；
 - 两城 `future_window_z0/`。
 
-建议使用四个面板：holdout Spearman、future Spearman、holdout NDCG@18、future NDCG@18。
-G4 显示三种子均值和标准差，Z0 显示确定性水平线。
+已生成：`ranking_results.pdf`。三个面板统一展示 Spearman、NDCG@5、NDCG@18；G4/BRIDGE
+显示三种子均值和总体标准差，Z0 为确定性单次结果。
 
 ## 图 3：机制消融
 
@@ -33,8 +40,8 @@ G4 显示三种子均值和标准差，Z0 显示确定性水平线。
 - `results/gnn_v2/z0_orthogonal_ablation/`；
 - `results/chicago/gnn_v2/z0_orthogonal_ablation/`。
 
-主图突出正确拓扑与度保持重连；附图展示单侧需求、无向图、边际保持 OD 重耦合、传播深度和
-mean/max 池化。不得只展示有利消融。
+已生成：`mechanism_ablation.pdf`。主图突出正确拓扑与度保持重连；其余面板完整展示单侧需求、
+无向图、边际保持 OD 重耦合、传播深度和 mean/max 池化，没有只展示有利消融。
 
 ## 图 4：系统收益与成本
 
@@ -44,10 +51,15 @@ mean/max 池化。不得只展示有利消融。
 - `results/chicago/gnn_v2/multi_region_online_g4_clean_rerun/`；
 - `results/cpp_online_benchmark/{porto,chicago}/`。
 
-建议使用展开节点、扫边、平均耗时、P95 四联图，并同时显示 Porto 与 Chicago。这样可以直观看到
-Chicago 中“展开减少但扫边增加”的原因。
+已生成：`system_results.pdf`。展开节点、扫边、平均耗时、P95 四联图同时显示 Porto 与 Chicago，
+可直接观察 Chicago 中“展开减少但扫边增加”的原因。
 
-## 图 5：典型区域地图（可选）
+## 图 5：BRIDGE-B 探索轨迹
+
+已生成：`bridge_b_progression.pdf`。该图只使用 S0--S2 的 seed 42 探索结果，并明确标注为
+`exploratory_seed42`；S3 重复种子未完成前，不把该图写成稳定性结论。
+
+## 图 6：典型区域地图（可选）
 
 在每城选择以下案例：
 

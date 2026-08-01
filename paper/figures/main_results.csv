@@ -1,0 +1,137 @@
+figure,city,window,method,metric,value,std,unit,seed_count,status,source
+ranking_results,Porto,holdout,Z0,Spearman,0.935602950708,0,,1,frozen,results/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/summary.json
+ranking_results,Porto,holdout,BRIDGE,Spearman,0.94590230837,0.00169859461387,,3,frozen,results/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/summary.json
+ranking_results,Porto,holdout,Z0,NDCG@5,0.930719828035,0,,1,frozen,results/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/summary.json
+ranking_results,Porto,holdout,BRIDGE,NDCG@5,0.930719828035,0,,3,frozen,results/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/summary.json
+ranking_results,Porto,holdout,Z0,NDCG@18,0.974533363559,0,,1,frozen,results/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/summary.json
+ranking_results,Porto,holdout,BRIDGE,NDCG@18,0.974551226863,0.000109832473027,,3,frozen,results/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/summary.json
+ranking_results,Porto,future_all,Z0,Spearman,0.944655607015,0,,1,frozen,results/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/summary.json
+ranking_results,Porto,future_all,BRIDGE,Spearman,0.95659750252,0.0015800959663,,3,frozen,results/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/summary.json
+ranking_results,Porto,future_all,Z0,NDCG@5,0.944420512295,0,,1,frozen,results/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/summary.json
+ranking_results,Porto,future_all,BRIDGE,NDCG@5,0.893760614274,0.00562774458244,,3,frozen,results/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/summary.json
+ranking_results,Porto,future_all,Z0,NDCG@18,0.93369831806,0,,1,frozen,results/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/summary.json
+ranking_results,Porto,future_all,BRIDGE,NDCG@18,0.919342911473,0.00139734570444,,3,frozen,results/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/summary.json
+ranking_results,Chicago,holdout,Z0,Spearman,0.941135362146,0,,1,frozen,results/chicago/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/summary.json
+ranking_results,Chicago,holdout,BRIDGE,Spearman,0.946786854762,0.00114405134836,,3,frozen,results/chicago/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/summary.json
+ranking_results,Chicago,holdout,Z0,NDCG@5,0.940544544987,0,,1,frozen,results/chicago/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/summary.json
+ranking_results,Chicago,holdout,BRIDGE,NDCG@5,0.775402977247,0.0607628611045,,3,frozen,results/chicago/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/summary.json
+ranking_results,Chicago,holdout,Z0,NDCG@18,0.922494256767,0,,1,frozen,results/chicago/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/summary.json
+ranking_results,Chicago,holdout,BRIDGE,NDCG@18,0.866698802055,0.033992889046,,3,frozen,results/chicago/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/summary.json
+ranking_results,Chicago,future_all,Z0,Spearman,0.897508701963,0,,1,frozen,results/chicago/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/summary.json
+ranking_results,Chicago,future_all,BRIDGE,Spearman,0.9257118831,0.000866472519234,,3,frozen,results/chicago/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/summary.json
+ranking_results,Chicago,future_all,Z0,NDCG@5,0.659842083711,0,,1,frozen,results/chicago/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/summary.json
+ranking_results,Chicago,future_all,BRIDGE,NDCG@5,0.697910143981,0.0466483432389,,3,frozen,results/chicago/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/summary.json
+ranking_results,Chicago,future_all,Z0,NDCG@18,0.786935161816,0,,1,frozen,results/chicago/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/summary.json
+ranking_results,Chicago,future_all,BRIDGE,NDCG@18,0.765980994461,0.0307255489202,,3,frozen,results/chicago/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/summary.json
+mechanism_ablation,Porto,holdout,z0_base,Spearman,0.935602950708,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,holdout,undirected,Spearman,0.936339598959,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,holdout,degree_rewired,Spearman,0.556580964433,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,holdout,origin_only,Spearman,0.888268930373,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,holdout,destination_only,Spearman,0.922219821599,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,holdout,shuffled_od,Spearman,0.9359301213,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,holdout,pooling_mean,Spearman,0.886877166991,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,holdout,pooling_max,Spearman,0.9356404702,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,holdout,depth_01,Spearman,0.938689465724,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,holdout,depth_02,Spearman,0.935650277272,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,holdout,depth_04,Spearman,0.934026770374,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,holdout,depth_08,Spearman,0.932913567291,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,holdout,depth_16,Spearman,0.931600769571,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,holdout,depth_32,Spearman,0.924203421916,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,future,z0_base,Spearman,0.944655607015,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,future,undirected,Spearman,0.943223210177,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,future,degree_rewired,Spearman,0.572466943189,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,future,origin_only,Spearman,0.897995832121,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,future,destination_only,Spearman,0.936078354472,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,future,shuffled_od,Spearman,0.943999169055,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,future,pooling_mean,Spearman,0.913665224168,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,future,pooling_max,Spearman,0.944681611673,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,future,depth_01,Spearman,0.942252003485,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,future,depth_02,Spearman,0.943664106027,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,future,depth_04,Spearman,0.943059332548,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,future,depth_08,Spearman,0.943743288569,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,future,depth_16,Spearman,0.94095488567,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Porto,future,depth_32,Spearman,0.936308158342,0,,1,frozen,results/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,holdout,z0_base,Spearman,0.941169111224,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,holdout,undirected,Spearman,0.941384188784,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,holdout,degree_rewired,Spearman,0.605370266425,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,holdout,origin_only,Spearman,0.933611176352,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,holdout,destination_only,Spearman,0.9406648624,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,holdout,shuffled_od,Spearman,0.942241411786,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,holdout,pooling_mean,Spearman,0.921906806125,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,holdout,pooling_max,Spearman,0.941143807593,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,holdout,depth_01,Spearman,0.940652165587,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,holdout,depth_02,Spearman,0.941432717435,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,holdout,depth_04,Spearman,0.939979156216,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,holdout,depth_08,Spearman,0.937084836778,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,holdout,depth_16,Spearman,0.931762622615,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,holdout,depth_32,Spearman,0.926288625503,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,future,z0_base,Spearman,0.897844221474,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,future,undirected,Spearman,0.897281551958,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,future,degree_rewired,Spearman,0.454813567116,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,future,origin_only,Spearman,0.898352502093,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,future,destination_only,Spearman,0.891262681419,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,future,shuffled_od,Spearman,0.896418401343,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,future,pooling_mean,Spearman,0.873252756649,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,future,pooling_max,Spearman,0.898255778662,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,future,depth_01,Spearman,0.896591692182,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,future,depth_02,Spearman,0.896196316634,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,future,depth_04,Spearman,0.895759486106,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,future,depth_08,Spearman,0.896208996017,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,future,depth_16,Spearman,0.893265840434,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+mechanism_ablation,Chicago,future,depth_32,Spearman,0.891124545868,0,,1,frozen,results/chicago/gnn_v2/z0_orthogonal_ablation/summary.json
+system_results,Porto,current_y,Z0,Expanded nodes,-17.4615209272,0,%,1,frozen,results/cpp_online_benchmark/porto/summary.csv
+system_results,Porto,current_y,BRIDGE,Expanded nodes,-17.5888636334,0.309718296671,%,3,frozen,results/cpp_online_benchmark/porto/summary.csv
+system_results,Porto,current_y,Z0,Scanned edges,-6.66721910112,0,%,1,frozen,results/cpp_online_benchmark/porto/summary.csv
+system_results,Porto,current_y,BRIDGE,Scanned edges,-5.85314826429,0.135427639749,%,3,frozen,results/cpp_online_benchmark/porto/summary.csv
+system_results,Porto,current_y,Z0,Mean latency,-6.51064304623,0,%,1,frozen,results/cpp_online_benchmark/porto/summary.csv
+system_results,Porto,current_y,BRIDGE,Mean latency,-6.40623228383,0.71922080358,%,3,frozen,results/cpp_online_benchmark/porto/summary.csv
+system_results,Porto,current_y,Z0,P95 latency,-4.7223148741,0,%,1,frozen,results/cpp_online_benchmark/porto/summary.csv
+system_results,Porto,current_y,BRIDGE,P95 latency,-5.56430039788,1.41121736097,%,3,frozen,results/cpp_online_benchmark/porto/summary.csv
+system_results,Porto,future_f,Z0,Expanded nodes,-17.7599892748,0,%,1,frozen,results/cpp_online_benchmark/porto/summary.csv
+system_results,Porto,future_f,BRIDGE,Expanded nodes,-17.7954716777,0.318314761064,%,3,frozen,results/cpp_online_benchmark/porto/summary.csv
+system_results,Porto,future_f,Z0,Scanned edges,-6.91039826858,0,%,1,frozen,results/cpp_online_benchmark/porto/summary.csv
+system_results,Porto,future_f,BRIDGE,Scanned edges,-6.05372894516,0.14320987454,%,3,frozen,results/cpp_online_benchmark/porto/summary.csv
+system_results,Porto,future_f,Z0,Mean latency,-7.47562360041,0,%,1,frozen,results/cpp_online_benchmark/porto/summary.csv
+system_results,Porto,future_f,BRIDGE,Mean latency,-8.89943452214,2.10477448426,%,3,frozen,results/cpp_online_benchmark/porto/summary.csv
+system_results,Porto,future_f,Z0,P95 latency,-6.23958264146,0,%,1,frozen,results/cpp_online_benchmark/porto/summary.csv
+system_results,Porto,future_f,BRIDGE,P95 latency,-8.96361686522,2.629759944,%,3,frozen,results/cpp_online_benchmark/porto/summary.csv
+system_results,Chicago,current_y,Z0,Expanded nodes,-21.4674775287,0,%,1,frozen,results/cpp_online_benchmark/chicago/summary.csv
+system_results,Chicago,current_y,BRIDGE,Expanded nodes,-19.6246425548,0.539606809683,%,3,frozen,results/cpp_online_benchmark/chicago/summary.csv
+system_results,Chicago,current_y,Z0,Scanned edges,26.5630052918,0,%,1,frozen,results/cpp_online_benchmark/chicago/summary.csv
+system_results,Chicago,current_y,BRIDGE,Scanned edges,18.5788910639,0.292912522308,%,3,frozen,results/cpp_online_benchmark/chicago/summary.csv
+system_results,Chicago,current_y,Z0,Mean latency,3.56906085667,0,%,1,frozen,results/cpp_online_benchmark/chicago/summary.csv
+system_results,Chicago,current_y,BRIDGE,Mean latency,3.03089421426,0.528132720079,%,3,frozen,results/cpp_online_benchmark/chicago/summary.csv
+system_results,Chicago,current_y,Z0,P95 latency,-3.13387801081,0,%,1,frozen,results/cpp_online_benchmark/chicago/summary.csv
+system_results,Chicago,current_y,BRIDGE,P95 latency,-2.24197800898,0.268268844961,%,3,frozen,results/cpp_online_benchmark/chicago/summary.csv
+system_results,Chicago,future_f,Z0,Expanded nodes,-21.9212149127,0,%,1,frozen,results/cpp_online_benchmark/chicago/summary.csv
+system_results,Chicago,future_f,BRIDGE,Expanded nodes,-20.2835866073,0.784314336096,%,3,frozen,results/cpp_online_benchmark/chicago/summary.csv
+system_results,Chicago,future_f,Z0,Scanned edges,27.5103119651,0,%,1,frozen,results/cpp_online_benchmark/chicago/summary.csv
+system_results,Chicago,future_f,BRIDGE,Scanned edges,19.2560486205,0.121854661543,%,3,frozen,results/cpp_online_benchmark/chicago/summary.csv
+system_results,Chicago,future_f,Z0,Mean latency,0.717286928969,0,%,1,frozen,results/cpp_online_benchmark/chicago/summary.csv
+system_results,Chicago,future_f,BRIDGE,Mean latency,3.02387702539,0.838541592979,%,3,frozen,results/cpp_online_benchmark/chicago/summary.csv
+system_results,Chicago,future_f,Z0,P95 latency,-3.84944228773,0,%,1,frozen,results/cpp_online_benchmark/chicago/summary.csv
+system_results,Chicago,future_f,BRIDGE,P95 latency,-1.3311719414,1.37039930635,%,3,frozen,results/cpp_online_benchmark/chicago/summary.csv
+bridge_b_progression,Porto,current_y,Z0,expanded_nodes_delta_vs_z0,0,0,nodes/query,1,exploratory_seed42,results/gnn_v2/multi_region_online/summary.json
+bridge_b_progression,Porto,future_f,Z0,expanded_nodes_delta_vs_z0,0,0,nodes/query,1,exploratory_seed42,results/gnn_v2/multi_region_online/summary.json
+bridge_b_progression,Porto,Y/F,Z0,shortcut_delta_vs_z0,0,0,shortcuts,1,exploratory_seed42,results/gnn_v2/multi_region_online/summary.json
+bridge_b_progression,Porto,current_y,S0,expanded_nodes_delta_vs_z0,10.346,0,nodes/query,1,exploratory_seed42,results/gnn_v2/g5_cost_aware_exploration/s0_short_seed42_online_k18/summary.json
+bridge_b_progression,Porto,future_f,S0,expanded_nodes_delta_vs_z0,14.4945,0,nodes/query,1,exploratory_seed42,results/gnn_v2/g5_cost_aware_exploration/s0_short_seed42_online_k18/summary.json
+bridge_b_progression,Porto,Y/F,S0,shortcut_delta_vs_z0,-193,0,shortcuts,1,exploratory_seed42,results/gnn_v2/g5_cost_aware_exploration/s0_short_seed42_online_k18/summary.json
+bridge_b_progression,Porto,current_y,S1,expanded_nodes_delta_vs_z0,10.346,0,nodes/query,1,exploratory_seed42,results/gnn_v2/g5_cost_aware_exploration/s1_scaled_topk_short_seed42_online_k18/summary.json
+bridge_b_progression,Porto,future_f,S1,expanded_nodes_delta_vs_z0,14.4945,0,nodes/query,1,exploratory_seed42,results/gnn_v2/g5_cost_aware_exploration/s1_scaled_topk_short_seed42_online_k18/summary.json
+bridge_b_progression,Porto,Y/F,S1,shortcut_delta_vs_z0,-193,0,shortcuts,1,exploratory_seed42,results/gnn_v2/g5_cost_aware_exploration/s1_scaled_topk_short_seed42_online_k18/summary.json
+bridge_b_progression,Porto,current_y,S2,expanded_nodes_delta_vs_z0,-75.478,0,nodes/query,1,exploratory_seed42,results/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/summary.json
+bridge_b_progression,Porto,future_f,S2,expanded_nodes_delta_vs_z0,-76.2015,0,nodes/query,1,exploratory_seed42,results/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/summary.json
+bridge_b_progression,Porto,Y/F,S2,shortcut_delta_vs_z0,-68,0,shortcuts,1,exploratory_seed42,results/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/summary.json
+bridge_b_progression,Chicago,current_y,Z0,expanded_nodes_delta_vs_z0,0,0,nodes/query,1,exploratory_seed42,results/chicago/gnn_v2/multi_region_online_g4_clean_rerun/summary.json
+bridge_b_progression,Chicago,future_f,Z0,expanded_nodes_delta_vs_z0,0,0,nodes/query,1,exploratory_seed42,results/chicago/gnn_v2/multi_region_online_g4_clean_rerun/summary.json
+bridge_b_progression,Chicago,Y/F,Z0,shortcut_delta_vs_z0,0,0,shortcuts,1,exploratory_seed42,results/chicago/gnn_v2/multi_region_online_g4_clean_rerun/summary.json
+bridge_b_progression,Chicago,current_y,S0,expanded_nodes_delta_vs_z0,73.72,0,nodes/query,1,exploratory_seed42,results/chicago/gnn_v2/g5_cost_aware_exploration/s0_short_seed42_online_k18/summary.json
+bridge_b_progression,Chicago,future_f,S0,expanded_nodes_delta_vs_z0,68.171,0,nodes/query,1,exploratory_seed42,results/chicago/gnn_v2/g5_cost_aware_exploration/s0_short_seed42_online_k18/summary.json
+bridge_b_progression,Chicago,Y/F,S0,shortcut_delta_vs_z0,-3394,0,shortcuts,1,exploratory_seed42,results/chicago/gnn_v2/g5_cost_aware_exploration/s0_short_seed42_online_k18/summary.json
+bridge_b_progression,Chicago,current_y,S1,expanded_nodes_delta_vs_z0,73.72,0,nodes/query,1,exploratory_seed42,results/chicago/gnn_v2/g5_cost_aware_exploration/s1_scaled_topk_short_seed42_online_k18/summary.json
+bridge_b_progression,Chicago,future_f,S1,expanded_nodes_delta_vs_z0,68.171,0,nodes/query,1,exploratory_seed42,results/chicago/gnn_v2/g5_cost_aware_exploration/s1_scaled_topk_short_seed42_online_k18/summary.json
+bridge_b_progression,Chicago,Y/F,S1,shortcut_delta_vs_z0,-3394,0,shortcuts,1,exploratory_seed42,results/chicago/gnn_v2/g5_cost_aware_exploration/s1_scaled_topk_short_seed42_online_k18/summary.json
+bridge_b_progression,Chicago,current_y,S2,expanded_nodes_delta_vs_z0,54.25,0,nodes/query,1,exploratory_seed42,results/chicago/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/summary.json
+bridge_b_progression,Chicago,future_f,S2,expanded_nodes_delta_vs_z0,62.103,0,nodes/query,1,exploratory_seed42,results/chicago/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/summary.json
+bridge_b_progression,Chicago,Y/F,S2,shortcut_delta_vs_z0,-274,0,shortcuts,1,exploratory_seed42,results/chicago/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/summary.json

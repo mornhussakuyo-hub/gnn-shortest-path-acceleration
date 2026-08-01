@@ -1,0 +1,17 @@
+{
+  "schema": "aic.paper_figures.v1",
+  "generator": "scripts/generate_paper_figures.py",
+  "figure_files": [
+    "method_pipeline.pdf",
+    "ranking_results.pdf",
+    "mechanism_ablation.pdf",
+    "system_results.pdf",
+    "bridge_b_progression.pdf"
+  ],
+  "data_table": "main_results.csv",
+  "notes": {
+    "BRIDGE": "Frozen G4 global-Spearman checkpoints, three seeds.",
+    "BRIDGE-B": "S0-S2 are exploratory seed-42 results; S3 repeatability is not included.",
+    "error_bars": "Population standard deviation across seeds."
+  }
+}
