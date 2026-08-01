@@ -78,6 +78,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--dataset-manifest", type=Path, default=DEFAULT_DATASET_MANIFEST
     )
+    parser.add_argument(
+        "--runs-root",
+        type=Path,
+        help=(
+            "Optional training output root containing seed_<seed>/model.pt and "
+            "predictions.csv. If omitted, use the frozen Porto checkpoint paths."
+        ),
+    )
+    parser.add_argument("--seeds", default="42,43,44")
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--device", default="cuda")
     return parser.parse_args()
@@ -88,8 +97,21 @@ def main() -> None:
     device = require_cuda(args.device)
     dataset = load_demand_field_dataset(args.dataset, args.dataset_manifest)
     args.output_dir.mkdir(parents=True, exist_ok=True)
+    seeds = tuple(int(value.strip()) for value in args.seeds.split(",") if value.strip())
+    if not seeds:
+        raise SystemExit("--seeds must contain at least one integer")
+    if args.runs_root is None:
+        missing = sorted(set(seeds) - set(DEFAULT_RUNS))
+        if missing:
+            raise SystemExit(
+                f"no frozen default checkpoint paths for seeds: {missing}; "
+                "pass --runs-root"
+            )
+        run_dirs = {seed: DEFAULT_RUNS[seed] for seed in seeds}
+    else:
+        run_dirs = {seed: args.runs_root / f"seed_{seed}" for seed in seeds}
     runs: dict[str, dict[str, object]] = {}
-    for seed, run_dir in DEFAULT_RUNS.items():
+    for seed, run_dir in run_dirs.items():
         checkpoint_path = run_dir / "model.pt"
         partial_path = run_dir / "predictions.csv"
         checkpoint = torch.load(
@@ -148,7 +170,8 @@ def main() -> None:
             "config": asdict(config),
             "numerics": checkpoint["numerics"],
             "fixed_prior": prior,
-            "partial_prediction_count": 1020,
+            "source_prediction_count": replay["source_prediction_count"],
+            "source_prediction_scope": replay["source_prediction_scope"],
             "full_prediction_count": len(prediction),
             "partial_replay": replay,
             "metrics": metrics,
@@ -227,14 +250,21 @@ def _validate_partial_predictions(
     }
     saved_values: list[float] = []
     replayed_values: list[float] = []
-    split_values: dict[str, tuple[list[float], list[float]]] = {
-        "train": ([], []),
-        "validation": ([], []),
-    }
     with path.open(encoding="utf-8", newline="") as file:
         rows = list(csv.DictReader(file))
-    if len(rows) != 1020 or {row["split"] for row in rows} != {"train", "validation"}:
+    scopes = {row["split"] for row in rows}
+    partial_scope = scopes == {"train", "validation"} and len(rows) < len(region_ids)
+    full_scope = scopes == set(SPLIT_NAMES) and len(rows) == len(region_ids)
+    if not partial_scope and not full_scope:
         raise ValueError(f"partial prediction scope mismatch: {path}")
+    row_region_ids = [int(row["region_id"]) for row in rows]
+    if len(set(row_region_ids)) != len(row_region_ids):
+        raise ValueError(f"duplicate region in source predictions: {path}")
+    if full_scope and set(row_region_ids) != set(index_by_region):
+        raise ValueError(f"full prediction region set mismatch: {path}")
+    split_values: dict[str, tuple[list[float], list[float]]] = {
+        split: ([], []) for split in sorted(scopes)
+    }
     for row in rows:
         index = index_by_region[int(row["region_id"])]
         saved = float(row["prediction"])
@@ -284,6 +314,8 @@ def _validate_partial_predictions(
         "spearman": spearman,
         "full_score_order_equal": full_order_equal,
         "train_validation_top18_sets_equal": top18_equal,
+        "source_prediction_count": len(rows),
+        "source_prediction_scope": sorted(scopes),
         "absolute_tolerance": float(tolerance),
         "relative_tolerance": float(relative_tolerance),
     }

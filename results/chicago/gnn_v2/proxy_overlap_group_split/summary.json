@@ -1,0 +1,147 @@
+{
+  "schema": "aic.gnn_v2.midpoint_proxy_evaluation.v1",
+  "model": "v1_midpoint_proxy_mean",
+  "execution": {
+    "device_type": "cpu",
+    "deterministic": true
+  },
+  "dataset_sha256": "d566a65a839a44481ff4d09117461782e0f23c8fb29d6aff5312ab27bb66ba6f",
+  "candidate_sha256": "93539f5776f3cdfd8ee1658c0403d4645ffc654325f209172df9fe5582167f46",
+  "history_fraction": 0.35,
+  "history_query_count": 35000,
+  "split": {
+    "axis": "candidate",
+    "strategy": "jaccard_overlap_connected_components",
+    "seed": 42,
+    "train_fraction": 0.7,
+    "validation_fraction": 0.15,
+    "holdout_fraction": 0.15000000000000005,
+    "counts": {
+      "train": 840,
+      "validation": 180,
+      "holdout": 180
+    },
+    "overlap_group_threshold": 0.5,
+    "overlap_group_count": 452,
+    "largest_overlap_group": 16,
+    "cross_split_max_jaccard_upper_bound": 0.5,
+    "guarantee": "Every candidate pair with Jaccard similarity greater than or equal to the threshold belongs to the same split.",
+    "warning": "Candidate holdout measures region generalization within H→Y; it is not the frozen future temporal test."
+  },
+  "metrics": {
+    "train": {
+      "count": 840,
+      "spearman": 0.8745659418390005,
+      "ndcg_at_k": 0.8230405587009948,
+      "top_k": 84,
+      "top_k_mean_gain": 54.2138786315918,
+      "oracle_top_k_mean_gain": 60.35505676269531,
+      "all_mean_gain": 11.744363784790039,
+      "ranking_at_k": {
+        "5": {
+          "k": 5,
+          "ndcg": 0.5755712326863391,
+          "mean_gain": 49.13010025024414,
+          "oracle_mean_gain": 82.92640686035156,
+          "membership_count": 2560,
+          "unique_node_count": 1360,
+          "membership_redundancy": 1.8823529411764706
+        },
+        "10": {
+          "k": 10,
+          "ndcg": 0.5709173809338527,
+          "mean_gain": 46.63399887084961,
+          "oracle_mean_gain": 80.84730529785156,
+          "membership_count": 5120,
+          "unique_node_count": 2258,
+          "membership_redundancy": 2.267493356953056
+        },
+        "18": {
+          "k": 18,
+          "ndcg": 0.6043421916553172,
+          "mean_gain": 48.96355438232422,
+          "oracle_mean_gain": 78.09213256835938,
+          "membership_count": 9216,
+          "unique_node_count": 3240,
+          "membership_redundancy": 2.8444444444444446
+        }
+      }
+    },
+    "validation": {
+      "count": 180,
+      "spearman": 0.8900073958922293,
+      "ndcg_at_k": 0.8387552761761401,
+      "top_k": 18,
+      "top_k_mean_gain": 43.90683364868164,
+      "oracle_top_k_mean_gain": 50.98583221435547,
+      "all_mean_gain": 9.634961128234863,
+      "ranking_at_k": {
+        "5": {
+          "k": 5,
+          "ndcg": 0.7820282695380373,
+          "mean_gain": 54.593299865722656,
+          "oracle_mean_gain": 70.38790130615234,
+          "membership_count": 2560,
+          "unique_node_count": 1581,
+          "membership_redundancy": 1.6192283364958886
+        },
+        "10": {
+          "k": 10,
+          "ndcg": 0.8337729085917406,
+          "mean_gain": 51.36809539794922,
+          "oracle_mean_gain": 60.15779495239258,
+          "membership_count": 5120,
+          "unique_node_count": 3378,
+          "membership_redundancy": 1.5156897572528123
+        },
+        "18": {
+          "k": 18,
+          "ndcg": 0.8387552761761401,
+          "mean_gain": 43.90683364868164,
+          "oracle_mean_gain": 50.98583221435547,
+          "membership_count": 9216,
+          "unique_node_count": 6154,
+          "membership_redundancy": 1.4975625609359766
+        }
+      }
+    },
+    "holdout": {
+      "count": 180,
+      "spearman": 0.89559687174371,
+      "ndcg_at_k": 0.8676499543074196,
+      "top_k": 18,
+      "top_k_mean_gain": 51.889888763427734,
+      "oracle_top_k_mean_gain": 58.59969711303711,
+      "all_mean_gain": 12.900259017944336,
+      "ranking_at_k": {
+        "5": {
+          "k": 5,
+          "ndcg": 0.8734083032519713,
+          "mean_gain": 63.7161979675293,
+          "oracle_mean_gain": 69.42369842529297,
+          "membership_count": 2560,
+          "unique_node_count": 1702,
+          "membership_redundancy": 1.5041128084606346
+        },
+        "10": {
+          "k": 10,
+          "ndcg": 0.8369954815908371,
+          "mean_gain": 54.50084686279297,
+          "oracle_mean_gain": 64.41690063476562,
+          "membership_count": 5120,
+          "unique_node_count": 3509,
+          "membership_redundancy": 1.4591051581647192
+        },
+        "18": {
+          "k": 18,
+          "ndcg": 0.8676499543074196,
+          "mean_gain": 51.889888763427734,
+          "oracle_mean_gain": 58.59969711303711,
+          "membership_count": 9216,
+          "unique_node_count": 6266,
+          "membership_redundancy": 1.4707947654005746
+        }
+      }
+    }
+  }
+}

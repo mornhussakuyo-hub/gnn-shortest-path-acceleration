@@ -77,6 +77,24 @@ class G3FullPredictionsTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 _validate_partial_predictions(path, region_ids, prediction)
 
+    def test_full_replay_accepts_all_splits(self) -> None:
+        region_ids = np.arange(12)
+        prediction = np.linspace(-1.0, 1.0, 12)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "predictions.csv"
+            with path.open("w", encoding="utf-8", newline="") as file:
+                writer = csv.writer(file)
+                writer.writerow(("region_id", "split", "prediction"))
+                for index in range(12):
+                    split = "train" if index < 8 else "validation" if index < 10 else "holdout"
+                    writer.writerow((index, split, f"{prediction[index]:.9f}"))
+            replay = _validate_partial_predictions(path, region_ids, prediction)
+            self.assertEqual(replay["source_prediction_count"], 12)
+            self.assertEqual(
+                replay["source_prediction_scope"],
+                ["holdout", "train", "validation"],
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
