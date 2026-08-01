@@ -32,3 +32,12 @@ results/gnn_v2/nbfnet_propagation/**/runner.pid
 results/gnn_v2/multi_region_online/launcher.log
 results/gnn_v2/multi_region_online/runner.pid
 results/gnn_v2/nbfnet_propagation/**/.runner.lock
+# LaTeX build intermediates (paper PDF remains tracked)
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.fdb_latexmk
+paper/*.fls
+paper/*.log
+paper/*.out
+paper/*.xdv

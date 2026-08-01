@@ -22,8 +22,8 @@
 
 ## 编译
 
-当前主机未安装 `xelatex`、`latexmk` 或 `pdflatex`，因此本次没有生成 PDF，也没有改动系统环境。
-安装支持中文的 TeX Live 后，可在本目录运行：
+已在本机使用 XeLaTeX 与 BibTeX 成功生成 `main.pdf`。当前版本为 A4 纸、14 页。
+需要重新生成时，可在本目录运行：
 
 ```bash
 xelatex main.tex
