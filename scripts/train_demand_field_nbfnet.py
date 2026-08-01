@@ -2346,6 +2346,8 @@ def _unrecovered_validation_loss_doublings(
     unrecovered = 0
     for index in range(1, len(losses)):
         previous = losses[index - 1]
+        if previous <= 0.0 or losses[index] <= 0.0:
+            continue
         if losses[index] >= 2.0 * previous and not any(
             later <= previous for later in losses[index + 1 :]
         ):

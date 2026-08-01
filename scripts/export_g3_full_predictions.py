@@ -1,4 +1,4 @@
-"""Export all-candidate predictions from frozen G3 checkpoints without training."""
+"""Export all-candidate predictions from frozen G3-structure checkpoints."""
 
 from __future__ import annotations
 
@@ -98,6 +98,10 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument("--seeds", default="42,43,44")
+    parser.add_argument(
+        "--expected-training-objective",
+        help="Reject checkpoints whose recorded training objective differs.",
+    )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--device", default="cuda")
     return parser.parse_args()
@@ -139,7 +143,12 @@ def main() -> None:
             map_location=device,
             weights_only=False,
         )
-        _validate_checkpoint(checkpoint, dataset, seed)
+        _validate_checkpoint(
+            checkpoint,
+            dataset,
+            seed,
+            args.expected_training_objective,
+        )
         config = NBFNetConfig(**checkpoint["config"])
         config.validate()
         tensors, fresh_scalers, _ = _prepare_tensors(
@@ -218,7 +227,7 @@ def main() -> None:
         torch.cuda.empty_cache()
 
     summary = {
-        "schema": "aic.gnn_v2.g3_frozen_full_inference.v1",
+        "schema": "aic.gnn_v2.g3_frozen_full_inference.v2",
         "execution": cuda_environment(device),
         "dataset_sha256": dataset.manifest["dataset_sha256"],
         "candidate_sha256": dataset.manifest["candidate_sha256"],
@@ -226,9 +235,8 @@ def main() -> None:
             "training_performed": False,
             "checkpoint_selection_changed": False,
             "holdout_used_for_model_or_hyperparameter_selection": False,
-            "purpose": (
-                "one-time post-freeze all-candidate inference for final W4 deployment evaluation"
-            ),
+            "expected_training_objective": args.expected_training_objective,
+            "purpose": "post-freeze all-candidate inference for deployment evaluation",
         },
         "runs": runs,
         "aggregate": _aggregate(runs),
@@ -259,7 +267,12 @@ def _parse_run_dirs(values: list[str]) -> dict[int, Path]:
     return result
 
 
-def _validate_checkpoint(checkpoint: dict, dataset, seed: int) -> None:
+def _validate_checkpoint(
+    checkpoint: dict,
+    dataset,
+    seed: int,
+    expected_training_objective: str | None = None,
+) -> None:
     if checkpoint.get("schema") != "aic.gnn_v2.od_conditioned_bidirectional_nbfnet.v4":
         raise ValueError(f"seed {seed} checkpoint schema mismatch")
     if checkpoint.get("dataset_sha256") != dataset.manifest["dataset_sha256"]:
@@ -273,6 +286,14 @@ def _validate_checkpoint(checkpoint: dict, dataset, seed: int) -> None:
         raise ValueError(f"seed {seed} is not the frozen constant-lr protocol")
     if checkpoint.get("numerics", {}).get("mode") != "fp32":
         raise ValueError(f"seed {seed} is not the frozen FP32 protocol")
+    if (
+        expected_training_objective is not None
+        and checkpoint.get("training_objective") != expected_training_objective
+    ):
+        raise ValueError(
+            f"seed {seed} training objective mismatch: "
+            f"{checkpoint.get('training_objective')!r}"
+        )
     residual_gate = checkpoint.get("residual_gate", {"alpha": 1.0})
     if not 0.0 <= float(residual_gate.get("alpha", -1.0)) <= 1.0:
         raise ValueError(f"seed {seed} has an invalid residual gate")
@@ -404,8 +425,11 @@ def _aggregate(runs: dict[str, dict[str, object]]) -> dict[str, object]:
 
 
 def _render_report(summary: dict) -> str:
+    objective = summary["protocol"].get("expected_training_objective")
     lines = [
-        "# G3 冻结 checkpoint 全候选推理",
+        "# G3 结构冻结 checkpoint 全候选推理",
+        "",
+        f"冻结训练目标：`{objective or '未显式限制'}`。",
         "",
         "本次只运行冻结 checkpoint 推理，不训练、不重新选 epoch、不使用 holdout 选择模型或超参数。",
         "",
@@ -423,7 +447,7 @@ def _render_report(summary: dict) -> str:
     lines.extend(
         [
             "",
-            f"三种子 holdout Spearman：`{summary['aggregate']['holdout_spearman_mean']:.6f} ± "
+            f"冻结种子 holdout Spearman：`{summary['aggregate']['holdout_spearman_mean']:.6f} ± "
             f"{summary['aggregate']['holdout_spearman_std']:.6f}`。",
             "",
         ]

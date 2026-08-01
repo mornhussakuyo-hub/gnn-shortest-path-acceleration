@@ -36,6 +36,7 @@ try:
         _soft_spearman_loss_tensor,
         _soft_topk_weights,
         _trainable_parameter_count,
+        _unrecovered_validation_loss_doublings,
         _evaluation_loss,
     )
 except ImportError:  # pragma: no cover - covered by the CUDA environment instead.
@@ -298,6 +299,14 @@ class BidirectionalNBFNetTest(unittest.TestCase):
         self.assertAlmostEqual(float(weights.sum().item()), 2.0, places=5)
         (weights * torch.arange(4.0)).sum().backward()
         self.assertTrue(torch.isfinite(prediction.grad).all())
+
+    def test_negative_composite_losses_are_not_false_doublings(self) -> None:
+        history = [
+            {"validation_loss": -0.48},
+            {"validation_loss": -0.47},
+            {"validation_loss": -0.46},
+        ]
+        self.assertEqual(_unrecovered_validation_loss_doublings(history), 0)
 
     def test_deployment_loss_penalizes_budget_and_conflict(self) -> None:
         prediction = torch.tensor([4.0, 3.0, 1.0, 0.0], requires_grad=True)
