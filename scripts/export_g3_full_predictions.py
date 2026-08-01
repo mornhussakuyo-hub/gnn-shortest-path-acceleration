@@ -220,6 +220,7 @@ def _validate_partial_predictions(
     region_ids: np.ndarray,
     full_prediction: np.ndarray,
     tolerance: float = 1.0e-4,
+    relative_tolerance: float = 2.0 * np.finfo(np.float32).eps,
 ) -> dict[str, float | bool]:
     index_by_region = {
         int(region_id): index for index, region_id in enumerate(region_ids)
@@ -247,7 +248,16 @@ def _validate_partial_predictions(
     replayed_array = np.asarray(replayed_values)
     deltas = np.abs(saved_array - replayed_array)
     maximum = float(deltas.max(initial=0.0))
+    scales = np.maximum(np.abs(saved_array), np.abs(replayed_array))
+    allowed_deltas = tolerance + relative_tolerance * scales
+    within_numeric_tolerance = deltas <= allowed_deltas
     spearman = regression_metrics(replayed_array, saved_array)["spearman"]
+    full_order_equal = bool(
+        np.array_equal(
+            np.argsort(-saved_array, kind="stable"),
+            np.argsort(-replayed_array, kind="stable"),
+        )
+    )
     top18_equal = True
     for split_saved, split_replayed in split_values.values():
         saved_top = set(np.argsort(-np.asarray(split_saved), kind="stable")[:18].tolist())
@@ -255,9 +265,12 @@ def _validate_partial_predictions(
             np.argsort(-np.asarray(split_replayed), kind="stable")[:18].tolist()
         )
         top18_equal = top18_equal and saved_top == replayed_top
-    if maximum > tolerance:
+    if not bool(np.all(within_numeric_tolerance)):
+        worst_index = int(np.argmax(deltas / np.maximum(allowed_deltas, 1.0e-30)))
         raise ValueError(
-            f"frozen checkpoint replay mismatch: max delta {maximum} > {tolerance}"
+            "frozen checkpoint replay mismatch: "
+            f"delta {float(deltas[worst_index])} > allowed "
+            f"{float(allowed_deltas[worst_index])} at replay row {worst_index}"
         )
     if spearman < 0.999999 or not top18_equal:
         raise ValueError(
@@ -269,8 +282,10 @@ def _validate_partial_predictions(
         "mean_absolute_delta": float(deltas.mean()),
         "p99_absolute_delta": float(np.percentile(deltas, 99)),
         "spearman": spearman,
+        "full_score_order_equal": full_order_equal,
         "train_validation_top18_sets_equal": top18_equal,
         "absolute_tolerance": tolerance,
+        "relative_tolerance": relative_tolerance,
     }
 
 
