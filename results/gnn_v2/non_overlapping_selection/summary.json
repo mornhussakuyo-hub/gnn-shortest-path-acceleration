@@ -1,0 +1,1608 @@
+{
+  "schema": "aic.gnn_v2.non_overlapping_selection.v1",
+  "dataset_sha256": "e9b1bc149a6a94dd744305e41817c3a2b9447cd5e3ba5a17c71fea38db2bf261",
+  "candidate_sha256": "40d7d8babf74381b5f7088de22edc0f48181bec9c78a53fb039c9e8e7c20f71c",
+  "source_sha256": {
+    "dataset": "adaf7bcba5cc88ee6b6177812528508530204453f2409855d8e434e07ec7e535",
+    "dataset_manifest": "ff81cf2d972fc92d0780e1be6f4486ea0a55e028ab99ca42b32cf1c3cb589ef2",
+    "z0_predictions": "abd3d3ff98fa9d36ac83a071b2e710c9929a0e2980e02e816487398a6ec58ffb",
+    "current_labels": "557867b5d7ccf83c24d975b2be11dff5f9f0d0ecd3536a2c45e0ac69103a817f",
+    "future_labels": "6425292beae3427d0a69f75f49a7f9cd7cd6aacbf513d4fb10bef6789397301a"
+  },
+  "protocol": {
+    "score": "frozen label-free Z0",
+    "k_values": [
+      5,
+      10,
+      18
+    ],
+    "methods": [
+      "direct_topk",
+      "jaccard_penalty",
+      "marginal_coverage",
+      "hard_disjoint"
+    ],
+    "jaccard_penalty": "0.5 * global score-rank quality + 0.5 * (1 - maximum pairwise Jaccard)",
+    "marginal_coverage": "0.5 * global score-rank quality + 0.5 * newly covered node fraction",
+    "deployment_rule": "hard_disjoint is fixed before label inspection because the compression index rejects any shared region node; relaxed methods are diagnostics only",
+    "individual_label_warning": "mean region gains are single-region labels and are not additive combined-index gains"
+  },
+  "results": {
+    "all_candidates": {
+      "direct_topk": {
+        "5": {
+          "selected_count": 5,
+          "selected_region_ids": [
+            988,
+            891,
+            768,
+            300,
+            779
+          ],
+          "mean_z0_score": 1.3322384120000001,
+          "current_mean_individual_region_gain": 171.8796,
+          "future_mean_individual_region_gain": 174.84740000000002,
+          "current_sum_individual_region_gain": 859.398,
+          "future_sum_individual_region_gain": 874.2370000000001,
+          "summed_internal_node_count": 2362,
+          "summed_single_region_shortcut_count": 1155,
+          "overlap": {
+            "membership_count": 2560,
+            "unique_node_count": 925,
+            "duplicate_membership_count": 1635,
+            "membership_redundancy": 2.7675675675675677,
+            "overlapping_pair_count": 10,
+            "maximum_pairwise_jaccard": 0.7534246575342466,
+            "deployable_without_region_overlap": false
+          }
+        },
+        "10": {
+          "selected_count": 10,
+          "selected_region_ids": [
+            988,
+            891,
+            768,
+            300,
+            779,
+            1101,
+            537,
+            1003,
+            424,
+            599
+          ],
+          "mean_z0_score": 1.2966765524,
+          "current_mean_individual_region_gain": 166.7747,
+          "future_mean_individual_region_gain": 170.839,
+          "current_sum_individual_region_gain": 1667.747,
+          "future_sum_individual_region_gain": 1708.39,
+          "summed_internal_node_count": 4747,
+          "summed_single_region_shortcut_count": 2103,
+          "overlap": {
+            "membership_count": 5120,
+            "unique_node_count": 2050,
+            "duplicate_membership_count": 3070,
+            "membership_redundancy": 2.497560975609756,
+            "overlapping_pair_count": 43,
+            "maximum_pairwise_jaccard": 0.7534246575342466,
+            "deployable_without_region_overlap": false
+          }
+        },
+        "18": {
+          "selected_count": 18,
+          "selected_region_ids": [
+            988,
+            891,
+            768,
+            300,
+            779,
+            1101,
+            537,
+            1003,
+            424,
+            599,
+            710,
+            979,
+            1031,
+            529,
+            1136,
+            290,
+            709,
+            217
+          ],
+          "mean_z0_score": 1.2387456166666668,
+          "current_mean_individual_region_gain": 164.16988888888886,
+          "future_mean_individual_region_gain": 167.44455555555558,
+          "current_sum_individual_region_gain": 2955.0579999999995,
+          "future_sum_individual_region_gain": 3014.0020000000004,
+          "summed_internal_node_count": 8580,
+          "summed_single_region_shortcut_count": 4522,
+          "overlap": {
+            "membership_count": 9216,
+            "unique_node_count": 2773,
+            "duplicate_membership_count": 6443,
+            "membership_redundancy": 3.323476379372521,
+            "overlapping_pair_count": 116,
+            "maximum_pairwise_jaccard": 0.7624784853700516,
+            "deployable_without_region_overlap": false
+          }
+        }
+      },
+      "jaccard_penalty": {
+        "5": {
+          "selected_count": 5,
+          "selected_region_ids": [
+            988,
+            1031,
+            917,
+            544,
+            669
+          ],
+          "mean_z0_score": 1.035879123,
+          "current_mean_individual_region_gain": 149.1878,
+          "future_mean_individual_region_gain": 152.8714,
+          "current_sum_individual_region_gain": 745.9390000000001,
+          "future_sum_individual_region_gain": 764.357,
+          "summed_internal_node_count": 2373,
+          "summed_single_region_shortcut_count": 2013,
+          "overlap": {
+            "membership_count": 2560,
+            "unique_node_count": 2555,
+            "duplicate_membership_count": 5,
+            "membership_redundancy": 1.0019569471624266,
+            "overlapping_pair_count": 3,
+            "maximum_pairwise_jaccard": 0.002938295788442703,
+            "deployable_without_region_overlap": false
+          }
+        },
+        "10": {
+          "selected_count": 10,
+          "selected_region_ids": [
+            988,
+            1031,
+            917,
+            544,
+            669,
+            508,
+            619,
+            402,
+            928,
+            601
+          ],
+          "mean_z0_score": 0.8330024956,
+          "current_mean_individual_region_gain": 138.5089,
+          "future_mean_individual_region_gain": 140.3499,
+          "current_sum_individual_region_gain": 1385.0890000000002,
+          "future_sum_individual_region_gain": 1403.499,
+          "summed_internal_node_count": 4738,
+          "summed_single_region_shortcut_count": 4026,
+          "overlap": {
+            "membership_count": 5120,
+            "unique_node_count": 5073,
+            "duplicate_membership_count": 47,
+            "membership_redundancy": 1.009264734870885,
+            "overlapping_pair_count": 7,
+            "maximum_pairwise_jaccard": 0.0199203187250996,
+            "deployable_without_region_overlap": false
+          }
+        },
+        "18": {
+          "selected_count": 18,
+          "selected_region_ids": [
+            988,
+            1031,
+            917,
+            544,
+            669,
+            508,
+            619,
+            402,
+            928,
+            601,
+            270,
+            518,
+            705,
+            847,
+            997,
+            1055,
+            583,
+            256
+          ],
+          "mean_z0_score": 0.7057532252777778,
+          "current_mean_individual_region_gain": 129.03605555555552,
+          "future_mean_individual_region_gain": 129.71355555555553,
+          "current_sum_individual_region_gain": 2322.6489999999994,
+          "future_sum_individual_region_gain": 2334.8439999999996,
+          "summed_internal_node_count": 8564,
+          "summed_single_region_shortcut_count": 6714,
+          "overlap": {
+            "membership_count": 9216,
+            "unique_node_count": 8799,
+            "duplicate_membership_count": 417,
+            "membership_redundancy": 1.0473917490623934,
+            "overlapping_pair_count": 18,
+            "maximum_pairwise_jaccard": 0.07903055848261328,
+            "deployable_without_region_overlap": false
+          }
+        }
+      },
+      "marginal_coverage": {
+        "5": {
+          "selected_count": 5,
+          "selected_region_ids": [
+            988,
+            1031,
+            917,
+            544,
+            973
+          ],
+          "mean_z0_score": 1.019857335,
+          "current_mean_individual_region_gain": 149.7333,
+          "future_mean_individual_region_gain": 152.9556,
+          "current_sum_individual_region_gain": 748.6665,
+          "future_sum_individual_region_gain": 764.778,
+          "summed_internal_node_count": 2381,
+          "summed_single_region_shortcut_count": 1621,
+          "overlap": {
+            "membership_count": 2560,
+            "unique_node_count": 2558,
+            "duplicate_membership_count": 2,
+            "membership_redundancy": 1.0007818608287724,
+            "overlapping_pair_count": 2,
+            "maximum_pairwise_jaccard": 0.0009775171065493646,
+            "deployable_without_region_overlap": false
+          }
+        },
+        "10": {
+          "selected_count": 10,
+          "selected_region_ids": [
+            988,
+            1031,
+            917,
+            544,
+            973,
+            508,
+            388,
+            402,
+            601,
+            897
+          ],
+          "mean_z0_score": 0.8108432292,
+          "current_mean_individual_region_gain": 138.2748,
+          "future_mean_individual_region_gain": 140.12875,
+          "current_sum_individual_region_gain": 1382.748,
+          "future_sum_individual_region_gain": 1401.2875,
+          "summed_internal_node_count": 4757,
+          "summed_single_region_shortcut_count": 3397,
+          "overlap": {
+            "membership_count": 5120,
+            "unique_node_count": 5117,
+            "duplicate_membership_count": 3,
+            "membership_redundancy": 1.0005862810240376,
+            "overlapping_pair_count": 3,
+            "maximum_pairwise_jaccard": 0.0009775171065493646,
+            "deployable_without_region_overlap": false
+          }
+        },
+        "18": {
+          "selected_count": 18,
+          "selected_region_ids": [
+            988,
+            1031,
+            917,
+            544,
+            973,
+            508,
+            388,
+            402,
+            601,
+            897,
+            847,
+            560,
+            128,
+            756,
+            518,
+            256,
+            376,
+            151
+          ],
+          "mean_z0_score": 0.6183580656666666,
+          "current_mean_individual_region_gain": 120.93358333333335,
+          "future_mean_individual_region_gain": 120.8983611111111,
+          "current_sum_individual_region_gain": 2176.8045,
+          "future_sum_individual_region_gain": 2176.1704999999997,
+          "summed_internal_node_count": 8569,
+          "summed_single_region_shortcut_count": 6390,
+          "overlap": {
+            "membership_count": 9216,
+            "unique_node_count": 9172,
+            "duplicate_membership_count": 44,
+            "membership_redundancy": 1.004797208896642,
+            "overlapping_pair_count": 6,
+            "maximum_pairwise_jaccard": 0.021956087824351298,
+            "deployable_without_region_overlap": false
+          }
+        }
+      },
+      "hard_disjoint": {
+        "5": {
+          "selected_count": 5,
+          "selected_region_ids": [
+            988,
+            652,
+            917,
+            973,
+            508
+          ],
+          "mean_z0_score": 0.9499643804000002,
+          "current_mean_individual_region_gain": 149.6083,
+          "future_mean_individual_region_gain": 151.74740000000003,
+          "current_sum_individual_region_gain": 748.0415,
+          "future_sum_individual_region_gain": 758.7370000000001,
+          "summed_internal_node_count": 2365,
+          "summed_single_region_shortcut_count": 1670,
+          "overlap": {
+            "membership_count": 2560,
+            "unique_node_count": 2560,
+            "duplicate_membership_count": 0,
+            "membership_redundancy": 1.0,
+            "overlapping_pair_count": 0,
+            "maximum_pairwise_jaccard": 0.0,
+            "deployable_without_region_overlap": true
+          }
+        },
+        "10": {
+          "selected_count": 10,
+          "selected_region_ids": [
+            988,
+            652,
+            917,
+            973,
+            508,
+            619,
+            402,
+            601,
+            847,
+            560
+          ],
+          "mean_z0_score": 0.7378782272,
+          "current_mean_individual_region_gain": 131.2084,
+          "future_mean_individual_region_gain": 131.82725,
+          "current_sum_individual_region_gain": 1312.084,
+          "future_sum_individual_region_gain": 1318.2725,
+          "summed_internal_node_count": 4737,
+          "summed_single_region_shortcut_count": 3790,
+          "overlap": {
+            "membership_count": 5120,
+            "unique_node_count": 5120,
+            "duplicate_membership_count": 0,
+            "membership_redundancy": 1.0,
+            "overlapping_pair_count": 0,
+            "maximum_pairwise_jaccard": 0.0,
+            "deployable_without_region_overlap": true
+          }
+        },
+        "18": {
+          "selected_count": 18,
+          "selected_region_ids": [
+            988,
+            652,
+            917,
+            973,
+            508,
+            619,
+            402,
+            601,
+            847,
+            560,
+            128,
+            951,
+            756,
+            964,
+            192,
+            294,
+            156,
+            131
+          ],
+          "mean_z0_score": 0.5451946241666668,
+          "current_mean_individual_region_gain": 105.56413888888889,
+          "future_mean_individual_region_gain": 104.87588888888888,
+          "current_sum_individual_region_gain": 1900.1545,
+          "future_sum_individual_region_gain": 1887.7659999999998,
+          "summed_internal_node_count": 8564,
+          "summed_single_region_shortcut_count": 6712,
+          "overlap": {
+            "membership_count": 9216,
+            "unique_node_count": 9216,
+            "duplicate_membership_count": 0,
+            "membership_redundancy": 1.0,
+            "overlapping_pair_count": 0,
+            "maximum_pairwise_jaccard": 0.0,
+            "deployable_without_region_overlap": true
+          }
+        }
+      }
+    },
+    "train": {
+      "direct_topk": {
+        "5": {
+          "selected_count": 5,
+          "selected_region_ids": [
+            988,
+            891,
+            768,
+            300,
+            1101
+          ],
+          "mean_z0_score": 1.3290755988,
+          "current_mean_individual_region_gain": 165.95850000000002,
+          "future_mean_individual_region_gain": 169.70420000000001,
+          "current_sum_individual_region_gain": 829.7925,
+          "future_sum_individual_region_gain": 848.5210000000001,
+          "summed_internal_node_count": 2361,
+          "summed_single_region_shortcut_count": 1103,
+          "overlap": {
+            "membership_count": 2560,
+            "unique_node_count": 1065,
+            "duplicate_membership_count": 1495,
+            "membership_redundancy": 2.403755868544601,
+            "overlapping_pair_count": 10,
+            "maximum_pairwise_jaccard": 0.7534246575342466,
+            "deployable_without_region_overlap": false
+          }
+        },
+        "10": {
+          "selected_count": 10,
+          "selected_region_ids": [
+            988,
+            891,
+            768,
+            300,
+            1101,
+            537,
+            710,
+            1031,
+            1136,
+            290
+          ],
+          "mean_z0_score": 1.2615171553,
+          "current_mean_individual_region_gain": 163.30679999999998,
+          "future_mean_individual_region_gain": 165.87089999999998,
+          "current_sum_individual_region_gain": 1633.0679999999998,
+          "future_sum_individual_region_gain": 1658.7089999999998,
+          "summed_internal_node_count": 4748,
+          "summed_single_region_shortcut_count": 2786,
+          "overlap": {
+            "membership_count": 5120,
+            "unique_node_count": 2066,
+            "duplicate_membership_count": 3054,
+            "membership_redundancy": 2.478218780251694,
+            "overlapping_pair_count": 36,
+            "maximum_pairwise_jaccard": 0.7624784853700516,
+            "deployable_without_region_overlap": false
+          }
+        },
+        "18": {
+          "selected_count": 18,
+          "selected_region_ids": [
+            988,
+            891,
+            768,
+            300,
+            1101,
+            537,
+            710,
+            1031,
+            1136,
+            290,
+            709,
+            557,
+            848,
+            1119,
+            652,
+            371,
+            797,
+            544
+          ],
+          "mean_z0_score": 1.1478988561666668,
+          "current_mean_individual_region_gain": 165.57869444444444,
+          "future_mean_individual_region_gain": 169.34963888888888,
+          "current_sum_individual_region_gain": 2980.4165,
+          "future_sum_individual_region_gain": 3048.2934999999998,
+          "summed_internal_node_count": 8564,
+          "summed_single_region_shortcut_count": 5199,
+          "overlap": {
+            "membership_count": 9216,
+            "unique_node_count": 3125,
+            "duplicate_membership_count": 6091,
+            "membership_redundancy": 2.94912,
+            "overlapping_pair_count": 90,
+            "maximum_pairwise_jaccard": 0.7624784853700516,
+            "deployable_without_region_overlap": false
+          }
+        }
+      },
+      "jaccard_penalty": {
+        "5": {
+          "selected_count": 5,
+          "selected_region_ids": [
+            988,
+            1031,
+            797,
+            544,
+            388
+          ],
+          "mean_z0_score": 1.016049802,
+          "current_mean_individual_region_gain": 157.73729999999998,
+          "future_mean_individual_region_gain": 161.364,
+          "current_sum_individual_region_gain": 788.6864999999999,
+          "future_sum_individual_region_gain": 806.82,
+          "summed_internal_node_count": 2383,
+          "summed_single_region_shortcut_count": 1360,
+          "overlap": {
+            "membership_count": 2560,
+            "unique_node_count": 2556,
+            "duplicate_membership_count": 4,
+            "membership_redundancy": 1.001564945226917,
+            "overlapping_pair_count": 3,
+            "maximum_pairwise_jaccard": 0.0019569471624266144,
+            "deployable_without_region_overlap": false
+          }
+        },
+        "10": {
+          "selected_count": 10,
+          "selected_region_ids": [
+            988,
+            1031,
+            797,
+            544,
+            388,
+            508,
+            402,
+            888,
+            1134,
+            903
+          ],
+          "mean_z0_score": 0.7998234478999999,
+          "current_mean_individual_region_gain": 140.0848,
+          "future_mean_individual_region_gain": 141.43705,
+          "current_sum_individual_region_gain": 1400.848,
+          "future_sum_individual_region_gain": 1414.3705,
+          "summed_internal_node_count": 4761,
+          "summed_single_region_shortcut_count": 3492,
+          "overlap": {
+            "membership_count": 5120,
+            "unique_node_count": 5115,
+            "duplicate_membership_count": 5,
+            "membership_redundancy": 1.0009775171065494,
+            "overlapping_pair_count": 4,
+            "maximum_pairwise_jaccard": 0.0019569471624266144,
+            "deployable_without_region_overlap": false
+          }
+        },
+        "18": {
+          "selected_count": 18,
+          "selected_region_ids": [
+            988,
+            1031,
+            797,
+            544,
+            388,
+            508,
+            402,
+            888,
+            1134,
+            903,
+            518,
+            705,
+            847,
+            911,
+            256,
+            619,
+            158,
+            192
+          ],
+          "mean_z0_score": 0.6311553483888889,
+          "current_mean_individual_region_gain": 121.75175,
+          "future_mean_individual_region_gain": 121.65761111111111,
+          "current_sum_individual_region_gain": 2191.5315,
+          "future_sum_individual_region_gain": 2189.837,
+          "summed_internal_node_count": 8586,
+          "summed_single_region_shortcut_count": 6740,
+          "overlap": {
+            "membership_count": 9216,
+            "unique_node_count": 9063,
+            "duplicate_membership_count": 153,
+            "membership_redundancy": 1.0168818272095332,
+            "overlapping_pair_count": 11,
+            "maximum_pairwise_jaccard": 0.07337526205450734,
+            "deployable_without_region_overlap": false
+          }
+        }
+      },
+      "marginal_coverage": {
+        "5": {
+          "selected_count": 5,
+          "selected_region_ids": [
+            988,
+            1031,
+            544,
+            797,
+            388
+          ],
+          "mean_z0_score": 1.016049802,
+          "current_mean_individual_region_gain": 157.73729999999998,
+          "future_mean_individual_region_gain": 161.364,
+          "current_sum_individual_region_gain": 788.6864999999999,
+          "future_sum_individual_region_gain": 806.82,
+          "summed_internal_node_count": 2383,
+          "summed_single_region_shortcut_count": 1360,
+          "overlap": {
+            "membership_count": 2560,
+            "unique_node_count": 2556,
+            "duplicate_membership_count": 4,
+            "membership_redundancy": 1.001564945226917,
+            "overlapping_pair_count": 3,
+            "maximum_pairwise_jaccard": 0.0019569471624266144,
+            "deployable_without_region_overlap": false
+          }
+        },
+        "10": {
+          "selected_count": 10,
+          "selected_region_ids": [
+            988,
+            1031,
+            544,
+            797,
+            388,
+            508,
+            402,
+            888,
+            1134,
+            903
+          ],
+          "mean_z0_score": 0.7998234478999999,
+          "current_mean_individual_region_gain": 140.0848,
+          "future_mean_individual_region_gain": 141.43705,
+          "current_sum_individual_region_gain": 1400.848,
+          "future_sum_individual_region_gain": 1414.3705,
+          "summed_internal_node_count": 4761,
+          "summed_single_region_shortcut_count": 3492,
+          "overlap": {
+            "membership_count": 5120,
+            "unique_node_count": 5115,
+            "duplicate_membership_count": 5,
+            "membership_redundancy": 1.0009775171065494,
+            "overlapping_pair_count": 4,
+            "maximum_pairwise_jaccard": 0.0019569471624266144,
+            "deployable_without_region_overlap": false
+          }
+        },
+        "18": {
+          "selected_count": 18,
+          "selected_region_ids": [
+            988,
+            1031,
+            544,
+            797,
+            388,
+            508,
+            402,
+            888,
+            1134,
+            903,
+            847,
+            695,
+            911,
+            256,
+            158,
+            192,
+            518,
+            156
+          ],
+          "mean_z0_score": 0.6044573336111112,
+          "current_mean_individual_region_gain": 118.24772222222224,
+          "future_mean_individual_region_gain": 117.59272222222222,
+          "current_sum_individual_region_gain": 2128.4590000000003,
+          "future_sum_individual_region_gain": 2116.669,
+          "summed_internal_node_count": 8595,
+          "summed_single_region_shortcut_count": 6712,
+          "overlap": {
+            "membership_count": 9216,
+            "unique_node_count": 9159,
+            "duplicate_membership_count": 57,
+            "membership_redundancy": 1.0062233868326236,
+            "overlapping_pair_count": 8,
+            "maximum_pairwise_jaccard": 0.021956087824351298,
+            "deployable_without_region_overlap": false
+          }
+        }
+      },
+      "hard_disjoint": {
+        "5": {
+          "selected_count": 5,
+          "selected_region_ids": [
+            988,
+            652,
+            388,
+            508,
+            402
+          ],
+          "mean_z0_score": 0.895637238,
+          "current_mean_individual_region_gain": 153.034,
+          "future_mean_individual_region_gain": 154.45610000000002,
+          "current_sum_individual_region_gain": 765.17,
+          "future_sum_individual_region_gain": 772.2805000000001,
+          "summed_internal_node_count": 2362,
+          "summed_single_region_shortcut_count": 1460,
+          "overlap": {
+            "membership_count": 2560,
+            "unique_node_count": 2560,
+            "duplicate_membership_count": 0,
+            "membership_redundancy": 1.0,
+            "overlapping_pair_count": 0,
+            "maximum_pairwise_jaccard": 0.0,
+            "deployable_without_region_overlap": true
+          }
+        },
+        "10": {
+          "selected_count": 10,
+          "selected_region_ids": [
+            988,
+            652,
+            388,
+            508,
+            402,
+            888,
+            903,
+            1103,
+            847,
+            756
+          ],
+          "mean_z0_score": 0.6704431116999999,
+          "current_mean_individual_region_gain": 130.16825,
+          "future_mean_individual_region_gain": 129.85240000000002,
+          "current_sum_individual_region_gain": 1301.6825000000001,
+          "future_sum_individual_region_gain": 1298.5240000000001,
+          "summed_internal_node_count": 4749,
+          "summed_single_region_shortcut_count": 3772,
+          "overlap": {
+            "membership_count": 5120,
+            "unique_node_count": 5120,
+            "duplicate_membership_count": 0,
+            "membership_redundancy": 1.0,
+            "overlapping_pair_count": 0,
+            "maximum_pairwise_jaccard": 0.0,
+            "deployable_without_region_overlap": true
+          }
+        },
+        "18": {
+          "selected_count": 18,
+          "selected_region_ids": [
+            988,
+            652,
+            388,
+            508,
+            402,
+            888,
+            903,
+            1103,
+            847,
+            756,
+            558,
+            158,
+            192,
+            156,
+            159,
+            985,
+            968,
+            16
+          ],
+          "mean_z0_score": 0.4834590711666666,
+          "current_mean_individual_region_gain": 102.13330555555555,
+          "future_mean_individual_region_gain": 100.4936388888889,
+          "current_sum_individual_region_gain": 1838.3995,
+          "future_sum_individual_region_gain": 1808.8855,
+          "summed_internal_node_count": 8558,
+          "summed_single_region_shortcut_count": 7929,
+          "overlap": {
+            "membership_count": 9216,
+            "unique_node_count": 9216,
+            "duplicate_membership_count": 0,
+            "membership_redundancy": 1.0,
+            "overlapping_pair_count": 0,
+            "maximum_pairwise_jaccard": 0.0,
+            "deployable_without_region_overlap": true
+          }
+        }
+      }
+    },
+    "validation": {
+      "direct_topk": {
+        "5": {
+          "selected_count": 5,
+          "selected_region_ids": [
+            1003,
+            424,
+            599,
+            217,
+            917
+          ],
+          "mean_z0_score": 1.1608326197999999,
+          "current_mean_individual_region_gain": 157.50150000000002,
+          "future_mean_individual_region_gain": 161.87609999999998,
+          "current_sum_individual_region_gain": 787.5075,
+          "future_sum_individual_region_gain": 809.3804999999999,
+          "summed_internal_node_count": 2387,
+          "summed_single_region_shortcut_count": 1268,
+          "overlap": {
+            "membership_count": 2560,
+            "unique_node_count": 1993,
+            "duplicate_membership_count": 567,
+            "membership_redundancy": 1.2844957350727546,
+            "overlapping_pair_count": 8,
+            "maximum_pairwise_jaccard": 0.3527080581241744,
+            "deployable_without_region_overlap": false
+          }
+        },
+        "10": {
+          "selected_count": 10,
+          "selected_region_ids": [
+            1003,
+            424,
+            599,
+            217,
+            917,
+            669,
+            1093,
+            973,
+            209,
+            696
+          ],
+          "mean_z0_score": 0.9546890677000001,
+          "current_mean_individual_region_gain": 151.96535,
+          "future_mean_individual_region_gain": 156.74020000000002,
+          "current_sum_individual_region_gain": 1519.6535000000001,
+          "future_sum_individual_region_gain": 1567.402,
+          "summed_internal_node_count": 4740,
+          "summed_single_region_shortcut_count": 3604,
+          "overlap": {
+            "membership_count": 5120,
+            "unique_node_count": 3606,
+            "duplicate_membership_count": 1514,
+            "membership_redundancy": 1.4198557958957294,
+            "overlapping_pair_count": 19,
+            "maximum_pairwise_jaccard": 0.38191632928475033,
+            "deployable_without_region_overlap": false
+          }
+        },
+        "18": {
+          "selected_count": 18,
+          "selected_region_ids": [
+            1003,
+            424,
+            599,
+            217,
+            917,
+            669,
+            1093,
+            973,
+            209,
+            696,
+            229,
+            165,
+            84,
+            253,
+            254,
+            338,
+            1177,
+            1055
+          ],
+          "mean_z0_score": 0.7540385707222221,
+          "current_mean_individual_region_gain": 139.10391666666666,
+          "future_mean_individual_region_gain": 139.83977777777778,
+          "current_sum_individual_region_gain": 2503.8705,
+          "future_sum_individual_region_gain": 2517.116,
+          "summed_internal_node_count": 8511,
+          "summed_single_region_shortcut_count": 7131,
+          "overlap": {
+            "membership_count": 9216,
+            "unique_node_count": 5770,
+            "duplicate_membership_count": 3446,
+            "membership_redundancy": 1.5972270363951473,
+            "overlapping_pair_count": 34,
+            "maximum_pairwise_jaccard": 0.735593220338983,
+            "deployable_without_region_overlap": false
+          }
+        }
+      },
+      "jaccard_penalty": {
+        "5": {
+          "selected_count": 5,
+          "selected_region_ids": [
+            1003,
+            669,
+            599,
+            696,
+            253
+          ],
+          "mean_z0_score": 0.8924498796,
+          "current_mean_individual_region_gain": 146.995,
+          "future_mean_individual_region_gain": 149.4189,
+          "current_sum_individual_region_gain": 734.975,
+          "future_sum_individual_region_gain": 747.0945,
+          "summed_internal_node_count": 2365,
+          "summed_single_region_shortcut_count": 1834,
+          "overlap": {
+            "membership_count": 2560,
+            "unique_node_count": 2510,
+            "duplicate_membership_count": 50,
+            "membership_redundancy": 1.0199203187250996,
+            "overlapping_pair_count": 3,
+            "maximum_pairwise_jaccard": 0.037487335359675786,
+            "deployable_without_region_overlap": false
+          }
+        },
+        "10": {
+          "selected_count": 10,
+          "selected_region_ids": [
+            1003,
+            669,
+            599,
+            696,
+            253,
+            254,
+            917,
+            424,
+            151,
+            632
+          ],
+          "mean_z0_score": 0.7700044601999999,
+          "current_mean_individual_region_gain": 130.19785,
+          "future_mean_individual_region_gain": 130.5326,
+          "current_sum_individual_region_gain": 1301.9785,
+          "future_sum_individual_region_gain": 1305.326,
+          "summed_internal_node_count": 4738,
+          "summed_single_region_shortcut_count": 3909,
+          "overlap": {
+            "membership_count": 5120,
+            "unique_node_count": 4896,
+            "duplicate_membership_count": 224,
+            "membership_redundancy": 1.0457516339869282,
+            "overlapping_pair_count": 7,
+            "maximum_pairwise_jaccard": 0.08016877637130802,
+            "deployable_without_region_overlap": false
+          }
+        },
+        "18": {
+          "selected_count": 18,
+          "selected_region_ids": [
+            1003,
+            669,
+            599,
+            696,
+            253,
+            254,
+            917,
+            424,
+            151,
+            632,
+            232,
+            287,
+            459,
+            69,
+            522,
+            310,
+            365,
+            339
+          ],
+          "mean_z0_score": 0.5213746031111112,
+          "current_mean_individual_region_gain": 104.91113888888887,
+          "future_mean_individual_region_gain": 104.76538888888889,
+          "current_sum_individual_region_gain": 1888.4004999999997,
+          "future_sum_individual_region_gain": 1885.777,
+          "summed_internal_node_count": 8576,
+          "summed_single_region_shortcut_count": 7089,
+          "overlap": {
+            "membership_count": 9216,
+            "unique_node_count": 8907,
+            "duplicate_membership_count": 309,
+            "membership_redundancy": 1.0346918154260694,
+            "overlapping_pair_count": 9,
+            "maximum_pairwise_jaccard": 0.08016877637130802,
+            "deployable_without_region_overlap": false
+          }
+        }
+      },
+      "marginal_coverage": {
+        "5": {
+          "selected_count": 5,
+          "selected_region_ids": [
+            1003,
+            209,
+            696,
+            254,
+            253
+          ],
+          "mean_z0_score": 0.7218253732,
+          "current_mean_individual_region_gain": 139.3558,
+          "future_mean_individual_region_gain": 137.97660000000002,
+          "current_sum_individual_region_gain": 696.779,
+          "future_sum_individual_region_gain": 689.883,
+          "summed_internal_node_count": 2342,
+          "summed_single_region_shortcut_count": 2037,
+          "overlap": {
+            "membership_count": 2560,
+            "unique_node_count": 2557,
+            "duplicate_membership_count": 3,
+            "membership_redundancy": 1.0011732499022292,
+            "overlapping_pair_count": 1,
+            "maximum_pairwise_jaccard": 0.002938295788442703,
+            "deployable_without_region_overlap": false
+          }
+        },
+        "10": {
+          "selected_count": 10,
+          "selected_region_ids": [
+            1003,
+            209,
+            696,
+            254,
+            253,
+            599,
+            151,
+            632,
+            232,
+            287
+          ],
+          "mean_z0_score": 0.5898945361000001,
+          "current_mean_individual_region_gain": 111.80720000000001,
+          "future_mean_individual_region_gain": 111.01860000000002,
+          "current_sum_individual_region_gain": 1118.0720000000001,
+          "future_sum_individual_region_gain": 1110.1860000000001,
+          "summed_internal_node_count": 4750,
+          "summed_single_region_shortcut_count": 3630,
+          "overlap": {
+            "membership_count": 5120,
+            "unique_node_count": 5080,
+            "duplicate_membership_count": 40,
+            "membership_redundancy": 1.0078740157480315,
+            "overlapping_pair_count": 2,
+            "maximum_pairwise_jaccard": 0.037487335359675786,
+            "deployable_without_region_overlap": false
+          }
+        },
+        "18": {
+          "selected_count": 18,
+          "selected_region_ids": [
+            1003,
+            209,
+            696,
+            254,
+            253,
+            599,
+            151,
+            632,
+            232,
+            287,
+            310,
+            917,
+            459,
+            522,
+            69,
+            365,
+            339,
+            904
+          ],
+          "mean_z0_score": 0.45661040894444443,
+          "current_mean_individual_region_gain": 97.97294444444444,
+          "future_mean_individual_region_gain": 97.41825,
+          "current_sum_individual_region_gain": 1763.513,
+          "future_sum_individual_region_gain": 1753.5285000000001,
+          "summed_internal_node_count": 8570,
+          "summed_single_region_shortcut_count": 7097,
+          "overlap": {
+            "membership_count": 9216,
+            "unique_node_count": 9087,
+            "duplicate_membership_count": 129,
+            "membership_redundancy": 1.0141961043248597,
+            "overlapping_pair_count": 5,
+            "maximum_pairwise_jaccard": 0.06334371754932502,
+            "deployable_without_region_overlap": false
+          }
+        }
+      },
+      "hard_disjoint": {
+        "5": {
+          "selected_count": 5,
+          "selected_region_ids": [
+            1003,
+            209,
+            696,
+            254,
+            1055
+          ],
+          "mean_z0_score": 0.7004713178,
+          "current_mean_individual_region_gain": 135.1062,
+          "future_mean_individual_region_gain": 134.00870000000003,
+          "current_sum_individual_region_gain": 675.531,
+          "future_sum_individual_region_gain": 670.0435000000001,
+          "summed_internal_node_count": 2348,
+          "summed_single_region_shortcut_count": 2191,
+          "overlap": {
+            "membership_count": 2560,
+            "unique_node_count": 2560,
+            "duplicate_membership_count": 0,
+            "membership_redundancy": 1.0,
+            "overlapping_pair_count": 0,
+            "maximum_pairwise_jaccard": 0.0,
+            "deployable_without_region_overlap": true
+          }
+        },
+        "10": {
+          "selected_count": 10,
+          "selected_region_ids": [
+            1003,
+            209,
+            696,
+            254,
+            1055,
+            151,
+            632,
+            232,
+            287,
+            459
+          ],
+          "mean_z0_score": 0.4768018692,
+          "current_mean_individual_region_gain": 101.25330000000001,
+          "future_mean_individual_region_gain": 99.40895,
+          "current_sum_individual_region_gain": 1012.5330000000001,
+          "future_sum_individual_region_gain": 994.0895,
+          "summed_internal_node_count": 4755,
+          "summed_single_region_shortcut_count": 3823,
+          "overlap": {
+            "membership_count": 5120,
+            "unique_node_count": 5120,
+            "duplicate_membership_count": 0,
+            "membership_redundancy": 1.0,
+            "overlapping_pair_count": 0,
+            "maximum_pairwise_jaccard": 0.0,
+            "deployable_without_region_overlap": true
+          }
+        },
+        "18": {
+          "selected_count": 18,
+          "selected_region_ids": [
+            1003,
+            209,
+            696,
+            254,
+            1055,
+            151,
+            632,
+            232,
+            287,
+            459,
+            522,
+            365,
+            339,
+            904,
+            948,
+            564,
+            325,
+            747
+          ],
+          "mean_z0_score": 0.32874299133333335,
+          "current_mean_individual_region_gain": 81.80783333333332,
+          "future_mean_individual_region_gain": 80.01438888888889,
+          "current_sum_individual_region_gain": 1472.5409999999997,
+          "future_sum_individual_region_gain": 1440.259,
+          "summed_internal_node_count": 8562,
+          "summed_single_region_shortcut_count": 7341,
+          "overlap": {
+            "membership_count": 9216,
+            "unique_node_count": 9216,
+            "duplicate_membership_count": 0,
+            "membership_redundancy": 1.0,
+            "overlapping_pair_count": 0,
+            "maximum_pairwise_jaccard": 0.0,
+            "deployable_without_region_overlap": true
+          }
+        }
+      }
+    },
+    "holdout": {
+      "direct_topk": {
+        "5": {
+          "selected_count": 5,
+          "selected_region_ids": [
+            779,
+            979,
+            529,
+            26,
+            920
+          ],
+          "mean_z0_score": 1.1377162458,
+          "current_mean_individual_region_gain": 166.3059,
+          "future_mean_individual_region_gain": 169.75260000000003,
+          "current_sum_individual_region_gain": 831.5295000000001,
+          "future_sum_individual_region_gain": 848.7630000000001,
+          "summed_internal_node_count": 2383,
+          "summed_single_region_shortcut_count": 1423,
+          "overlap": {
+            "membership_count": 2560,
+            "unique_node_count": 1704,
+            "duplicate_membership_count": 856,
+            "membership_redundancy": 1.5023474178403755,
+            "overlapping_pair_count": 8,
+            "maximum_pairwise_jaccard": 0.673202614379085,
+            "deployable_without_region_overlap": false
+          }
+        },
+        "10": {
+          "selected_count": 10,
+          "selected_region_ids": [
+            779,
+            979,
+            529,
+            26,
+            920,
+            583,
+            635,
+            356,
+            77,
+            745
+          ],
+          "mean_z0_score": 0.9558954179000001,
+          "current_mean_individual_region_gain": 157.35815,
+          "future_mean_individual_region_gain": 160.45380000000003,
+          "current_sum_individual_region_gain": 1573.5815,
+          "future_sum_individual_region_gain": 1604.5380000000002,
+          "summed_internal_node_count": 4719,
+          "summed_single_region_shortcut_count": 3934,
+          "overlap": {
+            "membership_count": 5120,
+            "unique_node_count": 3241,
+            "duplicate_membership_count": 1879,
+            "membership_redundancy": 1.5797593335390312,
+            "overlapping_pair_count": 20,
+            "maximum_pairwise_jaccard": 0.673202614379085,
+            "deployable_without_region_overlap": false
+          }
+        },
+        "18": {
+          "selected_count": 18,
+          "selected_region_ids": [
+            779,
+            979,
+            529,
+            26,
+            920,
+            583,
+            635,
+            356,
+            77,
+            745,
+            928,
+            143,
+            1159,
+            201,
+            601,
+            355,
+            646,
+            82
+          ],
+          "mean_z0_score": 0.7407155433888888,
+          "current_mean_individual_region_gain": 141.98024999999998,
+          "future_mean_individual_region_gain": 143.4596111111111,
+          "current_sum_individual_region_gain": 2555.6445,
+          "future_sum_individual_region_gain": 2582.2729999999997,
+          "summed_internal_node_count": 8522,
+          "summed_single_region_shortcut_count": 7173,
+          "overlap": {
+            "membership_count": 9216,
+            "unique_node_count": 5181,
+            "duplicate_membership_count": 4035,
+            "membership_redundancy": 1.7788071800810654,
+            "overlapping_pair_count": 39,
+            "maximum_pairwise_jaccard": 0.7038269550748752,
+            "deployable_without_region_overlap": false
+          }
+        }
+      },
+      "jaccard_penalty": {
+        "5": {
+          "selected_count": 5,
+          "selected_region_ids": [
+            779,
+            583,
+            745,
+            529,
+            1159
+          ],
+          "mean_z0_score": 0.8995363592000001,
+          "current_mean_individual_region_gain": 152.9312,
+          "future_mean_individual_region_gain": 153.8569,
+          "current_sum_individual_region_gain": 764.656,
+          "future_sum_individual_region_gain": 769.2845,
+          "summed_internal_node_count": 2369,
+          "summed_single_region_shortcut_count": 1755,
+          "overlap": {
+            "membership_count": 2560,
+            "unique_node_count": 2518,
+            "duplicate_membership_count": 42,
+            "membership_redundancy": 1.016679904686259,
+            "overlapping_pair_count": 1,
+            "maximum_pairwise_jaccard": 0.04276985743380855,
+            "deployable_without_region_overlap": false
+          }
+        },
+        "10": {
+          "selected_count": 10,
+          "selected_region_ids": [
+            779,
+            583,
+            745,
+            529,
+            1159,
+            201,
+            355,
+            896,
+            656,
+            26
+          ],
+          "mean_z0_score": 0.7068126381000001,
+          "current_mean_individual_region_gain": 135.20884999999998,
+          "future_mean_individual_region_gain": 134.56695,
+          "current_sum_individual_region_gain": 1352.0884999999998,
+          "future_sum_individual_region_gain": 1345.6695,
+          "summed_internal_node_count": 4730,
+          "summed_single_region_shortcut_count": 3720,
+          "overlap": {
+            "membership_count": 5120,
+            "unique_node_count": 4875,
+            "duplicate_membership_count": 245,
+            "membership_redundancy": 1.0502564102564103,
+            "overlapping_pair_count": 7,
+            "maximum_pairwise_jaccard": 0.10822510822510822,
+            "deployable_without_region_overlap": false
+          }
+        },
+        "18": {
+          "selected_count": 18,
+          "selected_region_ids": [
+            779,
+            583,
+            745,
+            529,
+            1159,
+            201,
+            355,
+            896,
+            656,
+            26,
+            1131,
+            131,
+            703,
+            77,
+            784,
+            327,
+            1073,
+            125
+          ],
+          "mean_z0_score": 0.5275851744444444,
+          "current_mean_individual_region_gain": 109.1260277777778,
+          "future_mean_individual_region_gain": 107.29800000000002,
+          "current_sum_individual_region_gain": 1964.2685000000004,
+          "future_sum_individual_region_gain": 1931.3640000000003,
+          "summed_internal_node_count": 8564,
+          "summed_single_region_shortcut_count": 7188,
+          "overlap": {
+            "membership_count": 9216,
+            "unique_node_count": 8741,
+            "duplicate_membership_count": 475,
+            "membership_redundancy": 1.054341608511612,
+            "overlapping_pair_count": 12,
+            "maximum_pairwise_jaccard": 0.10822510822510822,
+            "deployable_without_region_overlap": false
+          }
+        }
+      },
+      "marginal_coverage": {
+        "5": {
+          "selected_count": 5,
+          "selected_region_ids": [
+            779,
+            583,
+            745,
+            1159,
+            355
+          ],
+          "mean_z0_score": 0.7559389114,
+          "current_mean_individual_region_gain": 143.5837,
+          "future_mean_individual_region_gain": 143.25400000000002,
+          "current_sum_individual_region_gain": 717.9185,
+          "future_sum_individual_region_gain": 716.2700000000001,
+          "summed_internal_node_count": 2369,
+          "summed_single_region_shortcut_count": 1915,
+          "overlap": {
+            "membership_count": 2560,
+            "unique_node_count": 2560,
+            "duplicate_membership_count": 0,
+            "membership_redundancy": 1.0,
+            "overlapping_pair_count": 0,
+            "maximum_pairwise_jaccard": 0.0,
+            "deployable_without_region_overlap": true
+          }
+        },
+        "10": {
+          "selected_count": 10,
+          "selected_region_ids": [
+            779,
+            583,
+            745,
+            1159,
+            355,
+            201,
+            529,
+            896,
+            656,
+            1131
+          ],
+          "mean_z0_score": 0.6304490507,
+          "current_mean_individual_region_gain": 123.5501,
+          "future_mean_individual_region_gain": 122.3712,
+          "current_sum_individual_region_gain": 1235.501,
+          "future_sum_individual_region_gain": 1223.712,
+          "summed_internal_node_count": 4735,
+          "summed_single_region_shortcut_count": 3940,
+          "overlap": {
+            "membership_count": 5120,
+            "unique_node_count": 5060,
+            "duplicate_membership_count": 60,
+            "membership_redundancy": 1.0118577075098814,
+            "overlapping_pair_count": 4,
+            "maximum_pairwise_jaccard": 0.04276985743380855,
+            "deployable_without_region_overlap": false
+          }
+        },
+        "18": {
+          "selected_count": 18,
+          "selected_region_ids": [
+            779,
+            583,
+            745,
+            1159,
+            355,
+            201,
+            529,
+            896,
+            656,
+            1131,
+            131,
+            784,
+            327,
+            1073,
+            125,
+            850,
+            594,
+            744
+          ],
+          "mean_z0_score": 0.4516957343333334,
+          "current_mean_individual_region_gain": 98.80455555555555,
+          "future_mean_individual_region_gain": 96.89219444444444,
+          "current_sum_individual_region_gain": 1778.482,
+          "future_sum_individual_region_gain": 1744.0595,
+          "summed_internal_node_count": 8606,
+          "summed_single_region_shortcut_count": 6356,
+          "overlap": {
+            "membership_count": 9216,
+            "unique_node_count": 9120,
+            "duplicate_membership_count": 96,
+            "membership_redundancy": 1.0105263157894737,
+            "overlapping_pair_count": 6,
+            "maximum_pairwise_jaccard": 0.04276985743380855,
+            "deployable_without_region_overlap": false
+          }
+        }
+      },
+      "hard_disjoint": {
+        "5": {
+          "selected_count": 5,
+          "selected_region_ids": [
+            779,
+            583,
+            745,
+            1159,
+            355
+          ],
+          "mean_z0_score": 0.7559389114,
+          "current_mean_individual_region_gain": 143.5837,
+          "future_mean_individual_region_gain": 143.25400000000002,
+          "current_sum_individual_region_gain": 717.9185,
+          "future_sum_individual_region_gain": 716.2700000000001,
+          "summed_internal_node_count": 2369,
+          "summed_single_region_shortcut_count": 1915,
+          "overlap": {
+            "membership_count": 2560,
+            "unique_node_count": 2560,
+            "duplicate_membership_count": 0,
+            "membership_redundancy": 1.0,
+            "overlapping_pair_count": 0,
+            "maximum_pairwise_jaccard": 0.0,
+            "deployable_without_region_overlap": true
+          }
+        },
+        "10": {
+          "selected_count": 10,
+          "selected_region_ids": [
+            779,
+            583,
+            745,
+            1159,
+            355,
+            646,
+            703,
+            131,
+            784,
+            1073
+          ],
+          "mean_z0_score": 0.5193998276,
+          "current_mean_individual_region_gain": 111.78254999999999,
+          "future_mean_individual_region_gain": 110.5789,
+          "current_sum_individual_region_gain": 1117.8255,
+          "future_sum_individual_region_gain": 1105.789,
+          "summed_internal_node_count": 4778,
+          "summed_single_region_shortcut_count": 3629,
+          "overlap": {
+            "membership_count": 5120,
+            "unique_node_count": 5120,
+            "duplicate_membership_count": 0,
+            "membership_redundancy": 1.0,
+            "overlapping_pair_count": 0,
+            "maximum_pairwise_jaccard": 0.0,
+            "deployable_without_region_overlap": true
+          }
+        },
+        "18": {
+          "selected_count": 18,
+          "selected_region_ids": [
+            779,
+            583,
+            745,
+            1159,
+            355,
+            646,
+            703,
+            131,
+            784,
+            1073,
+            125,
+            850,
+            744,
+            814,
+            1035,
+            191,
+            735,
+            352
+          ],
+          "mean_z0_score": 0.3510372778333334,
+          "current_mean_individual_region_gain": 88.73769444444444,
+          "future_mean_individual_region_gain": 87.51433333333335,
+          "current_sum_individual_region_gain": 1597.2785,
+          "future_sum_individual_region_gain": 1575.2580000000003,
+          "summed_internal_node_count": 8644,
+          "summed_single_region_shortcut_count": 5438,
+          "overlap": {
+            "membership_count": 9216,
+            "unique_node_count": 9216,
+            "duplicate_membership_count": 0,
+            "membership_redundancy": 1.0,
+            "overlapping_pair_count": 0,
+            "maximum_pairwise_jaccard": 0.0,
+            "deployable_without_region_overlap": true
+          }
+        }
+      }
+    }
+  }
+}
