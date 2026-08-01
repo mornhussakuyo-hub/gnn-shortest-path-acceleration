@@ -27,8 +27,10 @@ class G3FullPredictionsTest(unittest.TestCase):
                             f"{prediction[index]:.9f}",
                         )
                     )
-            delta = _validate_partial_predictions(path, region_ids, prediction)
-            self.assertLess(delta, 1.0e-8)
+            replay = _validate_partial_predictions(path, region_ids, prediction)
+            self.assertLess(replay["maximum_absolute_delta"], 1.0e-8)
+            self.assertEqual(replay["spearman"], 1.0)
+            self.assertTrue(replay["train_validation_top18_sets_equal"])
 
     def test_partial_replay_rejects_changed_score(self) -> None:
         region_ids = np.arange(1200)

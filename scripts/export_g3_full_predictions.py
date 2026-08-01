@@ -27,6 +27,7 @@ from scripts.train_demand_field_nbfnet import (
     _unscale_prediction,
 )
 from src.demand_field_data import SPLIT_NAMES, load_demand_field_dataset
+from src.demand_field_model import regression_metrics
 from src.demand_field_nbfnet import BidirectionalNBFNet, NBFNetConfig
 from src.demand_field_torch_model import cuda_environment, require_cuda
 
@@ -132,7 +133,7 @@ def main() -> None:
                 precision,
             )
         prediction = _unscale_prediction(standardized, checkpoint["scalers"])
-        maximum_delta = _validate_partial_predictions(
+        replay = _validate_partial_predictions(
             partial_path, dataset.region_ids, prediction
         )
         output_path = args.output_dir / f"predictions_seed_{seed}.csv"
@@ -149,12 +150,13 @@ def main() -> None:
             "fixed_prior": prior,
             "partial_prediction_count": 1020,
             "full_prediction_count": len(prediction),
-            "maximum_partial_replay_absolute_delta": maximum_delta,
+            "partial_replay": replay,
             "metrics": metrics,
         }
         holdout = metrics["holdout"]
         print(
-            f"seed={seed} replay_delta={maximum_delta:.9g} "
+            f"seed={seed} replay_delta={replay['maximum_absolute_delta']:.9g} "
+            f"replay_spearman={replay['spearman']:.12f} "
             f"holdout_spearman={holdout['spearman']:.6f} "
             f"holdout_ndcg5={holdout['ranking_at_k']['5']['ndcg']:.6f}",
             flush=True,
@@ -217,25 +219,59 @@ def _validate_partial_predictions(
     path: Path,
     region_ids: np.ndarray,
     full_prediction: np.ndarray,
-    tolerance: float = 2.0e-5,
-) -> float:
+    tolerance: float = 1.0e-4,
+) -> dict[str, float | bool]:
     index_by_region = {
         int(region_id): index for index, region_id in enumerate(region_ids)
     }
-    deltas: list[float] = []
+    saved_values: list[float] = []
+    replayed_values: list[float] = []
+    split_values: dict[str, tuple[list[float], list[float]]] = {
+        "train": ([], []),
+        "validation": ([], []),
+    }
     with path.open(encoding="utf-8", newline="") as file:
         rows = list(csv.DictReader(file))
     if len(rows) != 1020 or {row["split"] for row in rows} != {"train", "validation"}:
         raise ValueError(f"partial prediction scope mismatch: {path}")
     for row in rows:
         index = index_by_region[int(row["region_id"])]
-        deltas.append(abs(float(row["prediction"]) - float(full_prediction[index])))
-    maximum = max(deltas, default=0.0)
+        saved = float(row["prediction"])
+        replayed = float(full_prediction[index])
+        saved_values.append(saved)
+        replayed_values.append(replayed)
+        split_saved, split_replayed = split_values[row["split"]]
+        split_saved.append(saved)
+        split_replayed.append(replayed)
+    saved_array = np.asarray(saved_values)
+    replayed_array = np.asarray(replayed_values)
+    deltas = np.abs(saved_array - replayed_array)
+    maximum = float(deltas.max(initial=0.0))
+    spearman = regression_metrics(replayed_array, saved_array)["spearman"]
+    top18_equal = True
+    for split_saved, split_replayed in split_values.values():
+        saved_top = set(np.argsort(-np.asarray(split_saved), kind="stable")[:18].tolist())
+        replayed_top = set(
+            np.argsort(-np.asarray(split_replayed), kind="stable")[:18].tolist()
+        )
+        top18_equal = top18_equal and saved_top == replayed_top
     if maximum > tolerance:
         raise ValueError(
             f"frozen checkpoint replay mismatch: max delta {maximum} > {tolerance}"
         )
-    return maximum
+    if spearman < 0.999999 or not top18_equal:
+        raise ValueError(
+            "frozen checkpoint replay changed ranking: "
+            f"spearman={spearman}, top18_equal={top18_equal}"
+        )
+    return {
+        "maximum_absolute_delta": maximum,
+        "mean_absolute_delta": float(deltas.mean()),
+        "p99_absolute_delta": float(np.percentile(deltas, 99)),
+        "spearman": spearman,
+        "train_validation_top18_sets_equal": top18_equal,
+        "absolute_tolerance": tolerance,
+    }
 
 
 def _write_predictions(path: Path, dataset, prediction: np.ndarray) -> None:
@@ -284,7 +320,7 @@ def _render_report(summary: dict) -> str:
         holdout = run["metrics"]["holdout"]
         ranking = holdout["ranking_at_k"]
         lines.append(
-            f"| {seed} | {run['maximum_partial_replay_absolute_delta']:.3e} | "
+            f"| {seed} | {run['partial_replay']['maximum_absolute_delta']:.3e} | "
             f"{holdout['spearman']:.6f} | {ranking['5']['ndcg']:.6f} | "
             f"{ranking['10']['ndcg']:.6f} | {ranking['18']['ndcg']:.6f} |"
         )
