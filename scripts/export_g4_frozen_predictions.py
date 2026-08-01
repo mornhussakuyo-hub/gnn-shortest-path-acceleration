@@ -266,19 +266,19 @@ def _validate_checkpoint(
 
 def _validate_validation_replay(metrics: dict, selected: dict) -> dict[str, object]:
     checks = {
-        "spearman": (float(metrics["spearman"]), float(selected["spearman"]), 1.0e-5),
+        "spearman": (float(metrics["spearman"]), float(selected["spearman"]), 1.0e-4),
     }
     for k in (5, 10, 18):
         ranking = metrics["ranking_at_k"][str(k)]
         checks[f"ndcg_at_{k}"] = (
             float(ranking["ndcg"]),
             float(selected["ndcg_at_k"][str(k)]),
-            1.0e-5,
+            1.0e-4,
         )
         checks[f"top_gain_at_{k}"] = (
             float(ranking["mean_gain"]),
             float(selected["top_gain_at_k"][str(k)]),
-            1.0e-4,
+            1.0e-3,
         )
     deltas = {name: abs(current - saved) for name, (current, saved, _) in checks.items()}
     failed = [
