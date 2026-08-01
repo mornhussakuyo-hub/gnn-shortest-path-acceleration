@@ -176,8 +176,10 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
 
 - 两台服务器仓库均为 `~/gnn-shortest-path-acceleration`，GPU 均为 RTX 4090 D 24 GB。
 - 一号使用 `.server.env`，二号使用 `.server2.env`；SSH 必须加 `-F /dev/null`。
-- 两机已确认快进到 `9624f11`，`tests.test_demand_field_nbfnet` 各 25 项全部通过；检查时
-  GPU 均为约 15 MiB、0% 利用率，S1 尚未启动。
+- 两机已确认快进到 `ee6b92b`，`tests.test_demand_field_nbfnet` 各 25 项全部通过。
+- S1 两城串行队列已启动：一号 Porto、二号 Chicago，各先跑 1 epoch CUDA 冒烟，成功后自动接
+  seed 42、12 epoch 正式短训；唯一 runner PID 均已补充落盘。启动检查时两机 GPU 均为 100%，
+  显存约 13.6/13.9 GiB，日志无异常。
 - 二号机访问 GitHub 时曾超时，本轮通过本机生成的增量 `git bundle` 快进；没有修改、删除或
   覆盖任何服务器训练产物。
 - 服务器保留 S0 与旧 G4 未跟踪产物，不删除。本机的旧 launcher/PID 和新同步原始日志也
