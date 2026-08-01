@@ -8,6 +8,7 @@ import gzip
 import hashlib
 import json
 import os
+import re
 import statistics
 import sys
 import time
@@ -110,6 +111,18 @@ def parse_args() -> argparse.Namespace:
             "Defaults to the frozen Porto export paths."
         ),
     )
+    parser.add_argument(
+        "--score",
+        action="append",
+        default=[],
+        metavar="NAME=PATH",
+        help="Append a frozen prediction CSV with a prediction column.",
+    )
+    parser.add_argument(
+        "--extra-only",
+        action="store_true",
+        help="Evaluate only methods supplied through --score.",
+    )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--workers", type=int, default=min(40, os.cpu_count() or 1))
     parser.add_argument("--chunk-size", type=int, default=100)
@@ -156,7 +169,7 @@ def main() -> None:
         future_labels=future_labels,
         current_rows=current_rows,
     )
-    identity = _identity(args, dataset, score_paths)
+    identity = _identity(args, dataset, score_paths, tuple(score_sources))
     if args.validate_only:
         print(
             f"validated methods={len(score_sources)} budgets={len(K_VALUES)} "
@@ -172,7 +185,8 @@ def main() -> None:
     summary = _load_or_initialize_summary(summary_path, identity, selections, args)
     _write_selections(args.output_dir / "selections.csv", selections)
 
-    for method in METHOD_NAMES:
+    method_names = tuple(score_sources)
+    for method in method_names:
         for k in K_VALUES:
             key = f"{method}.k{k}"
             missing_windows = [
@@ -232,6 +246,15 @@ def main() -> None:
 
 
 def _load_score_sources(args: argparse.Namespace, dataset) -> tuple[dict[str, np.ndarray], dict[str, Path]]:
+    extra_paths = _parse_score_paths(args.score)
+    if args.extra_only:
+        if not extra_paths:
+            raise ValueError("--extra-only requires at least one --score")
+        scores = {
+            method: _load_column(path, dataset.region_ids, "prediction")
+            for method, path in extra_paths.items()
+        }
+        return scores, extra_paths
     g3_paths = (
         {
             f"g3_seed{seed}": args.g3_predictions_dir
@@ -258,7 +281,26 @@ def _load_score_sources(args: argparse.Namespace, dataset) -> tuple[dict[str, np
         scores[method] = _load_column(path, dataset.region_ids, "prediction")
     if tuple(scores) != METHOD_NAMES:
         raise ValueError("score method order does not match frozen protocol")
+    for method, path in extra_paths.items():
+        if method in scores:
+            raise ValueError(f"duplicate score method: {method}")
+        scores[method] = _load_column(path, dataset.region_ids, "prediction")
+        score_paths[method] = path
     return scores, score_paths
+
+
+def _parse_score_paths(values: list[str]) -> dict[str, Path]:
+    result: dict[str, Path] = {}
+    for value in values:
+        name, separator, path_text = value.partition("=")
+        name = name.strip()
+        path_text = path_text.strip()
+        if not separator or not re.fullmatch(r"[a-z0-9][a-z0-9_]*", name) or not path_text:
+            raise ValueError(f"invalid --score value: {value!r}; expected name=path")
+        if name in result:
+            raise ValueError(f"duplicate --score method: {name}")
+        result[name] = Path(path_text)
+    return result
 
 
 def _history_hotspot_scores(dataset) -> np.ndarray:
@@ -381,6 +423,7 @@ def _identity(
     args: argparse.Namespace,
     dataset,
     score_paths: dict[str, Path],
+    method_names: tuple[str, ...],
 ) -> dict[str, object]:
     paths = {
         "node_csv": args.node_csv,
@@ -399,7 +442,7 @@ def _identity(
         "dataset_sha256": dataset.manifest["dataset_sha256"],
         "candidate_sha256": dataset.manifest["candidate_sha256"],
         "source_sha256": {name: _sha256(path) for name, path in paths.items()},
-        "methods": list(METHOD_NAMES),
+        "methods": list(method_names),
         "k_values": list(K_VALUES),
         "selection": "hard_disjoint",
         "query_windows": ["current_y", "future_f"],
@@ -526,7 +569,7 @@ def _validate_label_rows(
 
 def _write_selections(path: Path, selections: dict) -> None:
     rows = []
-    for method in METHOD_NAMES:
+    for method in selections:
         for k in K_VALUES:
             for rank, region_id in enumerate(
                 selections[method][str(k)]["selected_region_ids"], start=1
@@ -573,7 +616,7 @@ def _write_report(path: Path, summary: dict) -> None:
         "P95 变化 | 展开变化 | 正确率 |",
         "| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
-    for method in METHOD_NAMES:
+    for method in summary["identity"]["methods"]:
         for k in K_VALUES:
             key = f"{method}.k{k}"
             for window in ("current_y", "future_f"):

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 
 import numpy as np
 
@@ -9,6 +10,7 @@ from scripts.evaluate_multi_region_online import (
     METHOD_NAMES,
     _build_selections,
     _history_hotspot_scores,
+    _parse_score_paths,
 )
 
 
@@ -37,6 +39,16 @@ class _SelectionDataset:
 
 
 class MultiRegionOnlineTest(unittest.TestCase):
+    def test_extra_score_paths_are_strict(self) -> None:
+        self.assertEqual(
+            _parse_score_paths(["g4_seed42=first.csv", "g4_seed43=second.csv"]),
+            {"g4_seed42": Path("first.csv"), "g4_seed43": Path("second.csv")},
+        )
+        with self.assertRaises(ValueError):
+            _parse_score_paths(["bad-name=file.csv"])
+        with self.assertRaises(ValueError):
+            _parse_score_paths(["same=a.csv", "same=b.csv"])
+
     def test_history_hotspot_uses_only_four_frozen_demand_features(self) -> None:
         np.testing.assert_array_equal(
             _history_hotspot_scores(_Dataset()), [10.0, 2.0, 8.0, 4.0]
