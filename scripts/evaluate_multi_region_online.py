@@ -131,6 +131,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--workers", type=int, default=min(40, os.cpu_count() or 1))
     parser.add_argument("--chunk-size", type=int, default=100)
+    parser.add_argument(
+        "--k",
+        action="append",
+        type=int,
+        default=None,
+        help="Evaluate only this region budget; repeat for multiple K values.",
+    )
     parser.add_argument("--no-details", action="store_true")
     parser.add_argument("--validate-only", action="store_true")
     return parser.parse_args()
@@ -140,6 +147,7 @@ def main() -> None:
     args = parse_args()
     if args.workers <= 0 or args.chunk_size <= 0:
         raise SystemExit("--workers and --chunk-size must be positive")
+    k_values = _resolve_k_values(args.k)
     dataset = load_demand_field_dataset(args.dataset, args.dataset_manifest)
     graph = load_porto_graph(args.node_csv, args.edge_csv)
     candidate_manifest, regions = load_candidate_manifest(args.candidates)
@@ -173,11 +181,12 @@ def main() -> None:
         current_labels=current_labels,
         future_labels=future_labels,
         current_rows=current_rows,
+        k_values=k_values,
     )
-    identity = _identity(args, dataset, score_paths, tuple(score_sources))
+    identity = _identity(args, dataset, score_paths, tuple(score_sources), k_values)
     if args.validate_only:
         print(
-            f"validated methods={len(score_sources)} budgets={len(K_VALUES)} "
+            f"validated methods={len(score_sources)} budgets={len(k_values)} "
             f"current_queries={len(windows['current_y'])} "
             f"future_queries={len(windows['future_f'])}",
             flush=True,
@@ -188,11 +197,11 @@ def main() -> None:
     details_dir.mkdir(exist_ok=True)
     summary_path = args.output_dir / "summary.json"
     summary = _load_or_initialize_summary(summary_path, identity, selections, args)
-    _write_selections(args.output_dir / "selections.csv", selections)
+    _write_selections(args.output_dir / "selections.csv", selections, k_values)
 
     method_names = tuple(score_sources)
     for method in method_names:
-        for k in K_VALUES:
+        for k in k_values:
             key = f"{method}.k{k}"
             missing_windows = [
                 name for name in windows if name not in summary["runs"].get(key, {})
@@ -311,6 +320,14 @@ def _parse_score_paths(values: list[str]) -> dict[str, Path]:
     return result
 
 
+def _resolve_k_values(values: list[int] | None) -> tuple[int, ...]:
+    if values is None:
+        return K_VALUES
+    if any(value <= 0 for value in values):
+        raise ValueError("K values must be positive")
+    return tuple(dict.fromkeys(values))
+
+
 def _history_hotspot_scores(dataset) -> np.ndarray:
     names = list(dataset.region_feature_names)
     required = (
@@ -333,11 +350,12 @@ def _build_selections(
     current_labels: np.ndarray,
     future_labels: np.ndarray,
     current_rows: dict[int, dict[str, str]],
+    k_values: tuple[int, ...] = K_VALUES,
 ) -> dict[str, dict[str, dict[str, object]]]:
     selections: dict[str, dict[str, dict[str, object]]] = {}
     for method, scores in score_sources.items():
         selections[method] = {}
-        for k in K_VALUES:
+        for k in k_values:
             selected = select_region_indices(
                 scores, dataset.region_nodes, k, "hard_disjoint"
             )
@@ -432,6 +450,7 @@ def _identity(
     dataset,
     score_paths: dict[str, Path],
     method_names: tuple[str, ...],
+    k_values: tuple[int, ...],
 ) -> dict[str, object]:
     paths = {
         "node_csv": args.node_csv,
@@ -451,7 +470,7 @@ def _identity(
         "candidate_sha256": dataset.manifest["candidate_sha256"],
         "source_sha256": {name: _sha256(path) for name, path in paths.items()},
         "methods": list(method_names),
-        "k_values": list(K_VALUES),
+        "k_values": list(k_values),
         "selection": "hard_disjoint",
         "query_windows": ["current_y", "future_f"],
         "endpoint_cache_capacity": 0,
@@ -575,10 +594,12 @@ def _validate_label_rows(
         raise ValueError("invalid label rows: " + "; ".join(errors[:10]))
 
 
-def _write_selections(path: Path, selections: dict) -> None:
+def _write_selections(
+    path: Path, selections: dict, k_values: tuple[int, ...] = K_VALUES
+) -> None:
     rows = []
     for method in selections:
-        for k in K_VALUES:
+        for k in k_values:
             for rank, region_id in enumerate(
                 selections[method][str(k)]["selected_region_ids"], start=1
             ):
@@ -625,7 +646,7 @@ def _write_report(path: Path, summary: dict) -> None:
         "| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for method in summary["identity"]["methods"]:
-        for k in K_VALUES:
+        for k in summary["identity"]["k_values"]:
             key = f"{method}.k{k}"
             for window in ("current_y", "future_f"):
                 run = summary["runs"].get(key, {}).get(window)

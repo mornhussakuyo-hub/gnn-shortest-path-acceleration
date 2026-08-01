@@ -11,6 +11,7 @@ from scripts.evaluate_multi_region_online import (
     _build_selections,
     _history_hotspot_scores,
     _parse_score_paths,
+    _resolve_k_values,
 )
 
 
@@ -53,6 +54,12 @@ class MultiRegionOnlineTest(unittest.TestCase):
         np.testing.assert_array_equal(
             _history_hotspot_scores(_Dataset()), [10.0, 2.0, 8.0, 4.0]
         )
+
+    def test_k_values_can_be_restricted_without_duplicates(self) -> None:
+        self.assertEqual(_resolve_k_values(None), K_VALUES)
+        self.assertEqual(_resolve_k_values([18, 5, 18]), (18, 5))
+        with self.assertRaises(ValueError):
+            _resolve_k_values([0])
 
     def test_every_method_builds_full_hard_disjoint_sets(self) -> None:
         dataset = _SelectionDataset()

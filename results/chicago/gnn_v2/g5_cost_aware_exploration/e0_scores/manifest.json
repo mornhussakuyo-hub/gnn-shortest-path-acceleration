@@ -1,0 +1,64 @@
+{
+  "schema": "aic.gnn_v2.cost_aware_g4_scores.v1",
+  "dataset_sha256": "d566a65a839a44481ff4d09117461782e0f23c8fb29d6aff5312ab27bb66ba6f",
+  "candidate_sha256": "93539f5776f3cdfd8ee1658c0403d4645ffc654325f209172df9fe5582167f46",
+  "formula": "rank_percentile(prediction) - lambda * rank_percentile(shortcut_count)",
+  "selection_labels_used": false,
+  "cost_source_column": "shortcut_count",
+  "cost_weights": [
+    0.1,
+    0.3
+  ],
+  "inputs": {
+    "dataset": "1fc34a0f5505d408a75a8611f56c1620912c8ddc397e39a1065d7ae9e686e72f",
+    "dataset_manifest": "f67fa3290ec254085e7bc6174a496286e4b1c53577beff0f57f831241d88c6ec",
+    "cost_csv": "9ac34b9aff84cdc275862e7e88448ef5365835ca23a83cd3ca7ec58a31fff928",
+    "score_g4_seed42": "2e7743ce7d5cace6aa21167286225da78ad67fad08cedd3978991030a754458a",
+    "score_g4_seed43": "25bb7eae9e24d278d0f6572f1c767ca2d72c3ad198e1a3eee35564defa5c1741",
+    "score_g4_seed44": "69175e7581d4fde87d37a818001c3f7cf1502dc3a4fa3c706749ebeedf95efba"
+  },
+  "outputs": [
+    {
+      "method": "g4_seed42_cost_0p100",
+      "source": "results/chicago/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/chicago_shards/server1/predictions_global_spearman_seed_42.csv",
+      "cost_weight": 0.1,
+      "path": "results/chicago/gnn_v2/g5_cost_aware_exploration/e0_scores/g4_seed42_cost_0p100.csv",
+      "sha256": "d398bad429842f0956d0c16d6c8ce65bfaee39cf5340871dd3a5accbd4d12908"
+    },
+    {
+      "method": "g4_seed42_cost_0p300",
+      "source": "results/chicago/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/chicago_shards/server1/predictions_global_spearman_seed_42.csv",
+      "cost_weight": 0.3,
+      "path": "results/chicago/gnn_v2/g5_cost_aware_exploration/e0_scores/g4_seed42_cost_0p300.csv",
+      "sha256": "f60a2296d71d0249b2ea4b71a645da3bcd79a7484b1c801a34de4b3bc3d33988"
+    },
+    {
+      "method": "g4_seed43_cost_0p100",
+      "source": "results/chicago/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/chicago_shards/server2/predictions_global_spearman_seed_43.csv",
+      "cost_weight": 0.1,
+      "path": "results/chicago/gnn_v2/g5_cost_aware_exploration/e0_scores/g4_seed43_cost_0p100.csv",
+      "sha256": "7c66b901508f5a7314ffa99e82027822fbc232f2f46bdb1628191221829cbfb1"
+    },
+    {
+      "method": "g4_seed43_cost_0p300",
+      "source": "results/chicago/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/chicago_shards/server2/predictions_global_spearman_seed_43.csv",
+      "cost_weight": 0.3,
+      "path": "results/chicago/gnn_v2/g5_cost_aware_exploration/e0_scores/g4_seed43_cost_0p300.csv",
+      "sha256": "30721f5ba8e3af7744aba69de308aa7c5ae0edda03fbdcb04b262abb4ab5d525"
+    },
+    {
+      "method": "g4_seed44_cost_0p100",
+      "source": "results/chicago/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/chicago_shards/server1/predictions_global_spearman_seed_44.csv",
+      "cost_weight": 0.1,
+      "path": "results/chicago/gnn_v2/g5_cost_aware_exploration/e0_scores/g4_seed44_cost_0p100.csv",
+      "sha256": "5449714fbcc4525fbefccf8de447d54d393d550b5fa2621eeb4f7724c87f86e6"
+    },
+    {
+      "method": "g4_seed44_cost_0p300",
+      "source": "results/chicago/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/chicago_shards/server1/predictions_global_spearman_seed_44.csv",
+      "cost_weight": 0.3,
+      "path": "results/chicago/gnn_v2/g5_cost_aware_exploration/e0_scores/g4_seed44_cost_0p300.csv",
+      "sha256": "a6d95b9eef7449c68a361c6e5f15e6f7f79377cdeec23b454a4ebda4eeaa5661"
+    }
+  ]
+}

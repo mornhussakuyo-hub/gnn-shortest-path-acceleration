@@ -1,0 +1,64 @@
+{
+  "schema": "aic.gnn_v2.cost_aware_g4_scores.v1",
+  "dataset_sha256": "e9b1bc149a6a94dd744305e41817c3a2b9447cd5e3ba5a17c71fea38db2bf261",
+  "candidate_sha256": "40d7d8babf74381b5f7088de22edc0f48181bec9c78a53fb039c9e8e7c20f71c",
+  "formula": "rank_percentile(prediction) - lambda * rank_percentile(shortcut_count)",
+  "selection_labels_used": false,
+  "cost_source_column": "shortcut_count",
+  "cost_weights": [
+    0.1,
+    0.3
+  ],
+  "inputs": {
+    "dataset": "adaf7bcba5cc88ee6b6177812528508530204453f2409855d8e434e07ec7e535",
+    "dataset_manifest": "ff81cf2d972fc92d0780e1be6f4486ea0a55e028ab99ca42b32cf1c3cb589ef2",
+    "cost_csv": "557867b5d7ccf83c24d975b2be11dff5f9f0d0ecd3536a2c45e0ac69103a817f",
+    "score_g4_seed42": "3d5ae6c7526491509a884fe4d3ab2175252b0b7b1221b2f0e50582129d3fd185",
+    "score_g4_seed43": "968da6a9531491f0173638d11ae29db42da2dec0925cb9bedcae870c08749b6c",
+    "score_g4_seed44": "d84489a330381faad63aee61fcb31a7a437baf2da70c3583b11d70f5caa15a4a"
+  },
+  "outputs": [
+    {
+      "method": "g4_seed42_cost_0p100",
+      "source": "results/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/porto_shards/server1/predictions_global_spearman_seed_42.csv",
+      "cost_weight": 0.1,
+      "path": "results/gnn_v2/g5_cost_aware_exploration/e0_scores/g4_seed42_cost_0p100.csv",
+      "sha256": "8f62e04dc791045b5077899d4f62bc6abe050e178f7c50479477b4a5d56ef48d"
+    },
+    {
+      "method": "g4_seed42_cost_0p300",
+      "source": "results/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/porto_shards/server1/predictions_global_spearman_seed_42.csv",
+      "cost_weight": 0.3,
+      "path": "results/gnn_v2/g5_cost_aware_exploration/e0_scores/g4_seed42_cost_0p300.csv",
+      "sha256": "a7804ead95534a63ad3c1830de473a56cd006d7ec16217c43685b45cd32339cf"
+    },
+    {
+      "method": "g4_seed43_cost_0p100",
+      "source": "results/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/porto_shards/server2/predictions_global_spearman_seed_43.csv",
+      "cost_weight": 0.1,
+      "path": "results/gnn_v2/g5_cost_aware_exploration/e0_scores/g4_seed43_cost_0p100.csv",
+      "sha256": "cbcef85c25b6c845f3fcf86dc8a2dacedce04519ca11c1dff0698f7939e5f1d7"
+    },
+    {
+      "method": "g4_seed43_cost_0p300",
+      "source": "results/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/porto_shards/server2/predictions_global_spearman_seed_43.csv",
+      "cost_weight": 0.3,
+      "path": "results/gnn_v2/g5_cost_aware_exploration/e0_scores/g4_seed43_cost_0p300.csv",
+      "sha256": "089b93c55ff07424032850b0d91906ca85123cbe3a5a2415ff1c6f9f20c6db94"
+    },
+    {
+      "method": "g4_seed44_cost_0p100",
+      "source": "results/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/porto_shards/server2/predictions_global_spearman_seed_44.csv",
+      "cost_weight": 0.1,
+      "path": "results/gnn_v2/g5_cost_aware_exploration/e0_scores/g4_seed44_cost_0p100.csv",
+      "sha256": "1e3ebad5857b7a813e80d0325616e73d6a6270e575b9d5c8135ce28ad89ad1fe"
+    },
+    {
+      "method": "g4_seed44_cost_0p300",
+      "source": "results/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/porto_shards/server2/predictions_global_spearman_seed_44.csv",
+      "cost_weight": 0.3,
+      "path": "results/gnn_v2/g5_cost_aware_exploration/e0_scores/g4_seed44_cost_0p300.csv",
+      "sha256": "5d647eee7b9740bf7ffb7e828627fe7adeaeb771d3f65d1135e4f9e6bfef13c5"
+    }
+  ]
+}
