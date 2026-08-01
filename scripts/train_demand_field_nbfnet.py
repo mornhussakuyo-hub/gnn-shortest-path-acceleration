@@ -175,6 +175,14 @@ def parse_args() -> argparse.Namespace:
         help="Legacy alias for --precision fp32.",
     )
     parser.add_argument("--no-gradient-checkpointing", action="store_true")
+    parser.add_argument(
+        "--save-validation-snapshots",
+        action="store_true",
+        help=(
+            "Persist every epoch-zero/post-update model state and all validation "
+            "gate metrics so later validation-only peak selection cannot lose peaks."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -262,6 +270,8 @@ def main() -> None:
             f"training NBFNet variant={config.variant} seed={seed}",
             flush=True,
         )
+        seed_dir = args.output_dir / f"seed_{seed}"
+        seed_dir.mkdir(parents=True, exist_ok=True)
         run = _train_one_seed(
             dataset,
             tensors,
@@ -274,6 +284,9 @@ def main() -> None:
             args.fixed_prior,
             args.soft_rank_temperature,
             residual_gate_grid,
+            seed_dir / "validation_snapshots"
+            if args.save_validation_snapshots
+            else None,
             args.head_warmup_steps,
             ("train", "validation") if args.withhold_holdout else SPLIT_NAMES,
             args.lr_scheduler,
@@ -282,9 +295,13 @@ def main() -> None:
             args.lr_scheduler_threshold,
             args.lr_scheduler_min_lr,
         )
-        seed_dir = args.output_dir / f"seed_{seed}"
-        seed_dir.mkdir(parents=True, exist_ok=True)
         _write_history(seed_dir / "training_history.csv", run.pop("history"))
+        snapshot_catalog = run.pop("validation_snapshot_catalog")
+        if snapshot_catalog is not None:
+            (seed_dir / "validation_snapshot_catalog.json").write_text(
+                json.dumps(snapshot_catalog, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
         _write_predictions(
             seed_dir / "predictions.csv",
             dataset,
@@ -320,6 +337,7 @@ def main() -> None:
             "head_warmup_steps": args.head_warmup_steps,
             "soft_rank_temperature": args.soft_rank_temperature,
             "residual_gate_grid": list(residual_gate_grid),
+            "save_validation_snapshots": args.save_validation_snapshots,
             "evaluation_splits": (
                 ["train", "validation"]
                 if args.withhold_holdout
@@ -722,6 +740,7 @@ def _train_one_seed(
     fixed_prior: str,
     soft_rank_temperature: float = 0.1,
     residual_gate_grid: tuple[float, ...] = (1.0,),
+    validation_snapshot_dir: Path | None = None,
     head_warmup_steps: int = 0,
     evaluation_splits: tuple[str, ...] = SPLIT_NAMES,
     lr_scheduler: str = "none",
@@ -769,6 +788,7 @@ def _train_one_seed(
     best_residual_gate = 1.0
     epochs_without_improvement = 0
     history: list[dict[str, float | int | str]] = []
+    validation_snapshot_entries: list[dict[str, object]] = []
     generator = torch.Generator(device=device)
     generator.manual_seed(seed)
     torch.cuda.reset_peak_memory_stats(device)
@@ -873,6 +893,25 @@ def _train_one_seed(
     initial_history_row["validation_raw_spearman"] = initial_raw_validation_spearman
     initial_history_row["residual_gate"] = initial_residual_gate
     history.append(initial_history_row)
+    _record_validation_snapshot(
+        snapshot_dir=validation_snapshot_dir,
+        entries=validation_snapshot_entries,
+        epoch=0,
+        model=model,
+        dataset=dataset,
+        config=config,
+        scalers=scalers,
+        precision_policy=precision_policy,
+        training_objective=training_objective,
+        soft_rank_temperature=soft_rank_temperature,
+        fixed_prior_name=fixed_prior,
+        prediction=initial_validation_prediction,
+        fixed_prior=validation_prior,
+        target=dataset.labels[dataset.split_mask("validation")],
+        residual_gate_grid=residual_gate_grid,
+        validation_loss=initial_validation_loss,
+        optimizer_step_effective=False,
+    )
     print(
         f"seed={seed} epoch=000/{config.max_epochs} "
         f"validation_loss={initial_validation_loss:.6f} "
@@ -1068,6 +1107,25 @@ def _train_one_seed(
         history_row["validation_raw_spearman"] = raw_validation_spearman
         history_row["residual_gate"] = residual_gate
         history.append(history_row)
+        _record_validation_snapshot(
+            snapshot_dir=validation_snapshot_dir,
+            entries=validation_snapshot_entries,
+            epoch=epoch,
+            model=model,
+            dataset=dataset,
+            config=config,
+            scalers=scalers,
+            precision_policy=precision_policy,
+            training_objective=training_objective,
+            soft_rank_temperature=soft_rank_temperature,
+            fixed_prior_name=fixed_prior,
+            prediction=validation_prediction,
+            fixed_prior=validation_prior,
+            target=dataset.labels[dataset.split_mask("validation")],
+            residual_gate_grid=residual_gate_grid,
+            validation_loss=validation_loss,
+            optimizer_step_effective=optimizer_step_effective,
+        )
         if (
             first_positive_validation_epoch is None
             and validation_metrics["spearman"] > 0.0
@@ -1267,6 +1325,17 @@ def _train_one_seed(
         },
         "history": history,
         "model_state": model_state,
+        "validation_snapshot_catalog": (
+            _validation_snapshot_catalog(
+                dataset,
+                training_objective,
+                soft_rank_temperature,
+                residual_gate_grid,
+                validation_snapshot_entries,
+            )
+            if validation_snapshot_dir is not None
+            else None
+        ),
     }
 
 
@@ -1448,27 +1517,54 @@ def _select_residual_gate(
     target: np.ndarray,
     grid: tuple[float, ...],
 ) -> tuple[float, torch.Tensor, float]:
-    raw = prediction.detach().float().cpu().numpy()
-    raw_spearman = regression_metrics(raw, target)["spearman"]
-    if fixed_prior is None:
-        return 1.0, prediction, raw_spearman
-    best_alpha = grid[0]
-    best_prediction = _apply_residual_gate(prediction, fixed_prior, best_alpha)
-    best_spearman = regression_metrics(
-        best_prediction.detach().float().cpu().numpy(),
+    metrics = _residual_gate_metrics(prediction, fixed_prior, target, grid)
+    raw_spearman = regression_metrics(
+        prediction.detach().float().cpu().numpy(),
         target,
     )["spearman"]
-    for alpha in grid[1:]:
-        candidate = _apply_residual_gate(prediction, fixed_prior, alpha)
-        spearman = regression_metrics(
-            candidate.detach().float().cpu().numpy(),
-            target,
-        )["spearman"]
-        if spearman > best_spearman + 1.0e-12:
-            best_alpha = alpha
-            best_prediction = candidate
-            best_spearman = spearman
+    best = max(metrics, key=lambda row: (row["spearman"], -row["alpha"]))
+    best_alpha = float(best["alpha"])
+    best_prediction = (
+        prediction
+        if fixed_prior is None
+        else _apply_residual_gate(prediction, fixed_prior, best_alpha)
+    )
     return best_alpha, best_prediction, raw_spearman
+
+
+def _residual_gate_metrics(
+    prediction: torch.Tensor,
+    fixed_prior: torch.Tensor | None,
+    target: np.ndarray,
+    grid: tuple[float, ...],
+    k_values: tuple[int, ...] = (5, 10, 18),
+) -> list[dict[str, object]]:
+    if fixed_prior is None and grid != (1.0,):
+        raise ValueError("multiple residual gates require a fixed prior")
+    rows: list[dict[str, object]] = []
+    for alpha in grid:
+        candidate = (
+            prediction
+            if fixed_prior is None
+            else _apply_residual_gate(prediction, fixed_prior, alpha)
+        )
+        values = candidate.detach().float().cpu().numpy()
+        regression = regression_metrics(values, target)
+        ranking = ranking_metrics_at_k(values, target, k_values)
+        rows.append(
+            {
+                "alpha": float(alpha),
+                "spearman": regression["spearman"],
+                "ndcg_at_k": {
+                    key: float(metrics["ndcg"]) for key, metrics in ranking.items()
+                },
+                "top_gain_at_k": {
+                    key: float(metrics["mean_gain"])
+                    for key, metrics in ranking.items()
+                },
+            }
+        )
+    return rows
 
 
 def _full_pairwise_loss(
@@ -1789,6 +1885,101 @@ def _save_checkpoint(
         },
         path,
     )
+
+
+def _record_validation_snapshot(
+    *,
+    snapshot_dir: Path | None,
+    entries: list[dict[str, object]],
+    epoch: int,
+    model: BidirectionalNBFNet,
+    dataset: DemandFieldDataset,
+    config: NBFNetConfig,
+    scalers: dict[str, np.ndarray | float],
+    precision_policy: PrecisionPolicy,
+    training_objective: str,
+    soft_rank_temperature: float,
+    fixed_prior_name: str,
+    prediction: torch.Tensor,
+    fixed_prior: torch.Tensor | None,
+    target: np.ndarray,
+    residual_gate_grid: tuple[float, ...],
+    validation_loss: float,
+    optimizer_step_effective: bool,
+) -> None:
+    if snapshot_dir is None:
+        return
+    snapshot_dir.mkdir(parents=True, exist_ok=True)
+    snapshot_path = snapshot_dir / f"epoch_{epoch:03d}.pt"
+    torch.save(
+        {
+            "schema": EXPERIMENT_SCHEMA,
+            "model_state": {
+                name: value.detach().cpu().clone()
+                for name, value in model.state_dict().items()
+            },
+            "config": asdict(config),
+            "numerics": precision_policy.metadata(),
+            "dataset_sha256": dataset.manifest["dataset_sha256"],
+            "candidate_sha256": dataset.manifest["candidate_sha256"],
+            "scalers": scalers,
+            "training_objective": training_objective,
+            "soft_rank_temperature": soft_rank_temperature,
+            "fixed_prior": fixed_prior_name,
+            "validation_snapshot": {
+                "epoch": epoch,
+                "optimizer_step_effective": optimizer_step_effective,
+                "residual_gate_grid": list(residual_gate_grid),
+            },
+        },
+        snapshot_path,
+    )
+    entries.append(
+        {
+            "epoch": epoch,
+            "snapshot": str(Path("validation_snapshots") / snapshot_path.name),
+            "validation_loss": validation_loss,
+            "optimizer_step_effective": optimizer_step_effective,
+            "gates": _residual_gate_metrics(
+                prediction,
+                fixed_prior,
+                target,
+                residual_gate_grid,
+            ),
+        }
+    )
+    catalog = _validation_snapshot_catalog(
+        dataset,
+        training_objective,
+        soft_rank_temperature,
+        residual_gate_grid,
+        entries,
+    )
+    (snapshot_dir.parent / "validation_snapshot_catalog.json").write_text(
+        json.dumps(catalog, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _validation_snapshot_catalog(
+    dataset: DemandFieldDataset,
+    training_objective: str,
+    soft_rank_temperature: float,
+    residual_gate_grid: tuple[float, ...],
+    entries: list[dict[str, object]],
+) -> dict[str, object]:
+    return {
+        "schema": "aic.gnn_v2.validation_snapshot_catalog.v1",
+        "dataset_sha256": dataset.manifest["dataset_sha256"],
+        "candidate_sha256": dataset.manifest["candidate_sha256"],
+        "selection_data": "validation_only",
+        "holdout_evaluated": False,
+        "training_objective": training_objective,
+        "soft_rank_temperature": soft_rank_temperature,
+        "residual_gate_grid": list(residual_gate_grid),
+        "ranking_k_values": [5, 10, 18],
+        "entries": entries,
+    }
 
 
 def _aggregate_runs(runs: list[dict]) -> dict[str, dict[str, dict[str, float]]]:

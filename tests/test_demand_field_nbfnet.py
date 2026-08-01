@@ -27,6 +27,7 @@ try:
         _parameter_snapshot,
         _parse_float_grid,
         _resolve_precision_policy,
+        _residual_gate_metrics,
         _select_residual_gate,
         _set_training_scope,
         _soft_spearman_loss_tensor,
@@ -300,6 +301,22 @@ class BidirectionalNBFNetTest(unittest.TestCase):
         self.assertEqual(alpha, 0.0)
         self.assertTrue(torch.equal(selected, prior))
         self.assertLess(raw_spearman, 0.0)
+
+    def test_residual_gate_catalog_records_every_frozen_budget_metric(self) -> None:
+        target = np.asarray([5.0, 20.0, 10.0, 30.0, 15.0, 25.0])
+        prior = torch.tensor([0.0, 3.0, 1.0, 5.0, 2.0, 4.0])
+        prediction = torch.tensor([5.0, 0.0, 4.0, 1.0, 3.0, 2.0])
+        rows = _residual_gate_metrics(
+            prediction,
+            prior,
+            target,
+            (0.0, 0.5, 1.0),
+        )
+        self.assertEqual([row["alpha"] for row in rows], [0.0, 0.5, 1.0])
+        for row in rows:
+            self.assertEqual(set(row["ndcg_at_k"]), {"5", "10", "18"})
+            self.assertEqual(set(row["top_gain_at_k"]), {"5", "10", "18"})
+        self.assertEqual(rows[0]["spearman"], 1.0)
 
     def test_residual_gate_grid_is_strict_and_sorted(self) -> None:
         self.assertEqual(
