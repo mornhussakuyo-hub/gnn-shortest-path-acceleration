@@ -284,8 +284,8 @@ def _validate_partial_predictions(
         "spearman": spearman,
         "full_score_order_equal": full_order_equal,
         "train_validation_top18_sets_equal": top18_equal,
-        "absolute_tolerance": tolerance,
-        "relative_tolerance": relative_tolerance,
+        "absolute_tolerance": float(tolerance),
+        "relative_tolerance": float(relative_tolerance),
     }
 
 

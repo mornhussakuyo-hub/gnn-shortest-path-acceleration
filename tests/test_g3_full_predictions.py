@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -59,6 +60,7 @@ class G3FullPredictionsTest(unittest.TestCase):
                 replay["relative_tolerance"], 2.0 * np.finfo(np.float32).eps
             )
             self.assertTrue(replay["full_score_order_equal"])
+            json.dumps(replay)
 
     def test_partial_replay_rejects_changed_score(self) -> None:
         region_ids = np.arange(1200)
