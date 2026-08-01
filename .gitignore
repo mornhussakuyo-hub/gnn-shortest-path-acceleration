@@ -6,6 +6,8 @@ env/
 __pycache__/
 *.pyc
 .cache/
+build/
+*.benchmark.bin
 data/compressed/porto/
 data/compressed/chicago/
 data/processed/chicago/chicago_od_presample_120k.csv

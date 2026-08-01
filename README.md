@@ -42,6 +42,7 @@ GNN 位于第 4 步。它不替代 Dijkstra，而是根据道路拓扑和历史 
 | 5. Z0 与 G4 神经残差 | 已完成 | Z0 是无参数主方法；G4 在 Porto/Chicago 三种子 holdout 与未来全局 Spearman 均稳定超过 Z0，但 Top-K 并非全面提升；P 预训练未启动。 |
 | 6. 参赛与论文最终验证 | 已完成 | 两城 H/Y/F、14 组 Z0 消融、严格非重叠选区和在线闭环全部完成；两城所有在线距离正确率均为 100%。 |
 | 7. 跨城市冻结复现 | 已完成 | Chicago 数据、精确标签、MLP/Proxy/Z0/G4、未来窗口和 42 组在线评测全部落库；正确拓扑与 G4 全局排序增量均跨城市复现。 |
+| 8. C++ 高性能复核 | 已完成 | 同一 C++20/O3 实现完成两城 560,000 个正式计时配对；Porto Z0 平均加速 6.5%～7.5%，Chicago 因 shortcut 扫边增加而未平均加速，但多数 P95 改善。 |
 
 各阶段的目标、成果、证据、遗留问题和完成标准统一记录在
 [`reports/`](reports/README.md) 中。
@@ -78,6 +79,11 @@ G4 修复了旧 pairwise 损失与真实排序目标的错位。Porto / Chicago 
 [`results/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/report.md`](results/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/report.md)
 和
 [`results/chicago/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/report.md`](results/chicago/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/report.md)。
+
+C++ 高性能同实现进一步确认：Porto Z0 在当前/未来窗口的平均耗时分别下降
+`6.51% / 7.48%`，G4 三种子均值下降 `6.41% / 8.90%`。Chicago 虽减少约 20% 展开节点，
+密集 shortcuts 使扫描边增加 18%～28%，所以平均耗时仍增加；14 个组合中 11 个 P95 下降。
+完整结论见 [`reports/阶段八_C++高性能在线评测.md`](reports/阶段八_C++高性能在线评测.md)。
 
 当前物化压缩图的全量配对结果：
 
