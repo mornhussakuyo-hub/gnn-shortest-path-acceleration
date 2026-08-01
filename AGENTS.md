@@ -86,6 +86,9 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
 - 需求原型只由历史窗口 OD 和静态道路图构造，不使用历史最短路径；至少保存起点集合、终点集合和出现权重。
 - 时间切分必须避免泄漏：较早历史窗口 H 构造输入，紧随其后的标签窗口 Y 构造真实区域收益，两者绝不重叠。
 - 当前固定口径：H 为全部 98,082 条 OD 按时间排序后的前 35%，共 34,328 条；Y 为时间比例 `[0.35, 0.70)`，完整窗口约 34,329 条；正式标签从 Y 中以随机种子 42 抽取 2,000 条查询。
+- 阶段六未来窗口协议已冻结：F 为时间比例 `[0.70, 1.00)`，完整窗口约 29,425 条；仍以随机
+  种子 42 抽取 2,000 条正式查询。Z0 输入继续固定为最早 H，不读取 Y/F 更新需求场；候选池、
+  单区域工作量定义和关闭端点缓存均不变。
 - 候选区域已从“高频端点附近选择”改为全图随机且尽量空间均匀，以避免候选本身围绕需求热点、削弱区域压缩研究意义。
 - 当前正式标签已经完成：`region_training_labels.csv` 有 1,200 条区域记录，每条 `label_query_count=2000`；`label_manifest.json` 为 1,200/1,200、`status=complete`。任何“1,200×2,000 尚未完成”的说法均为旧口径。
 - 可选 LRU 缓存、候选池是否应被端到端扩散替代等问题继续暂缓；纯传播验证已完成，后续只补同口径对照、重复种子和未来窗口。
@@ -149,6 +152,9 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
   缓解 FP16 中间溢出，不是结构性修复。
 - 冻结主干后输出头 8 个 step 全部有效，validation Spearman `-0.9020→-0.8532`，证明
   pairwise loss 与输出头能够学习；阻断反转的是主干梯度污染。
+- G3 恒定 `5e-3` 三种子虽有 Spearman 平均 `+0.004807`，但 NDCG@5 平均 `-0.003448`；
+  plateau 调度版 Spearman 平均仅 `+0.002755`、NDCG@5 平均 `-0.005220`。调度版 seed 42
+  也劣于恒定协议，因此 S3 不采用、S4 不通过，G 线按预注册停止，不运行 S5 或 P 预训练。
 - 完整结果位于 `results/gnn_v2/nbfnet_propagation/gradient_anatomy/`，主要报告为
   `reports/阶段四_NBFNet传播诊断与深层纯传播实验.md`。
 
@@ -156,36 +162,35 @@ server_ssh 'cd ~/gnn-shortest-path-acceleration && git status --short && git rev
 
 - 两台服务器仓库均为 `~/gnn-shortest-path-acceleration`，GPU 均为 RTX 4090 D 24 GB。
 - 一号使用 `.server.env`，二号使用 `.server2.env`；SSH 必须加 `-F /dev/null`。
-- 当前两台服务器在恒定 `5e-3` 三种子完成后均无相关训练进程，GPU 最近确认均为约 15 MiB、
+- 当前两台服务器在调度版三种子完成后均无相关训练进程，GPU 最近确认均为约 15 MiB、
   0% 利用率；不要恢复旧 runner。
 - 四组 screening、旧协议五种子重复、B1～B4、Z0/Z1/Z2、两组失败 rank-first 和梯度解剖均已
   完成或按机制停止；相关完整/摘要产物已同步本机。
 - gradient anatomy 一号完成深度 `1/2/4/8/16/32` 与 32 层 scale `1/64`；二号完成 32 层
   `head_only` 和 Z0 输出头预热后快照。两组 runner 已结束，服务器 GPU 空闲。
-- 服务器最后确认包含代码提交 `027f1a2`；本机 `main` 将继续推进 G 线衰减提交。下一次运行前先看
+- 服务器最后确认包含代码提交 `c3eb918`；本机 `main` 将继续推进未来窗口验证提交。下一次运行前先看
   远端 `git status --short`，再 fast-forward 到本机已推送的最新 `main`，不得在服务器改文件。
-- 本机只剩四个旧未跟踪运行文件，不提交、不删除：
+- 本机保留四个旧未跟踪运行文件，不提交、不删除：
   `gradient_anatomy/server1_launcher.log`、`server1_runner.pid`、`server2_launcher.log`、
-  `train_free_baselines_launcher.log`。
+  `train_free_baselines_launcher.log`。新同步的 scheduler launcher、PID 与逐 seed 原始日志也不提交、
+  不删除；正式结果只提交 manifest、summary、checkpoint、prediction 和 history。
 
 ## 后续实验顺序
 
-1. 当前进入阶段五，详细冻结计划见 `reports/阶段五_梯度稳定化与Z0神经残差.md`。原
-   `阶段五_最终对比与扩展验证.md` 已顺延为 `阶段六_最终对比与扩展验证.md`。
+1. 阶段五 G 线已经完成并按性能门停止；当前进入
+   `reports/阶段六_最终对比与扩展验证.md` 的 Z0 未来时间窗口验证。
 2. S0/S1 已完成并同步本机。G0/G1 在深层失败；G2/G3 的 32 层 FP64 范数约为
    `0.04306 / 0.04317`，裁剪系数均为 `1.0`、Hook 放大约 `6`，连续三步均为 3/3 有效。
 3. G2/G3 seed 42 的 `5e-3` 结构筛选已完成，G3 仅按 validation 胜出。恒定 `5e-3` 的 G3
    seeds 42/43/44 Spearman 平均相对 Z0 为 `+0.004807`，但 NDCG@5 平均为 `-0.003448`，
    因此 S4 头部排序门未通过。
-4. **下一步立即只跑一次冻结的学习率衰减 S3/S4，不实现、不启动 P 预训练**：G3、初始
-   `5e-3`、40 epoch、前 8 step 输出头预热；主干解冻后按 validation Spearman 使用
-   `ReduceLROnPlateau(factor=0.3, patience=3, threshold=1e-4, min_lr=5e-4)`。
-5. 调度版 seeds 42/43/44 可为节省墙钟条件性并行/串行完成；判定时先做 seed 42 的 S3 对照，
-   只有采用调度协议时，三种子才作为新的正式 S4。holdout 继续完全锁定。
-6. P0/P1/P2/P3 整体后移；只有 G 线完成且用户重新确认顺序后才实施。
-7. G 线通过后才做最小学习率对照，再依次进入代表种子和五种子。
-   holdout 只在协议完全冻结后解锁。若稳定但不能超过 Z0，停止神经残差扩展并记录负结论。
-8. S4/S5 之后才进入阶段六的正确拓扑消融、未来窗口、非重叠集合选择、精确在线配对和跨城市。
+4. 调度版 seeds 42/43/44 已完成，全部数值稳定但性能门未过；不追加 scheduler、学习率、损失或
+   残差尺度搜索，不跑 seed 45/46。
+5. **下一步立即生成 F=`[0.70,1.00)` 的 1,200×2,000 精确区域收益标签，并用最早 H 构造的
+   冻结 Z0 做零样本排序评测**。先报告全候选，再报告空间 train/validation/holdout 子集。
+6. 同时报告 Y 标签对 F 标签的排序保持程度，区分需求传播失效与真实收益本身的时间漂移。
+7. 未来标签不得用于重新定向、校准或选 Z0；滚动更新需求场若后续执行，必须作为独立实验。
+8. 未来窗口后依次做正确拓扑/方向对照、非重叠集合选择、精确在线配对和跨城市验证。
 
 ## 阶段五时间预算
 

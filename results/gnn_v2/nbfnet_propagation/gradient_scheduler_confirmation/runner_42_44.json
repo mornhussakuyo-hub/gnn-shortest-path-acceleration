@@ -1,0 +1,99 @@
+{
+  "schema": "aic.gnn_v2.gradient_scheduler_confirmation.v1",
+  "identity": {
+    "schema": "aic.gnn_v2.gradient_scheduler_confirmation.v1",
+    "seeds": [
+      42,
+      44
+    ],
+    "structure": "g3",
+    "learning_rate": 0.005,
+    "max_epochs": 40,
+    "head_warmup_steps": 8,
+    "lr_scheduler": "reduce_on_plateau",
+    "scheduler_monitor": "validation_spearman",
+    "scheduler_factor": 0.3,
+    "scheduler_patience": 3,
+    "scheduler_threshold": 0.0001,
+    "scheduler_min_lr": 0.0005,
+    "holdout_withheld": true
+  },
+  "status": "complete",
+  "created_at": "2026-07-31T20:58:34+00:00",
+  "started_at": "2026-07-31T20:58:34+00:00",
+  "completed_at": "2026-07-31T22:24:44+00:00",
+  "commands": [
+    [
+      ".venv-gnn/bin/python",
+      "scripts/run_gradient_structure_screening.py",
+      "--python",
+      ".venv-gnn/bin/python",
+      "--structure",
+      "g3",
+      "--seed",
+      "42",
+      "--learning-rate",
+      "0.005",
+      "--max-epochs",
+      "40",
+      "--patience",
+      "40",
+      "--head-warmup-steps",
+      "8",
+      "--lr-scheduler",
+      "reduce_on_plateau",
+      "--lr-scheduler-factor",
+      "0.3",
+      "--lr-scheduler-patience",
+      "3",
+      "--lr-scheduler-threshold",
+      "0.0001",
+      "--lr-scheduler-min-lr",
+      "0.0005",
+      "--output-root",
+      "results/gnn_v2/nbfnet_propagation/gradient_scheduler_confirmation/seed_42"
+    ],
+    [
+      ".venv-gnn/bin/python",
+      "scripts/run_gradient_structure_screening.py",
+      "--python",
+      ".venv-gnn/bin/python",
+      "--structure",
+      "g3",
+      "--seed",
+      "44",
+      "--learning-rate",
+      "0.005",
+      "--max-epochs",
+      "40",
+      "--patience",
+      "40",
+      "--head-warmup-steps",
+      "8",
+      "--lr-scheduler",
+      "reduce_on_plateau",
+      "--lr-scheduler-factor",
+      "0.3",
+      "--lr-scheduler-patience",
+      "3",
+      "--lr-scheduler-threshold",
+      "0.0001",
+      "--lr-scheduler-min-lr",
+      "0.0005",
+      "--output-root",
+      "results/gnn_v2/nbfnet_propagation/gradient_scheduler_confirmation/seed_44"
+    ]
+  ],
+  "runs": [
+    {
+      "seed": 42,
+      "return_code": 0,
+      "completed_at": "2026-07-31T21:41:39+00:00"
+    },
+    {
+      "seed": 44,
+      "return_code": 0,
+      "completed_at": "2026-07-31T22:24:44+00:00"
+    }
+  ]
+}
