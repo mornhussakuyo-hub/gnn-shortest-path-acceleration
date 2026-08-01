@@ -1,0 +1,83 @@
+{
+  "schema": "aic.gnn_v2.g4_validation_peak_selection.v1",
+  "dataset_sha256": "e9b1bc149a6a94dd744305e41817c3a2b9447cd5e3ba5a17c71fea38db2bf261",
+  "candidate_sha256": "40d7d8babf74381b5f7088de22edc0f48181bec9c78a53fb039c9e8e7c20f71c",
+  "selection_split": "validation",
+  "holdout_used": false,
+  "baseline": {
+    "epoch": 0,
+    "snapshot": "validation_snapshots/epoch_000.pt",
+    "optimizer_step_effective": false,
+    "alpha": 0.0,
+    "spearman": 0.9410928320832948,
+    "ndcg_at_k": {
+      "5": 0.9447171511026332,
+      "10": 0.9768522465298974,
+      "18": 0.986094263267563
+    },
+    "top_gain_at_k": {
+      "5": 157.50149536132812,
+      "10": 151.96534729003906,
+      "18": 139.1039276123047
+    }
+  },
+  "selections": {
+    "global_spearman": {
+      "epoch": 37,
+      "snapshot": "validation_snapshots/epoch_037.pt",
+      "optimizer_step_effective": true,
+      "alpha": 0.25,
+      "spearman": 0.9510746216447009,
+      "ndcg_at_k": {
+        "5": 0.937825388440558,
+        "10": 0.9729073677593706,
+        "18": 0.9831779813359057
+      },
+      "top_gain_at_k": {
+        "5": 157.50149536132812,
+        "10": 151.96534729003906,
+        "18": 139.1039276123047
+      },
+      "checkpoint": "model_global_spearman.pt",
+      "checkpoint_sha256": "b430f97a0fdfcd273cc9290f3fd8b7e7ca77c8f0fbec1b2e49b79db5a7daa0da"
+    },
+    "budget_safe_spearman": {
+      "epoch": 37,
+      "snapshot": "validation_snapshots/epoch_037.pt",
+      "optimizer_step_effective": true,
+      "alpha": 0.25,
+      "spearman": 0.9510746216447009,
+      "ndcg_at_k": {
+        "5": 0.937825388440558,
+        "10": 0.9729073677593706,
+        "18": 0.9831779813359057
+      },
+      "top_gain_at_k": {
+        "5": 157.50149536132812,
+        "10": 151.96534729003906,
+        "18": 139.1039276123047
+      },
+      "checkpoint": "model_budget_safe_spearman.pt",
+      "checkpoint_sha256": "4933db8106edcf052759f4aef0f100f83d9f6d53dc7d9ee4c2317b4765b13f5a"
+    },
+    "topgain18_safe": {
+      "epoch": 28,
+      "snapshot": "validation_snapshots/epoch_028.pt",
+      "optimizer_step_effective": true,
+      "alpha": 1.0,
+      "spearman": 0.9439982715515911,
+      "ndcg_at_k": {
+        "5": 0.7930018790621122,
+        "10": 0.9023209991472054,
+        "18": 0.9336085930561854
+      },
+      "top_gain_at_k": {
+        "5": 142.67388916015625,
+        "10": 151.8939971923828,
+        "18": 139.87965393066406
+      },
+      "checkpoint": "model_topgain18_safe.pt",
+      "checkpoint_sha256": "89201c32784660834d9288c49923047f4350bd1d4fafcc3a526bb026758795b6"
+    }
+  }
+}

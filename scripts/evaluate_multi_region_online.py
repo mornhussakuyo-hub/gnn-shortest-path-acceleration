@@ -123,6 +123,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Evaluate only methods supplied through --score.",
     )
+    parser.add_argument(
+        "--without-g3",
+        action="store_true",
+        help="Keep the four non-G3 baselines and omit frozen G3 score files.",
+    )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--workers", type=int, default=min(40, os.cpu_count() or 1))
     parser.add_argument("--chunk-size", type=int, default=100)
@@ -248,6 +253,8 @@ def main() -> None:
 def _load_score_sources(args: argparse.Namespace, dataset) -> tuple[dict[str, np.ndarray], dict[str, Path]]:
     extra_paths = _parse_score_paths(args.score)
     if args.extra_only:
+        if args.without_g3:
+            raise ValueError("--extra-only and --without-g3 cannot be combined")
         if not extra_paths:
             raise ValueError("--extra-only requires at least one --score")
         scores = {
@@ -255,7 +262,7 @@ def _load_score_sources(args: argparse.Namespace, dataset) -> tuple[dict[str, np
             for method, path in extra_paths.items()
         }
         return scores, extra_paths
-    g3_paths = (
+    g3_paths = {} if args.without_g3 else (
         {
             f"g3_seed{seed}": args.g3_predictions_dir
             / f"predictions_seed_{seed}.csv"
@@ -279,7 +286,8 @@ def _load_score_sources(args: argparse.Namespace, dataset) -> tuple[dict[str, np
     }
     for method, path in g3_paths.items():
         scores[method] = _load_column(path, dataset.region_ids, "prediction")
-    if tuple(scores) != METHOD_NAMES:
+    expected_base = METHOD_NAMES[:4] if args.without_g3 else METHOD_NAMES
+    if tuple(scores) != expected_base:
         raise ValueError("score method order does not match frozen protocol")
     for method, path in extra_paths.items():
         if method in scores:

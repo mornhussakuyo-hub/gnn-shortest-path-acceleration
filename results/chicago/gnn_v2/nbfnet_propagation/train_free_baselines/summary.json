@@ -1,0 +1,1614 @@
+{
+  "schema": "aic.gnn_v2.train_free_demand_field_baselines.v1",
+  "execution": {
+    "framework": "pytorch",
+    "torch_version": "2.13.0+cu130",
+    "cuda_version": "13.0",
+    "device_type": "cuda",
+    "device_index": 0,
+    "device_name": "NVIDIA GeForce RTX 4090 D",
+    "device_total_memory_bytes": 25250627584
+  },
+  "dataset_sha256": "d566a65a839a44481ff4d09117461782e0f23c8fb29d6aff5312ab27bb66ba6f",
+  "candidate_sha256": "93539f5776f3cdfd8ee1658c0403d4645ffc654325f209172df9fe5582167f46",
+  "protocol": {
+    "z0": "deterministic scalar bidirectional fixed-mean diffusion; equal readout over depths 1,2,4,8,16,32; no learned parameters or labels",
+    "z1": "randomly initialized propagation_doubling forward only; signed score reported without seed selection or sign correction",
+    "z2": "same frozen Z1 prediction with one global sign selected using train labels only; validation and holdout are not used for orientation",
+    "seeds": [
+      42,
+      43,
+      44,
+      45,
+      46
+    ],
+    "precision": "fp32",
+    "prototype_batch_size": 1
+  },
+  "z0_metrics": {
+    "train": {
+      "count": 840,
+      "mae": 11.712749481201172,
+      "huber": 91.12286376953125,
+      "spearman": 0.9142519525407974,
+      "ndcg_at_k": 0.8996980145474608,
+      "top_k": 84,
+      "top_k_mean_gain": 56.813785552978516,
+      "oracle_top_k_mean_gain": 60.35505676269531,
+      "all_mean_gain": 11.744363784790039,
+      "ranking_at_k": {
+        "5": {
+          "k": 5,
+          "ndcg": 0.6925345049563777,
+          "mean_gain": 60.007301330566406,
+          "oracle_mean_gain": 82.92640686035156,
+          "membership_count": 2560,
+          "unique_node_count": 2448,
+          "membership_redundancy": 1.0457516339869282
+        },
+        "10": {
+          "k": 10,
+          "ndcg": 0.7815649263674704,
+          "mean_gain": 67.47184753417969,
+          "oracle_mean_gain": 80.84730529785156,
+          "membership_count": 5120,
+          "unique_node_count": 3056,
+          "membership_redundancy": 1.675392670157068
+        },
+        "18": {
+          "k": 18,
+          "ndcg": 0.8311336735141687,
+          "mean_gain": 69.1662826538086,
+          "oracle_mean_gain": 78.09213256835938,
+          "membership_count": 9216,
+          "unique_node_count": 3901,
+          "membership_redundancy": 2.3624711612407077
+        }
+      }
+    },
+    "validation": {
+      "count": 180,
+      "mae": 9.595818519592285,
+      "huber": 72.48021697998047,
+      "spearman": 0.9147195498662315,
+      "ndcg_at_k": 0.8371322467469191,
+      "top_k": 18,
+      "top_k_mean_gain": 49.274166107177734,
+      "oracle_top_k_mean_gain": 50.98583221435547,
+      "all_mean_gain": 9.634961128234863,
+      "ranking_at_k": {
+        "5": {
+          "k": 5,
+          "ndcg": 0.5887951249558961,
+          "mean_gain": 44.79680252075195,
+          "oracle_mean_gain": 70.38790130615234,
+          "membership_count": 2560,
+          "unique_node_count": 2000,
+          "membership_redundancy": 1.28
+        },
+        "10": {
+          "k": 10,
+          "ndcg": 0.723051011337968,
+          "mean_gain": 49.262451171875,
+          "oracle_mean_gain": 60.15779495239258,
+          "membership_count": 5120,
+          "unique_node_count": 3365,
+          "membership_redundancy": 1.5215453194650816
+        },
+        "18": {
+          "k": 18,
+          "ndcg": 0.8371322467469191,
+          "mean_gain": 49.274166107177734,
+          "oracle_mean_gain": 50.98583221435547,
+          "membership_count": 9216,
+          "unique_node_count": 6356,
+          "membership_redundancy": 1.4499685336689743
+        }
+      }
+    },
+    "holdout": {
+      "count": 180,
+      "mae": 12.823335647583008,
+      "huber": 100.79703521728516,
+      "spearman": 0.9411691112243588,
+      "ndcg_at_k": 0.9224942567668284,
+      "top_k": 18,
+      "top_k_mean_gain": 54.33966827392578,
+      "oracle_top_k_mean_gain": 58.59969711303711,
+      "all_mean_gain": 12.900259017944336,
+      "ranking_at_k": {
+        "5": {
+          "k": 5,
+          "ndcg": 0.9405445449873014,
+          "mean_gain": 66.67340087890625,
+          "oracle_mean_gain": 69.42369842529297,
+          "membership_count": 2560,
+          "unique_node_count": 1411,
+          "membership_redundancy": 1.8143160878809355
+        },
+        "10": {
+          "k": 10,
+          "ndcg": 0.9296541744452408,
+          "mean_gain": 60.603599548339844,
+          "oracle_mean_gain": 64.41690063476562,
+          "membership_count": 5120,
+          "unique_node_count": 3013,
+          "membership_redundancy": 1.6993030202456023
+        },
+        "18": {
+          "k": 18,
+          "ndcg": 0.9224942567668284,
+          "mean_gain": 54.33966827392578,
+          "oracle_mean_gain": 58.59969711303711,
+          "membership_count": 9216,
+          "unique_node_count": 5431,
+          "membership_redundancy": 1.6969250598416499
+        }
+      }
+    }
+  },
+  "z0_proxy_correlation": {
+    "train": 0.9673978070871749,
+    "validation": 0.972688112602081,
+    "holdout": 0.9611957684528196
+  },
+  "runs": [
+    {
+      "seed": 42,
+      "train_selected_sign": -1,
+      "z1_raw_metrics": {
+        "train": {
+          "count": 840,
+          "mae": 11.724647521972656,
+          "huber": 91.54823303222656,
+          "spearman": -0.9381622009802854,
+          "ndcg_at_k": 0.002631491241037345,
+          "top_k": 84,
+          "top_k_mean_gain": 0.2064821422100067,
+          "oracle_top_k_mean_gain": 60.35505676269531,
+          "all_mean_gain": 11.744363784790039,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.0,
+              "mean_gain": 0.0,
+              "oracle_mean_gain": 82.92640686035156,
+              "membership_count": 2560,
+              "unique_node_count": 1524,
+              "membership_redundancy": 1.6797900262467191
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.00013702258741800903,
+              "mean_gain": 0.01665000058710575,
+              "oracle_mean_gain": 80.84730529785156,
+              "membership_count": 5120,
+              "unique_node_count": 2501,
+              "membership_redundancy": 2.0471811275489804
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.0003055234058421275,
+              "mean_gain": 0.03291666507720947,
+              "oracle_mean_gain": 78.09213256835938,
+              "membership_count": 9216,
+              "unique_node_count": 3741,
+              "membership_redundancy": 2.463512429831596
+            }
+          }
+        },
+        "validation": {
+          "count": 180,
+          "mae": 9.595075607299805,
+          "huber": 72.80171203613281,
+          "spearman": -0.9366191289756415,
+          "ndcg_at_k": 0.0015234609554170692,
+          "top_k": 18,
+          "top_k_mean_gain": 0.10436110943555832,
+          "oracle_top_k_mean_gain": 50.98583221435547,
+          "all_mean_gain": 9.634961128234863,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.00015206157988543922,
+              "mean_gain": 0.008899999782443047,
+              "oracle_mean_gain": 70.38790130615234,
+              "membership_count": 2560,
+              "unique_node_count": 1487,
+              "membership_redundancy": 1.7215870880968394
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.001265907757064809,
+              "mean_gain": 0.1070999950170517,
+              "oracle_mean_gain": 60.15779495239258,
+              "membership_count": 5120,
+              "unique_node_count": 2891,
+              "membership_redundancy": 1.7710134901418195
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.0015234609554170692,
+              "mean_gain": 0.10436110943555832,
+              "oracle_mean_gain": 50.98583221435547,
+              "membership_count": 9216,
+              "unique_node_count": 4428,
+              "membership_redundancy": 2.0813008130081303
+            }
+          }
+        },
+        "holdout": {
+          "count": 180,
+          "mae": 12.85010814666748,
+          "huber": 101.26750946044922,
+          "spearman": -0.9585862772573668,
+          "ndcg_at_k": 0.001995353341480897,
+          "top_k": 18,
+          "top_k_mean_gain": 0.1359444409608841,
+          "oracle_top_k_mean_gain": 58.59969711303711,
+          "all_mean_gain": 12.900259017944336,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.0010794143845004552,
+              "mean_gain": 0.07079999893903732,
+              "oracle_mean_gain": 69.42369842529297,
+              "membership_count": 2560,
+              "unique_node_count": 2560,
+              "membership_redundancy": 1.0
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.0017473865807377863,
+              "mean_gain": 0.13520000874996185,
+              "oracle_mean_gain": 64.41690063476562,
+              "membership_count": 5120,
+              "unique_node_count": 4434,
+              "membership_redundancy": 1.1547135769057284
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.001995353341480897,
+              "mean_gain": 0.1359444409608841,
+              "oracle_mean_gain": 58.59969711303711,
+              "membership_count": 9216,
+              "unique_node_count": 6777,
+              "membership_redundancy": 1.3598937583001327
+            }
+          }
+        }
+      },
+      "z2_train_sign_metrics": {
+        "train": {
+          "count": 840,
+          "mae": 11.906258583068848,
+          "huber": 92.45105743408203,
+          "spearman": 0.9381622009802854,
+          "ndcg_at_k": 0.8632114391155611,
+          "top_k": 84,
+          "top_k_mean_gain": 56.977603912353516,
+          "oracle_top_k_mean_gain": 60.35505676269531,
+          "all_mean_gain": 11.744363784790039,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.546651845524362,
+              "mean_gain": 47.46549987792969,
+              "oracle_mean_gain": 82.92640686035156,
+              "membership_count": 2560,
+              "unique_node_count": 1688,
+              "membership_redundancy": 1.5165876777251184
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.5674599040007416,
+              "mean_gain": 47.961299896240234,
+              "oracle_mean_gain": 80.84730529785156,
+              "membership_count": 5120,
+              "unique_node_count": 3132,
+              "membership_redundancy": 1.6347381864623245
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.6257901012641773,
+              "mean_gain": 52.211944580078125,
+              "oracle_mean_gain": 78.09213256835938,
+              "membership_count": 9216,
+              "unique_node_count": 4900,
+              "membership_redundancy": 1.8808163265306121
+            }
+          }
+        },
+        "validation": {
+          "count": 180,
+          "mae": 9.776704788208008,
+          "huber": 73.61624145507812,
+          "spearman": 0.9366191289756415,
+          "ndcg_at_k": 0.9020772984294997,
+          "top_k": 18,
+          "top_k_mean_gain": 48.19835662841797,
+          "oracle_top_k_mean_gain": 50.98583221435547,
+          "all_mean_gain": 9.634961128234863,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.7772931628008922,
+              "mean_gain": 51.3588981628418,
+              "oracle_mean_gain": 70.38790130615234,
+              "membership_count": 2560,
+              "unique_node_count": 2408,
+              "membership_redundancy": 1.06312292358804
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.7989690178453247,
+              "mean_gain": 46.702247619628906,
+              "oracle_mean_gain": 60.15779495239258,
+              "membership_count": 5120,
+              "unique_node_count": 3326,
+              "membership_redundancy": 1.5393866506313891
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.9020772984294997,
+              "mean_gain": 48.19835662841797,
+              "oracle_mean_gain": 50.98583221435547,
+              "membership_count": 9216,
+              "unique_node_count": 6191,
+              "membership_redundancy": 1.48861250201906
+            }
+          }
+        },
+        "holdout": {
+          "count": 180,
+          "mae": 13.022284507751465,
+          "huber": 102.25233459472656,
+          "spearman": 0.9585862772573668,
+          "ndcg_at_k": 0.9090504934878029,
+          "top_k": 18,
+          "top_k_mean_gain": 56.68661117553711,
+          "oracle_top_k_mean_gain": 58.59969711303711,
+          "all_mean_gain": 12.900259017944336,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.8026177590120019,
+              "mean_gain": 59.57250213623047,
+              "oracle_mean_gain": 69.42369842529297,
+              "membership_count": 2560,
+              "unique_node_count": 1807,
+              "membership_redundancy": 1.4167127836192583
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.8623046964896091,
+              "mean_gain": 59.199951171875,
+              "oracle_mean_gain": 64.41690063476562,
+              "membership_count": 5120,
+              "unique_node_count": 3405,
+              "membership_redundancy": 1.5036710719530102
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.9090504934878029,
+              "mean_gain": 56.68661117553711,
+              "oracle_mean_gain": 58.59969711303711,
+              "membership_count": 9216,
+              "unique_node_count": 5601,
+              "membership_redundancy": 1.64542046063203
+            }
+          }
+        }
+      },
+      "correlation": {
+        "z0": {
+          "train": -0.9780975701462533,
+          "validation": -0.9750805165406184,
+          "holdout": -0.9803944566190315
+        },
+        "midpoint_proxy": {
+          "train": -0.9381690487507636,
+          "validation": -0.9526701939908706,
+          "holdout": -0.9411717147592638
+        }
+      }
+    },
+    {
+      "seed": 43,
+      "train_selected_sign": 1,
+      "z1_raw_metrics": {
+        "train": {
+          "count": 840,
+          "mae": 11.865962982177734,
+          "huber": 92.24610137939453,
+          "spearman": 0.9345223655340957,
+          "ndcg_at_k": 0.9270241173585562,
+          "top_k": 84,
+          "top_k_mean_gain": 58.082664489746094,
+          "oracle_top_k_mean_gain": 60.35505676269531,
+          "all_mean_gain": 11.744363784790039,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.7674919833605771,
+              "mean_gain": 68.17130279541016,
+              "oracle_mean_gain": 82.92640686035156,
+              "membership_count": 2560,
+              "unique_node_count": 1710,
+              "membership_redundancy": 1.4970760233918128
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.8183802558248752,
+              "mean_gain": 70.43714904785156,
+              "oracle_mean_gain": 80.84730529785156,
+              "membership_count": 5120,
+              "unique_node_count": 2216,
+              "membership_redundancy": 2.3104693140794224
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.8617524671824582,
+              "mean_gain": 71.07772064208984,
+              "oracle_mean_gain": 78.09213256835938,
+              "membership_count": 9216,
+              "unique_node_count": 3250,
+              "membership_redundancy": 2.8356923076923075
+            }
+          }
+        },
+        "validation": {
+          "count": 180,
+          "mae": 9.736178398132324,
+          "huber": 73.43318176269531,
+          "spearman": 0.9352330405882542,
+          "ndcg_at_k": 0.9426357872754878,
+          "top_k": 18,
+          "top_k_mean_gain": 48.39280700683594,
+          "oracle_top_k_mean_gain": 50.98583221435547,
+          "all_mean_gain": 9.634961128234863,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.8968033787978638,
+              "mean_gain": 60.4160041809082,
+              "oracle_mean_gain": 70.38790130615234,
+              "membership_count": 2560,
+              "unique_node_count": 1701,
+              "membership_redundancy": 1.5049970605526162
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.9046397268944234,
+              "mean_gain": 53.007598876953125,
+              "oracle_mean_gain": 60.15779495239258,
+              "membership_count": 5120,
+              "unique_node_count": 3816,
+              "membership_redundancy": 1.3417190775681342
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.9426357872754878,
+              "mean_gain": 48.39280700683594,
+              "oracle_mean_gain": 50.98583221435547,
+              "membership_count": 9216,
+              "unique_node_count": 6068,
+              "membership_redundancy": 1.5187870797626895
+            }
+          }
+        },
+        "holdout": {
+          "count": 180,
+          "mae": 12.982622146606445,
+          "huber": 102.02900695800781,
+          "spearman": 0.9561442722354272,
+          "ndcg_at_k": 0.9377588074002833,
+          "top_k": 18,
+          "top_k_mean_gain": 54.509666442871094,
+          "oracle_top_k_mean_gain": 58.59969711303711,
+          "all_mean_gain": 12.900259017944336,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.9395521883549076,
+              "mean_gain": 63.71229934692383,
+              "oracle_mean_gain": 69.42369842529297,
+              "membership_count": 2560,
+              "unique_node_count": 2253,
+              "membership_redundancy": 1.1362627607634266
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.9543687290669175,
+              "mean_gain": 61.31215286254883,
+              "oracle_mean_gain": 64.41690063476562,
+              "membership_count": 5120,
+              "unique_node_count": 3135,
+              "membership_redundancy": 1.6331738437001595
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.9377588074002833,
+              "mean_gain": 54.509666442871094,
+              "oracle_mean_gain": 58.59969711303711,
+              "membership_count": 9216,
+              "unique_node_count": 6053,
+              "membership_redundancy": 1.5225508012555757
+            }
+          }
+        }
+      },
+      "z2_train_sign_metrics": {
+        "train": {
+          "count": 840,
+          "mae": 11.865962982177734,
+          "huber": 92.24610137939453,
+          "spearman": 0.9345223655340957,
+          "ndcg_at_k": 0.9270241173585562,
+          "top_k": 84,
+          "top_k_mean_gain": 58.082664489746094,
+          "oracle_top_k_mean_gain": 60.35505676269531,
+          "all_mean_gain": 11.744363784790039,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.7674919833605771,
+              "mean_gain": 68.17130279541016,
+              "oracle_mean_gain": 82.92640686035156,
+              "membership_count": 2560,
+              "unique_node_count": 1710,
+              "membership_redundancy": 1.4970760233918128
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.8183802558248752,
+              "mean_gain": 70.43714904785156,
+              "oracle_mean_gain": 80.84730529785156,
+              "membership_count": 5120,
+              "unique_node_count": 2216,
+              "membership_redundancy": 2.3104693140794224
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.8617524671824582,
+              "mean_gain": 71.07772064208984,
+              "oracle_mean_gain": 78.09213256835938,
+              "membership_count": 9216,
+              "unique_node_count": 3250,
+              "membership_redundancy": 2.8356923076923075
+            }
+          }
+        },
+        "validation": {
+          "count": 180,
+          "mae": 9.736178398132324,
+          "huber": 73.43318176269531,
+          "spearman": 0.9352330405882542,
+          "ndcg_at_k": 0.9426357872754878,
+          "top_k": 18,
+          "top_k_mean_gain": 48.39280700683594,
+          "oracle_top_k_mean_gain": 50.98583221435547,
+          "all_mean_gain": 9.634961128234863,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.8968033787978638,
+              "mean_gain": 60.4160041809082,
+              "oracle_mean_gain": 70.38790130615234,
+              "membership_count": 2560,
+              "unique_node_count": 1701,
+              "membership_redundancy": 1.5049970605526162
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.9046397268944234,
+              "mean_gain": 53.007598876953125,
+              "oracle_mean_gain": 60.15779495239258,
+              "membership_count": 5120,
+              "unique_node_count": 3816,
+              "membership_redundancy": 1.3417190775681342
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.9426357872754878,
+              "mean_gain": 48.39280700683594,
+              "oracle_mean_gain": 50.98583221435547,
+              "membership_count": 9216,
+              "unique_node_count": 6068,
+              "membership_redundancy": 1.5187870797626895
+            }
+          }
+        },
+        "holdout": {
+          "count": 180,
+          "mae": 12.982622146606445,
+          "huber": 102.02900695800781,
+          "spearman": 0.9561442722354272,
+          "ndcg_at_k": 0.9377588074002833,
+          "top_k": 18,
+          "top_k_mean_gain": 54.509666442871094,
+          "oracle_top_k_mean_gain": 58.59969711303711,
+          "all_mean_gain": 12.900259017944336,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.9395521883549076,
+              "mean_gain": 63.71229934692383,
+              "oracle_mean_gain": 69.42369842529297,
+              "membership_count": 2560,
+              "unique_node_count": 2253,
+              "membership_redundancy": 1.1362627607634266
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.9543687290669175,
+              "mean_gain": 61.31215286254883,
+              "oracle_mean_gain": 64.41690063476562,
+              "membership_count": 5120,
+              "unique_node_count": 3135,
+              "membership_redundancy": 1.6331738437001595
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.9377588074002833,
+              "mean_gain": 54.509666442871094,
+              "oracle_mean_gain": 58.59969711303711,
+              "membership_count": 9216,
+              "unique_node_count": 6053,
+              "membership_redundancy": 1.5225508012555757
+            }
+          }
+        }
+      },
+      "correlation": {
+        "z0": {
+          "train": 0.9806220892131171,
+          "validation": 0.9791222925348562,
+          "holdout": 0.9851518050968652
+        },
+        "midpoint_proxy": {
+          "train": 0.9392075755343186,
+          "validation": 0.9562680509460056,
+          "holdout": 0.9442559030242265
+        }
+      }
+    },
+    {
+      "seed": 44,
+      "train_selected_sign": -1,
+      "z1_raw_metrics": {
+        "train": {
+          "count": 840,
+          "mae": 11.897457122802734,
+          "huber": 92.43218231201172,
+          "spearman": -0.9367293626121317,
+          "ndcg_at_k": 0.0032428781350186367,
+          "top_k": 84,
+          "top_k_mean_gain": 0.26070836186408997,
+          "oracle_top_k_mean_gain": 60.35505676269531,
+          "all_mean_gain": 11.744363784790039,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.0005350522270892729,
+              "mean_gain": 0.041600000113248825,
+              "oracle_mean_gain": 82.92640686035156,
+              "membership_count": 2560,
+              "unique_node_count": 2152,
+              "membership_redundancy": 1.1895910780669146
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.0003880657461969015,
+              "mean_gain": 0.02484999969601631,
+              "oracle_mean_gain": 80.84730529785156,
+              "membership_count": 5120,
+              "unique_node_count": 2951,
+              "membership_redundancy": 1.7350050830227042
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.00045321060954412373,
+              "mean_gain": 0.033666666597127914,
+              "oracle_mean_gain": 78.09213256835938,
+              "membership_count": 9216,
+              "unique_node_count": 4497,
+              "membership_redundancy": 2.0493662441627754
+            }
+          }
+        },
+        "validation": {
+          "count": 180,
+          "mae": 9.76685905456543,
+          "huber": 73.59651947021484,
+          "spearman": -0.9327963239577175,
+          "ndcg_at_k": 0.002835424429959706,
+          "top_k": 18,
+          "top_k_mean_gain": 0.13966666162014008,
+          "oracle_top_k_mean_gain": 50.98583221435547,
+          "all_mean_gain": 9.634961128234863,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.0027017470051641434,
+              "mean_gain": 0.13689999282360077,
+              "oracle_mean_gain": 70.38790130615234,
+              "membership_count": 2560,
+              "unique_node_count": 2042,
+              "membership_redundancy": 1.2536728697355535
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.0024521023793198714,
+              "mean_gain": 0.11614999920129776,
+              "oracle_mean_gain": 60.15779495239258,
+              "membership_count": 5120,
+              "unique_node_count": 2565,
+              "membership_redundancy": 1.996101364522417
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.002835424429959706,
+              "mean_gain": 0.13966666162014008,
+              "oracle_mean_gain": 50.98583221435547,
+              "membership_count": 9216,
+              "unique_node_count": 4677,
+              "membership_redundancy": 1.9704939063502245
+            }
+          }
+        },
+        "holdout": {
+          "count": 180,
+          "mae": 13.014192581176758,
+          "huber": 102.2314224243164,
+          "spearman": -0.9529376613427327,
+          "ndcg_at_k": 0.0016669024985025722,
+          "top_k": 18,
+          "top_k_mean_gain": 0.1124444380402565,
+          "oracle_top_k_mean_gain": 58.59969711303711,
+          "all_mean_gain": 12.900259017944336,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.0016409286433455045,
+              "mean_gain": 0.1598999947309494,
+              "oracle_mean_gain": 69.42369842529297,
+              "membership_count": 2560,
+              "unique_node_count": 2143,
+              "membership_redundancy": 1.1945870275314978
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.0014250260602078752,
+              "mean_gain": 0.10829999297857285,
+              "oracle_mean_gain": 64.41690063476562,
+              "membership_count": 5120,
+              "unique_node_count": 3858,
+              "membership_redundancy": 1.3271124935199585
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.0016669024985025722,
+              "mean_gain": 0.1124444380402565,
+              "oracle_mean_gain": 58.59969711303711,
+              "membership_count": 9216,
+              "unique_node_count": 6272,
+              "membership_redundancy": 1.469387755102041
+            }
+          }
+        }
+      },
+      "z2_train_sign_metrics": {
+        "train": {
+          "count": 840,
+          "mae": 11.7305326461792,
+          "huber": 91.56526947021484,
+          "spearman": 0.9367293626121317,
+          "ndcg_at_k": 0.9062238523828888,
+          "top_k": 84,
+          "top_k_mean_gain": 57.155609130859375,
+          "oracle_top_k_mean_gain": 60.35505676269531,
+          "all_mean_gain": 11.744363784790039,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.6492803481914454,
+              "mean_gain": 54.66179656982422,
+              "oracle_mean_gain": 82.92640686035156,
+              "membership_count": 2560,
+              "unique_node_count": 1978,
+              "membership_redundancy": 1.294236602628918
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.7647561711831771,
+              "mean_gain": 66.43709564208984,
+              "oracle_mean_gain": 80.84730529785156,
+              "membership_count": 5120,
+              "unique_node_count": 3058,
+              "membership_redundancy": 1.6742969260954872
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.8328475061550942,
+              "mean_gain": 69.93580627441406,
+              "oracle_mean_gain": 78.09213256835938,
+              "membership_count": 9216,
+              "unique_node_count": 4046,
+              "membership_redundancy": 2.277805239742956
+            }
+          }
+        },
+        "validation": {
+          "count": 180,
+          "mae": 9.600765228271484,
+          "huber": 72.81951904296875,
+          "spearman": 0.9327963239577175,
+          "ndcg_at_k": 0.8599930716133809,
+          "top_k": 18,
+          "top_k_mean_gain": 48.39280319213867,
+          "oracle_top_k_mean_gain": 50.98583221435547,
+          "all_mean_gain": 9.634961128234863,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.7170460738582258,
+              "mean_gain": 56.179603576660156,
+              "oracle_mean_gain": 70.38790130615234,
+              "membership_count": 2560,
+              "unique_node_count": 2120,
+              "membership_redundancy": 1.2075471698113207
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.8105578083170585,
+              "mean_gain": 54.34489822387695,
+              "oracle_mean_gain": 60.15779495239258,
+              "membership_count": 5120,
+              "unique_node_count": 3579,
+              "membership_redundancy": 1.4305671975412126
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.8599930716133809,
+              "mean_gain": 48.39280319213867,
+              "oracle_mean_gain": 50.98583221435547,
+              "membership_count": 9216,
+              "unique_node_count": 6068,
+              "membership_redundancy": 1.5187870797626895
+            }
+          }
+        },
+        "holdout": {
+          "count": 180,
+          "mae": 12.855077743530273,
+          "huber": 101.28675842285156,
+          "spearman": 0.9529376613427327,
+          "ndcg_at_k": 0.9366228920115895,
+          "top_k": 18,
+          "top_k_mean_gain": 53.901248931884766,
+          "oracle_top_k_mean_gain": 58.59969711303711,
+          "all_mean_gain": 12.900259017944336,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.9822503278302099,
+              "mean_gain": 68.20380401611328,
+              "oracle_mean_gain": 69.42369842529297,
+              "membership_count": 2560,
+              "unique_node_count": 1927,
+              "membership_redundancy": 1.3284898806434873
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.9603674041123961,
+              "mean_gain": 61.31215286254883,
+              "oracle_mean_gain": 64.41690063476562,
+              "membership_count": 5120,
+              "unique_node_count": 3135,
+              "membership_redundancy": 1.6331738437001595
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.9366228920115895,
+              "mean_gain": 53.901248931884766,
+              "oracle_mean_gain": 58.59969711303711,
+              "membership_count": 9216,
+              "unique_node_count": 5426,
+              "membership_redundancy": 1.6984887578326575
+            }
+          }
+        }
+      },
+      "correlation": {
+        "z0": {
+          "train": -0.9829960414791407,
+          "validation": -0.9815238977208417,
+          "holdout": -0.9878782266942395
+        },
+        "midpoint_proxy": {
+          "train": -0.9399913732777735,
+          "validation": -0.9552976103325689,
+          "holdout": -0.9453670346228558
+        }
+      }
+    },
+    {
+      "seed": 45,
+      "train_selected_sign": -1,
+      "z1_raw_metrics": {
+        "train": {
+          "count": 840,
+          "mae": 11.722654342651367,
+          "huber": 91.5599365234375,
+          "spearman": -0.9356979375076264,
+          "ndcg_at_k": 0.0032272888429819126,
+          "top_k": 84,
+          "top_k_mean_gain": 0.25458332896232605,
+          "oracle_top_k_mean_gain": 60.35505676269531,
+          "all_mean_gain": 11.744363784790039,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 7.111448703859259e-05,
+              "mean_gain": 0.008100000210106373,
+              "oracle_mean_gain": 82.92640686035156,
+              "membership_count": 2560,
+              "unique_node_count": 1455,
+              "membership_redundancy": 1.7594501718213058
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.0003188612321737238,
+              "mean_gain": 0.037800002843141556,
+              "oracle_mean_gain": 80.84730529785156,
+              "membership_count": 5120,
+              "unique_node_count": 2603,
+              "membership_redundancy": 1.9669611986169804
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.00039060638925706283,
+              "mean_gain": 0.040444448590278625,
+              "oracle_mean_gain": 78.09213256835938,
+              "membership_count": 9216,
+              "unique_node_count": 3346,
+              "membership_redundancy": 2.7543335325762106
+            }
+          }
+        },
+        "validation": {
+          "count": 180,
+          "mae": 9.59279727935791,
+          "huber": 72.80839538574219,
+          "spearman": -0.9381554541147425,
+          "ndcg_at_k": 0.0017248401080367467,
+          "top_k": 18,
+          "top_k_mean_gain": 0.10944444686174393,
+          "oracle_top_k_mean_gain": 50.98583221435547,
+          "all_mean_gain": 9.634961128234863,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.000954280051950106,
+              "mean_gain": 0.09369999915361404,
+              "oracle_mean_gain": 70.38790130615234,
+              "membership_count": 2560,
+              "unique_node_count": 1487,
+              "membership_redundancy": 1.7215870880968394
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.0018052726631956689,
+              "mean_gain": 0.15230000019073486,
+              "oracle_mean_gain": 60.15779495239258,
+              "membership_count": 5120,
+              "unique_node_count": 2442,
+              "membership_redundancy": 2.0966420966420967
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.0017248401080367467,
+              "mean_gain": 0.10944444686174393,
+              "oracle_mean_gain": 50.98583221435547,
+              "membership_count": 9216,
+              "unique_node_count": 4294,
+              "membership_redundancy": 2.1462505822077316
+            }
+          }
+        },
+        "holdout": {
+          "count": 180,
+          "mae": 12.84931468963623,
+          "huber": 101.28182220458984,
+          "spearman": -0.9602451529823423,
+          "ndcg_at_k": 0.001828202091872903,
+          "top_k": 18,
+          "top_k_mean_gain": 0.11788889020681381,
+          "oracle_top_k_mean_gain": 58.59969711303711,
+          "all_mean_gain": 12.900259017944336,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.0016409286433455045,
+              "mean_gain": 0.1598999947309494,
+              "oracle_mean_gain": 69.42369842529297,
+              "membership_count": 2560,
+              "unique_node_count": 2106,
+              "membership_redundancy": 1.2155745489078822
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.0020966553942414,
+              "mean_gain": 0.17264999449253082,
+              "oracle_mean_gain": 64.41690063476562,
+              "membership_count": 5120,
+              "unique_node_count": 3874,
+              "membership_redundancy": 1.3216313887454827
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.001828202091872903,
+              "mean_gain": 0.11788889020681381,
+              "oracle_mean_gain": 58.59969711303711,
+              "membership_count": 9216,
+              "unique_node_count": 5376,
+              "membership_redundancy": 1.7142857142857142
+            }
+          }
+        }
+      },
+      "z2_train_sign_metrics": {
+        "train": {
+          "count": 840,
+          "mae": 11.910972595214844,
+          "huber": 92.44097900390625,
+          "spearman": 0.9356979375076264,
+          "ndcg_at_k": 0.8580420111769533,
+          "top_k": 84,
+          "top_k_mean_gain": 55.164520263671875,
+          "oracle_top_k_mean_gain": 60.35505676269531,
+          "all_mean_gain": 11.744363784790039,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.6690671780924118,
+              "mean_gain": 56.24149703979492,
+              "oracle_mean_gain": 82.92640686035156,
+              "membership_count": 2560,
+              "unique_node_count": 1411,
+              "membership_redundancy": 1.8143160878809355
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.6576350544966961,
+              "mean_gain": 52.898094177246094,
+              "oracle_mean_gain": 80.84730529785156,
+              "membership_count": 5120,
+              "unique_node_count": 2349,
+              "membership_redundancy": 2.179650915283099
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.7014925125883725,
+              "mean_gain": 56.20521926879883,
+              "oracle_mean_gain": 78.09213256835938,
+              "membership_count": 9216,
+              "unique_node_count": 3455,
+              "membership_redundancy": 2.667438494934877
+            }
+          }
+        },
+        "validation": {
+          "count": 180,
+          "mae": 9.782732009887695,
+          "huber": 73.61128234863281,
+          "spearman": 0.9381554541147425,
+          "ndcg_at_k": 0.9133358841250185,
+          "top_k": 18,
+          "top_k_mean_gain": 47.088191986083984,
+          "oracle_top_k_mean_gain": 50.98583221435547,
+          "all_mean_gain": 9.634961128234863,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.8526771149661876,
+              "mean_gain": 56.396995544433594,
+              "oracle_mean_gain": 70.38790130615234,
+              "membership_count": 2560,
+              "unique_node_count": 1701,
+              "membership_redundancy": 1.5049970605526162
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.8998774238595041,
+              "mean_gain": 54.208900451660156,
+              "oracle_mean_gain": 60.15779495239258,
+              "membership_count": 5120,
+              "unique_node_count": 3627,
+              "membership_redundancy": 1.4116349600220568
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.9133358841250185,
+              "mean_gain": 47.088191986083984,
+              "oracle_mean_gain": 50.98583221435547,
+              "membership_count": 9216,
+              "unique_node_count": 6191,
+              "membership_redundancy": 1.48861250201906
+            }
+          }
+        },
+        "holdout": {
+          "count": 180,
+          "mae": 13.025904655456543,
+          "huber": 102.23950958251953,
+          "spearman": 0.9602451529823423,
+          "ndcg_at_k": 0.8646203581214412,
+          "top_k": 18,
+          "top_k_mean_gain": 53.78763961791992,
+          "oracle_top_k_mean_gain": 58.59969711303711,
+          "all_mean_gain": 12.900259017944336,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.7786133182095925,
+              "mean_gain": 59.5724983215332,
+              "oracle_mean_gain": 69.42369842529297,
+              "membership_count": 2560,
+              "unique_node_count": 1807,
+              "membership_redundancy": 1.4167127836192583
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.8343031159099052,
+              "mean_gain": 58.039451599121094,
+              "oracle_mean_gain": 64.41690063476562,
+              "membership_count": 5120,
+              "unique_node_count": 3183,
+              "membership_redundancy": 1.608545397423814
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.8646203581214412,
+              "mean_gain": 53.78763961791992,
+              "oracle_mean_gain": 58.59969711303711,
+              "membership_count": 9216,
+              "unique_node_count": 5544,
+              "membership_redundancy": 1.6623376623376624
+            }
+          }
+        }
+      },
+      "correlation": {
+        "z0": {
+          "train": -0.9763813358335238,
+          "validation": -0.9745475124762052,
+          "holdout": -0.9799561714867743
+        },
+        "midpoint_proxy": {
+          "train": -0.9380557804631394,
+          "validation": -0.9550178343684824,
+          "holdout": -0.9414734400219129
+        }
+      }
+    },
+    {
+      "seed": 46,
+      "train_selected_sign": 1,
+      "z1_raw_metrics": {
+        "train": {
+          "count": 840,
+          "mae": 11.825472831726074,
+          "huber": 92.08161926269531,
+          "spearman": 0.703074970199293,
+          "ndcg_at_k": 0.5909480116693322,
+          "top_k": 84,
+          "top_k_mean_gain": 37.145294189453125,
+          "oracle_top_k_mean_gain": 60.35505676269531,
+          "all_mean_gain": 11.744363784790039,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.5085249345143948,
+              "mean_gain": 42.477901458740234,
+              "oracle_mean_gain": 82.92640686035156,
+              "membership_count": 2560,
+              "unique_node_count": 1669,
+              "membership_redundancy": 1.5338526063511084
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.47617490640557447,
+              "mean_gain": 37.387451171875,
+              "oracle_mean_gain": 80.84730529785156,
+              "membership_count": 5120,
+              "unique_node_count": 2301,
+              "membership_redundancy": 2.2251195132551063
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.521071695125339,
+              "mean_gain": 41.77313995361328,
+              "oracle_mean_gain": 78.09213256835938,
+              "membership_count": 9216,
+              "unique_node_count": 3375,
+              "membership_redundancy": 2.7306666666666666
+            }
+          }
+        },
+        "validation": {
+          "count": 180,
+          "mae": 9.69371223449707,
+          "huber": 73.28084564208984,
+          "spearman": 0.8138005844495807,
+          "ndcg_at_k": 0.7348593120782075,
+          "top_k": 18,
+          "top_k_mean_gain": 37.744384765625,
+          "oracle_top_k_mean_gain": 50.98583221435547,
+          "all_mean_gain": 9.634961128234863,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.7283450758005745,
+              "mean_gain": 52.73640060424805,
+              "oracle_mean_gain": 70.38790130615234,
+              "membership_count": 2560,
+              "unique_node_count": 2048,
+              "membership_redundancy": 1.25
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.7684565120045755,
+              "mean_gain": 48.598304748535156,
+              "oracle_mean_gain": 60.15779495239258,
+              "membership_count": 5120,
+              "unique_node_count": 4274,
+              "membership_redundancy": 1.1979410388394947
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.7348593120782075,
+              "mean_gain": 37.744384765625,
+              "oracle_mean_gain": 50.98583221435547,
+              "membership_count": 9216,
+              "unique_node_count": 7189,
+              "membership_redundancy": 1.2819585477813327
+            }
+          }
+        },
+        "holdout": {
+          "count": 180,
+          "mae": 12.943960189819336,
+          "huber": 101.84920501708984,
+          "spearman": 0.793085638551755,
+          "ndcg_at_k": 0.572439773892584,
+          "top_k": 18,
+          "top_k_mean_gain": 34.917640686035156,
+          "oracle_top_k_mean_gain": 58.59969711303711,
+          "all_mean_gain": 12.900259017944336,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.5101507843491576,
+              "mean_gain": 35.15169906616211,
+              "oracle_mean_gain": 69.42369842529297,
+              "membership_count": 2560,
+              "unique_node_count": 2375,
+              "membership_redundancy": 1.0778947368421052
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.5746821773477209,
+              "mean_gain": 39.27945327758789,
+              "oracle_mean_gain": 64.41690063476562,
+              "membership_count": 5120,
+              "unique_node_count": 3728,
+              "membership_redundancy": 1.3733905579399142
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.572439773892584,
+              "mean_gain": 34.917640686035156,
+              "oracle_mean_gain": 58.59969711303711,
+              "membership_count": 9216,
+              "unique_node_count": 6298,
+              "membership_redundancy": 1.4633216894252143
+            }
+          }
+        }
+      },
+      "z2_train_sign_metrics": {
+        "train": {
+          "count": 840,
+          "mae": 11.825472831726074,
+          "huber": 92.08161926269531,
+          "spearman": 0.703074970199293,
+          "ndcg_at_k": 0.5909480116693322,
+          "top_k": 84,
+          "top_k_mean_gain": 37.145294189453125,
+          "oracle_top_k_mean_gain": 60.35505676269531,
+          "all_mean_gain": 11.744363784790039,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.5085249345143948,
+              "mean_gain": 42.477901458740234,
+              "oracle_mean_gain": 82.92640686035156,
+              "membership_count": 2560,
+              "unique_node_count": 1669,
+              "membership_redundancy": 1.5338526063511084
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.47617490640557447,
+              "mean_gain": 37.387451171875,
+              "oracle_mean_gain": 80.84730529785156,
+              "membership_count": 5120,
+              "unique_node_count": 2301,
+              "membership_redundancy": 2.2251195132551063
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.521071695125339,
+              "mean_gain": 41.77313995361328,
+              "oracle_mean_gain": 78.09213256835938,
+              "membership_count": 9216,
+              "unique_node_count": 3375,
+              "membership_redundancy": 2.7306666666666666
+            }
+          }
+        },
+        "validation": {
+          "count": 180,
+          "mae": 9.69371223449707,
+          "huber": 73.28084564208984,
+          "spearman": 0.8138005844495807,
+          "ndcg_at_k": 0.7348593120782075,
+          "top_k": 18,
+          "top_k_mean_gain": 37.744384765625,
+          "oracle_top_k_mean_gain": 50.98583221435547,
+          "all_mean_gain": 9.634961128234863,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.7283450758005745,
+              "mean_gain": 52.73640060424805,
+              "oracle_mean_gain": 70.38790130615234,
+              "membership_count": 2560,
+              "unique_node_count": 2048,
+              "membership_redundancy": 1.25
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.7684565120045755,
+              "mean_gain": 48.598304748535156,
+              "oracle_mean_gain": 60.15779495239258,
+              "membership_count": 5120,
+              "unique_node_count": 4274,
+              "membership_redundancy": 1.1979410388394947
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.7348593120782075,
+              "mean_gain": 37.744384765625,
+              "oracle_mean_gain": 50.98583221435547,
+              "membership_count": 9216,
+              "unique_node_count": 7189,
+              "membership_redundancy": 1.2819585477813327
+            }
+          }
+        },
+        "holdout": {
+          "count": 180,
+          "mae": 12.943960189819336,
+          "huber": 101.84920501708984,
+          "spearman": 0.793085638551755,
+          "ndcg_at_k": 0.572439773892584,
+          "top_k": 18,
+          "top_k_mean_gain": 34.917640686035156,
+          "oracle_top_k_mean_gain": 58.59969711303711,
+          "all_mean_gain": 12.900259017944336,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.5101507843491576,
+              "mean_gain": 35.15169906616211,
+              "oracle_mean_gain": 69.42369842529297,
+              "membership_count": 2560,
+              "unique_node_count": 2375,
+              "membership_redundancy": 1.0778947368421052
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.5746821773477209,
+              "mean_gain": 39.27945327758789,
+              "oracle_mean_gain": 64.41690063476562,
+              "membership_count": 5120,
+              "unique_node_count": 3728,
+              "membership_redundancy": 1.3733905579399142
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.572439773892584,
+              "mean_gain": 34.917640686035156,
+              "oracle_mean_gain": 58.59969711303711,
+              "membership_count": 9216,
+              "unique_node_count": 6298,
+              "membership_redundancy": 1.4633216894252143
+            }
+          }
+        }
+      },
+      "correlation": {
+        "z0": {
+          "train": 0.6288569727666744,
+          "validation": 0.7243340021608273,
+          "holdout": 0.7499140919987243
+        },
+        "midpoint_proxy": {
+          "train": 0.5620689020323937,
+          "validation": 0.6759738302765452,
+          "holdout": 0.6572513319436146
+        }
+      }
+    }
+  ],
+  "aggregate": {
+    "z1_raw_train": {
+      "mean_spearman": -0.23459843307333098,
+      "std_spearman": 0.8632039371765861,
+      "mean_absolute_spearman": 0.8896373673666865,
+      "min_spearman": -0.9381622009802854,
+      "max_spearman": 0.9345223655340957
+    },
+    "z1_raw_validation": {
+      "mean_spearman": -0.2117074564020533,
+      "std_spearman": 0.8877310433700798,
+      "mean_absolute_spearman": 0.9113209064171872,
+      "min_spearman": -0.9381554541147425,
+      "max_spearman": 0.9352330405882542
+    },
+    "z1_raw_holdout": {
+      "mean_spearman": -0.22450783615905193,
+      "std_spearman": 0.8989133938371524,
+      "mean_absolute_spearman": 0.9241998004739248,
+      "min_spearman": -0.9602451529823423,
+      "max_spearman": 0.9561442722354272
+    },
+    "z2_train_sign_train": {
+      "mean_spearman": 0.8896373673666865,
+      "std_spearman": 0.09328888756166571,
+      "mean_absolute_spearman": 0.8896373673666865,
+      "min_spearman": 0.703074970199293,
+      "max_spearman": 0.9381622009802854
+    },
+    "z2_train_sign_validation": {
+      "mean_spearman": 0.9113209064171872,
+      "std_spearman": 0.048791986904757875,
+      "mean_absolute_spearman": 0.9113209064171872,
+      "min_spearman": 0.8138005844495807,
+      "max_spearman": 0.9381554541147425
+    },
+    "z2_train_sign_holdout": {
+      "mean_spearman": 0.9241998004739248,
+      "std_spearman": 0.06560325388732426,
+      "mean_absolute_spearman": 0.9241998004739248,
+      "min_spearman": 0.793085638551755,
+      "max_spearman": 0.9602451529823423
+    }
+  },
+  "z1_cross_seed_spearman": {
+    "train": {
+      "42": {
+        "42": 1.0,
+        "43": -0.9913802618215879,
+        "44": 0.9898976620862212,
+        "45": 0.9916686040487566,
+        "46": -0.696163143212752
+      },
+      "43": {
+        "42": -0.9913802618215879,
+        "43": 1.0,
+        "44": -0.9956804857596746,
+        "45": -0.9973242766740347,
+        "46": 0.7016063861094114
+      },
+      "44": {
+        "42": 0.9898976620862212,
+        "43": -0.9956804857596746,
+        "44": 1.0,
+        "45": 0.9931951042215391,
+        "46": -0.6907251609773436
+      },
+      "45": {
+        "42": 0.9916686040487566,
+        "43": -0.9973242766740347,
+        "44": 0.9931951042215391,
+        "45": 1.0,
+        "46": -0.7012487096858251
+      },
+      "46": {
+        "42": -0.696163143212752,
+        "43": 0.7016063861094114,
+        "44": -0.6907251609773436,
+        "45": -0.7012487096858251,
+        "46": 1.0
+      }
+    },
+    "validation": {
+      "42": {
+        "42": 1.0,
+        "43": -0.9886546277717755,
+        "44": 0.9867777949272007,
+        "45": 0.9902845089262746,
+        "46": -0.7982672223079693
+      },
+      "43": {
+        "42": -0.9886546277717755,
+        "43": 1.0,
+        "44": -0.9939208725626383,
+        "45": -0.996666152183979,
+        "46": 0.8069702114523847
+      },
+      "44": {
+        "42": 0.9867777949272007,
+        "43": -0.9939208725626383,
+        "44": 1.0,
+        "45": 0.9918217831969954,
+        "46": -0.7975222513762412
+      },
+      "45": {
+        "42": 0.9902845089262746,
+        "43": -0.996666152183979,
+        "44": 0.9918217831969954,
+        "45": 1.0,
+        "46": -0.8182970623038535
+      },
+      "46": {
+        "42": -0.7982672223079693,
+        "43": 0.8069702114523847,
+        "44": -0.7975222513762412,
+        "45": -0.8182970623038535,
+        "46": 1.0
+      }
+    },
+    "holdout": {
+      "42": {
+        "42": 1.0,
+        "43": -0.9917590049075589,
+        "44": 0.9891601592641748,
+        "45": 0.9929648034404354,
+        "46": -0.7996790024383469
+      },
+      "43": {
+        "42": -0.9917590049075589,
+        "43": 1.0,
+        "44": -0.9959957611860448,
+        "45": -0.9966645061061555,
+        "46": 0.8026255954401885
+      },
+      "44": {
+        "42": 0.9891601592641748,
+        "43": -0.9959957611860448,
+        "44": 1.0,
+        "45": 0.9920964638826302,
+        "46": -0.7932096669650298
+      },
+      "45": {
+        "42": 0.9929648034404354,
+        "43": -0.9966645061061555,
+        "44": 0.9920964638826302,
+        "45": 1.0,
+        "46": -0.8084529357901993
+      },
+      "46": {
+        "42": -0.7996790024383469,
+        "43": 0.8026255954401885,
+        "44": -0.7932096669650298,
+        "45": -0.8084529357901993,
+        "46": 1.0
+      }
+    }
+  }
+}

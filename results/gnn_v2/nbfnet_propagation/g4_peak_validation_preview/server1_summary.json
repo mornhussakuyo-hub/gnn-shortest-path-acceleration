@@ -1,0 +1,360 @@
+{
+  "schema": "aic.gnn_v2.od_conditioned_bidirectional_nbfnet.v4",
+  "model": "od_conditioned_bidirectional_nbfnet",
+  "variant": "propagation_doubling",
+  "execution": {
+    "framework": "pytorch",
+    "torch_version": "2.13.0+cu130",
+    "cuda_version": "13.0",
+    "device_type": "cuda",
+    "device_index": 0,
+    "device_name": "NVIDIA GeForce RTX 4090 D",
+    "device_total_memory_bytes": 25250627584
+  },
+  "dataset_sha256": "e9b1bc149a6a94dd744305e41817c3a2b9447cd5e3ba5a17c71fea38db2bf261",
+  "candidate_sha256": "40d7d8babf74381b5f7088de22edc0f48181bec9c78a53fb039c9e8e7c20f71c",
+  "config": {
+    "hidden_dim": 32,
+    "propagation_layers": 32,
+    "demand_scale": 1000.0,
+    "learning_rate": 0.005,
+    "weight_decay": 0.0,
+    "rank_weight": 0.2,
+    "huber_delta": 1.0,
+    "prototype_batch_size": 4,
+    "max_epochs": 40,
+    "patience": 40,
+    "min_improvement": 0.0001,
+    "mixed_precision": false,
+    "gradient_checkpointing": true,
+    "zero_initialize_prediction_head": true,
+    "propagation_structure": "g3",
+    "propagation_residual_scale": 0.01,
+    "variant": "propagation_doubling",
+    "randomization_seed": 20260730
+  },
+  "numerics": {
+    "mode": "fp32",
+    "autocast_enabled": false,
+    "autocast_dtype": null,
+    "grad_scaler_enabled": false,
+    "grad_scaler_init_scale": 65536.0
+  },
+  "training_objective": "soft_spearman",
+  "training_protocol": {
+    "head_warmup_steps": 0,
+    "soft_rank_temperature": 0.1,
+    "residual_gate_grid": [
+      0.0,
+      0.125,
+      0.25,
+      0.5,
+      1.0
+    ],
+    "save_validation_snapshots": true,
+    "evaluation_splits": [
+      "train",
+      "validation"
+    ],
+    "holdout_withheld": true,
+    "lr_scheduler": {
+      "name": "none",
+      "monitor": null,
+      "starts_after_head_warmup": true,
+      "factor": 0.3,
+      "patience": 3,
+      "threshold": 0.0001,
+      "min_lr": 0.0005
+    }
+  },
+  "fixed_prior": {
+    "name": "z0",
+    "description": "deterministic scalar bidirectional fixed-mean diffusion over depths 1,2,4,8,16,32; centered and standardized on train candidates only",
+    "readout_depths": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32
+    ],
+    "train_mean": 0.11733295023441315,
+    "train_std": 0.21461084485054016
+  },
+  "seeds": [
+    42
+  ],
+  "selected_seed": 42,
+  "selection_rule": "highest validation Spearman among post-update checkpoints; holdout is never used",
+  "architecture": {
+    "propagation_only": true,
+    "uses_direct_region_features": false,
+    "uses_layer_zero_readout": false,
+    "propagation_structure": "g3",
+    "propagation_residual_scale": 0.01,
+    "residual_propagation": true,
+    "strict_identity_path": true,
+    "doubling_scale_readout": true,
+    "readout_depths": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32
+    ],
+    "maximum_hop_depth": 32,
+    "materializes_multi_hop_edges": false
+  },
+  "split": {
+    "axis": "candidate",
+    "strategy": "jaccard_overlap_connected_components",
+    "seed": 42,
+    "train_fraction": 0.7,
+    "validation_fraction": 0.15,
+    "holdout_fraction": 0.15000000000000005,
+    "counts": {
+      "train": 840,
+      "validation": 180,
+      "holdout": 180
+    },
+    "overlap_group_threshold": 0.5,
+    "overlap_group_count": 521,
+    "largest_overlap_group": 12,
+    "cross_split_max_jaccard_upper_bound": 0.5,
+    "guarantee": "Every candidate pair with Jaccard similarity greater than or equal to the threshold belongs to the same split.",
+    "warning": "Candidate holdout measures region generalization within H→Y; it is not the frozen future temporal test."
+  },
+  "input_policy": {
+    "uses_history_od_only": true,
+    "uses_static_road_graph": true,
+    "uses_path_supervision": false,
+    "uses_label_window_as_input": false,
+    "uses_cost_or_query_runtime_features": false,
+    "uses_node_coordinates": false,
+    "coordinates_used_for_prototype_grouping_only": true,
+    "selection_method_is_model_input": false
+  },
+  "ablation": {
+    "variant": "propagation_doubling",
+    "randomization_seed": 20260730,
+    "graph_transform": "directed_original",
+    "original_edge_count": 221589,
+    "effective_edge_count": 221589,
+    "edge_features_zeroed": false,
+    "destination_prototypes_permuted": false,
+    "destination_permutation": null,
+    "shuffled_od_coupling": null,
+    "note": null
+  },
+  "prototype_batching": {
+    "prototype_count": 128,
+    "prototype_batch_size": 4,
+    "training_objective": "Two-pass exact full-mixture gradient: the first pass evaluates the weighted score of all frozen prototypes; the second recomputes one memory chunk at a time and accumulates its exact gradient contribution.",
+    "ranking_loss": "scale-invariant differentiable soft Spearman",
+    "batch_size_affects_objective": false
+  },
+  "runs": [
+    {
+      "seed": 42,
+      "best_epoch": 37,
+      "epochs_ran": 40,
+      "training_seconds": 2822.3983606440015,
+      "peak_allocated_bytes": 9700544000,
+      "peak_reserved_bytes": 13828620288,
+      "parameter_count": 418183,
+      "metrics": {
+        "train": {
+          "count": 840,
+          "mae": 13.105016708374023,
+          "huber": 89.66155242919922,
+          "spearman": 0.9518628539492759,
+          "ndcg_at_k": 0.9651369673277141,
+          "top_k": 84,
+          "top_k_mean_gain": 128.3881378173828,
+          "oracle_top_k_mean_gain": 131.675537109375,
+          "all_mean_gain": 39.26521682739258,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.8970779958087929,
+              "mean_gain": 160.10740661621094,
+              "oracle_mean_gain": 177.17410278320312,
+              "membership_count": 2560,
+              "unique_node_count": 1608,
+              "membership_redundancy": 1.592039800995025
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.920687267510961,
+              "mean_gain": 163.3068084716797,
+              "oracle_mean_gain": 174.91421508789062,
+              "membership_count": 5120,
+              "unique_node_count": 2066,
+              "membership_redundancy": 2.478218780251694
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.9577305936788724,
+              "mean_gain": 165.57867431640625,
+              "oracle_mean_gain": 168.4081573486328,
+              "membership_count": 9216,
+              "unique_node_count": 3125,
+              "membership_redundancy": 2.94912
+            }
+          }
+        },
+        "validation": {
+          "count": 180,
+          "mae": 12.650206565856934,
+          "huber": 85.5780029296875,
+          "spearman": 0.9510746216447009,
+          "ndcg_at_k": 0.9831779813359057,
+          "top_k": 18,
+          "top_k_mean_gain": 139.1039276123047,
+          "oracle_top_k_mean_gain": 140.1768798828125,
+          "all_mean_gain": 40.91598892211914,
+          "ranking_at_k": {
+            "5": {
+              "k": 5,
+              "ndcg": 0.937825388440558,
+              "mean_gain": 157.50149536132812,
+              "oracle_mean_gain": 170.85610961914062,
+              "membership_count": 2560,
+              "unique_node_count": 1993,
+              "membership_redundancy": 1.2844957350727546
+            },
+            "10": {
+              "k": 10,
+              "ndcg": 0.9729073677593706,
+              "mean_gain": 151.96534729003906,
+              "oracle_mean_gain": 155.20130920410156,
+              "membership_count": 5120,
+              "unique_node_count": 3606,
+              "membership_redundancy": 1.4198557958957294
+            },
+            "18": {
+              "k": 18,
+              "ndcg": 0.9831779813359057,
+              "mean_gain": 139.1039276123047,
+              "oracle_mean_gain": 140.1768798828125,
+              "membership_count": 9216,
+              "unique_node_count": 5770,
+              "membership_redundancy": 1.5972270363951473
+            }
+          }
+        }
+      },
+      "diagnostics": {
+        "numerics": {
+          "mode": "fp32",
+          "autocast_enabled": false,
+          "autocast_dtype": null,
+          "grad_scaler_enabled": false,
+          "grad_scaler_init_scale": 65536.0
+        },
+        "epoch_zero_validation_spearman": 0.9410928320832948,
+        "first_effective_optimizer_epoch": 1,
+        "first_positive_validation_epoch": 0,
+        "effective_optimizer_steps": 40,
+        "skipped_optimizer_steps": 0,
+        "best_checkpoint_effective_step_count": 37,
+        "head_warmup_steps": 0,
+        "first_backbone_effective_optimizer_epoch": 1,
+        "backbone_effective_optimizer_steps": 40,
+        "best_checkpoint_backbone_effective_step_count": 37,
+        "nonfinite_gradient_norm_steps": 0,
+        "maximum_finite_gradient_norm_before_clip": 0.08165062963962555,
+        "maximum_consecutive_zero_gradient_steps_after_clip": 0,
+        "unrecovered_validation_loss_doublings": 0,
+        "lr_scheduler": "none",
+        "learning_rate_reduction_epochs": [],
+        "final_learning_rate": 0.005,
+        "initialization_dominant": false,
+        "selection_requires_effective_optimizer_step": true,
+        "fixed_prior": "z0",
+        "stopped_reason": "max_epochs"
+      },
+      "training_objective": "soft_spearman",
+      "soft_rank_temperature": 0.1,
+      "residual_gate": {
+        "alpha": 0.25,
+        "grid": [
+          0.0,
+          0.125,
+          0.25,
+          0.5,
+          1.0
+        ],
+        "selection_split": "validation",
+        "fallback_to_fixed_prior_available": true
+      }
+    }
+  ],
+  "aggregate": {
+    "train": {
+      "mae": {
+        "mean": 13.105016708374023,
+        "std": 0.0,
+        "min": 13.105016708374023,
+        "max": 13.105016708374023
+      },
+      "huber": {
+        "mean": 89.66155242919922,
+        "std": 0.0,
+        "min": 89.66155242919922,
+        "max": 89.66155242919922
+      },
+      "spearman": {
+        "mean": 0.9518628539492759,
+        "std": 0.0,
+        "min": 0.9518628539492759,
+        "max": 0.9518628539492759
+      },
+      "ndcg_at_k": {
+        "mean": 0.9651369673277141,
+        "std": 0.0,
+        "min": 0.9651369673277141,
+        "max": 0.9651369673277141
+      },
+      "top_k_mean_gain": {
+        "mean": 128.3881378173828,
+        "std": 0.0,
+        "min": 128.3881378173828,
+        "max": 128.3881378173828
+      }
+    },
+    "validation": {
+      "mae": {
+        "mean": 12.650206565856934,
+        "std": 0.0,
+        "min": 12.650206565856934,
+        "max": 12.650206565856934
+      },
+      "huber": {
+        "mean": 85.5780029296875,
+        "std": 0.0,
+        "min": 85.5780029296875,
+        "max": 85.5780029296875
+      },
+      "spearman": {
+        "mean": 0.9510746216447009,
+        "std": 0.0,
+        "min": 0.9510746216447009,
+        "max": 0.9510746216447009
+      },
+      "ndcg_at_k": {
+        "mean": 0.9831779813359057,
+        "std": 0.0,
+        "min": 0.9831779813359057,
+        "max": 0.9831779813359057
+      },
+      "top_k_mean_gain": {
+        "mean": 139.1039276123047,
+        "std": 0.0,
+        "min": 139.1039276123047,
+        "max": 139.1039276123047
+      }
+    }
+  }
+}

@@ -38,12 +38,15 @@ GNN 位于第 4 步。它不替代 Dijkstra，而是根据道路拓扑和历史 
 | 1. 数据与评测框架 | 已完成 | 构建 Porto 道路图和 98,082 条可用 OD；实现 Dijkstra、双向 Dijkstra、逐查询明细和正确性评测。 |
 | 2. 传统压缩与物化查询 | 已完成 | 实现随机、OD 热点区域；离线构建节点三态表、shortcut 和压缩图；全量配对实验正确率 100%，在线耗时下降。 |
 | 3. 参数与预算扫描 | 已完成 | 完成 42 组全量控制变量实验，全部正确率 100%；推荐区域数 100、区域大小 512，并以约 3.8～4 万条 shortcut 作为第一版公平预算。 |
-| 4. OD 条件化双向 NBFNet | 梯度机制诊断已完成 | 空间重叠组隔离 split 上四组 32 层纯传播筛选完成；CUDA 梯度解剖已定位深层反向指数放大和 FP32 全局范数溢出。 |
-| 5. 梯度稳定化与 Z0 神经残差 | 已完成并停止扩展 | G3 恒定与 plateau 调度版均数值稳定，但都未通过三种子 NDCG@5 门；不进入 S5 和 P 预训练。 |
-| 6. 参赛与论文双目标最终验证 | Porto 核心闭环已完成 | 未来窗口、14 组 Z0 正交消融、严格非重叠选区和 42 组同预算在线配对评测全部完成。全部距离正确率 100%；K=18 时 Z0 在当前/未来窗口分别减少 17.46% / 17.76% 展开节点并缩短 8.55% / 9.19% 平均耗时。 |
+| 4. OD 条件化双向 NBFNet | 已完成 | 32 层纯传播、梯度解剖与稳定化全部完成；定位深层反向指数放大、FP32 范数溢出和旧排序目标错位。 |
+| 5. Z0 与 G4 神经残差 | 已完成 | Z0 是无参数主方法；G4 在 Porto/Chicago 三种子 holdout 与未来全局 Spearman 均稳定超过 Z0，但 Top-K 并非全面提升；P 预训练未启动。 |
+| 6. 参赛与论文最终验证 | 已完成 | 两城 H/Y/F、14 组 Z0 消融、严格非重叠选区和在线闭环全部完成；两城所有在线距离正确率均为 100%。 |
+| 7. 跨城市冻结复现 | 已完成 | Chicago 数据、精确标签、MLP/Proxy/Z0/G4、未来窗口和 42 组在线评测全部落库；正确拓扑与 G4 全局排序增量均跨城市复现。 |
 
 各阶段的目标、成果、证据、遗留问题和完成标准统一记录在
 [`reports/`](reports/README.md) 中。
+最终统一结论、论文主张、负结果和投稿判断见
+[`reports/最终研究成果与论文结论.md`](reports/最终研究成果与论文结论.md)。
 第二版的冻结研究主线与实施顺序见
 [`reports/阶段四_GNN第二版实施计划.md`](reports/阶段四_GNN第二版实施计划.md)。
 梯度稳定化与 Z0 神经残差的详细实验漏斗见
@@ -65,6 +68,16 @@ G3 相对 Z0 的展开节点增益约为 1 个百分点，但 K=18 的 shortcut 
 `8185 ± 997`，高于 Z0 的 `6712`，且小预算下增益很小。因此主结论仍是可解释 Z0 已能实现
 大部分系统收益，神经残差只是有限且需同时报告存储成本的补充。完整 42 组结果见
 [`results/gnn_v2/multi_region_online/report.md`](results/gnn_v2/multi_region_online/report.md)。
+
+G4 修复了旧 pairwise 损失与真实排序目标的错位。Porto / Chicago 的 holdout Spearman 分别为
+`0.9459 ± 0.0017 / 0.9468 ± 0.0011`，未来全候选为
+`0.9566 ± 0.0016 / 0.9257 ± 0.0009`；六个种子在 holdout 和未来窗口上均高于各自 Z0。
+但 G4 的 Top-K 指标与在线收益并未全面超过 Z0/Proxy：Porto K=18 仅多减少约
+`0.13 / 0.04` 个百分点当前/未来展开节点，Chicago 则低于 Z0。故最终论文把 G4 定位为
+“稳定改善全局区域排序的神经增强”，Z0 仍是部署性价比最高的主方法。两城完整结果见
+[`results/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/report.md`](results/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/report.md)
+和
+[`results/chicago/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/report.md`](results/chicago/gnn_v2/nbfnet_propagation/g4_frozen_evaluation/report.md)。
 
 当前物化压缩图的全量配对结果：
 
@@ -367,8 +380,8 @@ NBFNet 正式结果见
 
 `propagation_doubling` 旧协议五种子已经完成：holdout Spearman 为 `0.8860 ± 0.1149`，
 NDCG@18 为 `0.8656 ± 0.2594`，最差 seed 45 的 holdout Spearman 仅为 `0.6943`。seed 43
-又由 epoch 1 的未训练排序主导，因此这组结果是训练协议异常基线，不是稳定性证据。下一步先
-完成 FP16、低初始 scale、BF16 与 CUDA FP32 的更新路径诊断，再冻结正式训练协议。
+又由 epoch 1 的未训练排序主导，因此这组结果是训练协议异常基线，不是稳定性证据。后续已经
+完成 FP16、低初始 scale、BF16 与 CUDA FP32 的更新路径诊断，并冻结 G3/G4 正式协议。
 
 端点局部接入专项实现、全量正确性、缓存命中率和同进程缓存配对结果见
 [`reports/阶段四_精确端点局部接入.md`](reports/阶段四_精确端点局部接入.md)。
