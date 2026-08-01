@@ -56,6 +56,8 @@ GNN 位于第 4 步。它不替代 Dijkstra，而是根据道路拓扑和历史 
 [`reports/最终研究成果与论文结论.md`](reports/最终研究成果与论文结论.md)。
 相关工作重合层级和投稿安全口径见
 [`reports/文献新颖性审查与论文定位.md`](reports/文献新颖性审查与论文定位.md)。
+中文 LaTeX 论文初稿、参考文献与正式制图清单位于
+[`paper/`](paper/README.md)。
 第二版的冻结研究主线与实施顺序见
 [`reports/阶段四_GNN第二版实施计划.md`](reports/阶段四_GNN第二版实施计划.md)。
 梯度稳定化与 Z0 神经残差的详细实验漏斗见
