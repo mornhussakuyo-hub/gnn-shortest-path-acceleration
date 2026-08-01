@@ -21,6 +21,7 @@ sys.path.insert(0, str(ROOT_DIR))
 from scripts.train_demand_field_nbfnet import (
     PrecisionPolicy,
     _all_split_metrics,
+    _apply_residual_gate,
     _attach_fixed_prior,
     _predict_weighted,
     _prepare_tensors,
@@ -86,6 +87,16 @@ def parse_args() -> argparse.Namespace:
             "predictions.csv. If omitted, use the frozen Porto checkpoint paths."
         ),
     )
+    parser.add_argument(
+        "--run-dir",
+        action="append",
+        default=[],
+        metavar="SEED=PATH",
+        help=(
+            "Explicit seed checkpoint directory; repeat once per seed. This is "
+            "useful when parallel server runs have different output roots."
+        ),
+    )
     parser.add_argument("--seeds", default="42,43,44")
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--device", default="cuda")
@@ -100,7 +111,16 @@ def main() -> None:
     seeds = tuple(int(value.strip()) for value in args.seeds.split(",") if value.strip())
     if not seeds:
         raise SystemExit("--seeds must contain at least one integer")
-    if args.runs_root is None:
+    if args.runs_root is not None and args.run_dir:
+        raise SystemExit("--runs-root and --run-dir cannot be combined")
+    if args.run_dir:
+        run_dirs = _parse_run_dirs(args.run_dir)
+        if set(run_dirs) != set(seeds):
+            raise SystemExit(
+                "--run-dir seeds must exactly match --seeds: "
+                f"expected {sorted(seeds)}, got {sorted(run_dirs)}"
+            )
+    elif args.runs_root is None:
         missing = sorted(set(seeds) - set(DEFAULT_RUNS))
         if missing:
             raise SystemExit(
@@ -154,6 +174,13 @@ def main() -> None:
                 config.prototype_batch_size,
                 precision,
             )
+            residual_gate = checkpoint.get("residual_gate", {"alpha": 1.0})
+            if "fixed_prior" in tensors:
+                standardized = _apply_residual_gate(
+                    standardized,
+                    tensors["fixed_prior"][all_indices],
+                    float(residual_gate["alpha"]),
+                )
         prediction = _unscale_prediction(standardized, checkpoint["scalers"])
         replay = _validate_partial_predictions(
             partial_path, dataset.region_ids, prediction
@@ -170,6 +197,9 @@ def main() -> None:
             "config": asdict(config),
             "numerics": checkpoint["numerics"],
             "fixed_prior": prior,
+            "training_objective": checkpoint.get("training_objective", "rank_first"),
+            "soft_rank_temperature": checkpoint.get("soft_rank_temperature"),
+            "residual_gate": residual_gate,
             "source_prediction_count": replay["source_prediction_count"],
             "source_prediction_scope": replay["source_prediction_scope"],
             "full_prediction_count": len(prediction),
@@ -213,6 +243,22 @@ def main() -> None:
     print(f"summary={args.output_dir / 'summary.json'}", flush=True)
 
 
+def _parse_run_dirs(values: list[str]) -> dict[int, Path]:
+    result: dict[int, Path] = {}
+    for value in values:
+        seed_text, separator, path_text = value.partition("=")
+        if not separator or not seed_text.strip() or not path_text.strip():
+            raise SystemExit(f"invalid --run-dir value: {value!r}; expected SEED=PATH")
+        try:
+            seed = int(seed_text)
+        except ValueError as error:
+            raise SystemExit(f"invalid --run-dir seed: {seed_text!r}") from error
+        if seed in result:
+            raise SystemExit(f"duplicate --run-dir seed: {seed}")
+        result[seed] = Path(path_text)
+    return result
+
+
 def _validate_checkpoint(checkpoint: dict, dataset, seed: int) -> None:
     if checkpoint.get("schema") != "aic.gnn_v2.od_conditioned_bidirectional_nbfnet.v4":
         raise ValueError(f"seed {seed} checkpoint schema mismatch")
@@ -227,6 +273,9 @@ def _validate_checkpoint(checkpoint: dict, dataset, seed: int) -> None:
         raise ValueError(f"seed {seed} is not the frozen constant-lr protocol")
     if checkpoint.get("numerics", {}).get("mode") != "fp32":
         raise ValueError(f"seed {seed} is not the frozen FP32 protocol")
+    residual_gate = checkpoint.get("residual_gate", {"alpha": 1.0})
+    if not 0.0 <= float(residual_gate.get("alpha", -1.0)) <= 1.0:
+        raise ValueError(f"seed {seed} has an invalid residual gate")
 
 
 def _validate_scalers(fresh: dict, saved: dict) -> None:

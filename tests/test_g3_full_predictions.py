@@ -8,10 +8,21 @@ from pathlib import Path
 
 import numpy as np
 
-from scripts.export_g3_full_predictions import _validate_partial_predictions
+from scripts.export_g3_full_predictions import (
+    _parse_run_dirs,
+    _validate_partial_predictions,
+)
 
 
 class G3FullPredictionsTest(unittest.TestCase):
+    def test_explicit_run_dirs_are_strict(self) -> None:
+        self.assertEqual(
+            _parse_run_dirs(["42=first/seed_42", "43=second/seed_43"]),
+            {42: Path("first/seed_42"), 43: Path("second/seed_43")},
+        )
+        with self.assertRaises(SystemExit):
+            _parse_run_dirs(["42=first", "42=second"])
+
     def test_partial_replay_requires_train_validation_and_small_delta(self) -> None:
         region_ids = np.arange(1200)
         prediction = np.linspace(0.0, 1.0, 1200)

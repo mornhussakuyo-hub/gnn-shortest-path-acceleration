@@ -43,7 +43,8 @@ DEFAULT_DATASET_MANIFEST = ROOT_DIR / "results" / "gnn_v2" / "demand_field_datas
 DEFAULT_OUTPUT_DIR = ROOT_DIR / "results" / "gnn_v2" / "nbfnet_base"
 EXPERIMENT_SCHEMA = "aic.gnn_v2.od_conditioned_bidirectional_nbfnet.v4"
 PRECISION_MODES = ("fp16", "bf16", "fp32")
-TRAINING_OBJECTIVES = ("regression_rank", "rank_first")
+TRAINING_OBJECTIVES = ("regression_rank", "rank_first", "soft_spearman")
+RANK_ONLY_OBJECTIVES = frozenset({"rank_first", "soft_spearman"})
 FIXED_PRIORS = ("none", "z0")
 LR_SCHEDULERS = ("none", "reduce_on_plateau")
 
@@ -111,6 +112,20 @@ def parse_args() -> argparse.Namespace:
         default="none",
         help="Add a frozen score to the learned residual before every ranking metric.",
     )
+    parser.add_argument(
+        "--soft-rank-temperature",
+        type=float,
+        default=0.1,
+        help="Temperature after score standardization for soft_spearman ranks.",
+    )
+    parser.add_argument(
+        "--residual-gate-grid",
+        default="1",
+        help=(
+            "Comma-separated validation-only residual multipliers. Include 0 to "
+            "permit a conservative fallback to the frozen prior."
+        ),
+    )
     parser.add_argument("--huber-delta", type=float, default=1.0)
     parser.add_argument("--prototype-batch-size", type=int, default=1)
     parser.add_argument("--max-epochs", type=int, default=100)
@@ -166,26 +181,37 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     seeds = _parse_int_list(args.seeds, "--seeds")
+    residual_gate_grid = _parse_float_grid(
+        args.residual_gate_grid,
+        "--residual-gate-grid",
+    )
     precision_policy = _resolve_precision_policy(
         args.precision,
         args.no_mixed_precision,
         args.grad_scaler_init_scale,
     )
     rank_weight = 0.0 if args.variant == "no_ranking" else args.rank_weight
-    if args.training_objective == "rank_first" and args.variant == "no_ranking":
-        raise SystemExit("rank_first cannot be combined with variant=no_ranking")
-    if args.fixed_prior != "none" and args.training_objective != "rank_first":
-        raise SystemExit("a fixed prior is only supported by training-objective=rank_first")
+    if args.training_objective in RANK_ONLY_OBJECTIVES and args.variant == "no_ranking":
+        raise SystemExit("a ranking objective cannot be combined with variant=no_ranking")
+    if args.fixed_prior != "none" and args.training_objective not in RANK_ONLY_OBJECTIVES:
+        raise SystemExit(
+            "a fixed prior is only supported by a rank-only training objective"
+        )
     if args.fixed_prior == "z0" and args.variant not in PROPAGATION_ONLY_VARIANTS:
         raise SystemExit("the Z0 residual protocol requires a propagation-only variant")
     if args.head_warmup_steps < 0:
         raise SystemExit("head-warmup-steps must be non-negative")
     if args.head_warmup_steps and (
-        args.training_objective != "rank_first" or args.fixed_prior == "none"
+        args.training_objective not in RANK_ONLY_OBJECTIVES
+        or args.fixed_prior == "none"
     ):
         raise SystemExit(
-            "head-warmup-steps requires rank_first with a fixed residual prior"
+            "head-warmup-steps requires a rank-only objective with a fixed prior"
         )
+    if args.soft_rank_temperature <= 0.0:
+        raise SystemExit("--soft-rank-temperature must be positive")
+    if residual_gate_grid != (1.0,) and args.fixed_prior == "none":
+        raise SystemExit("a residual gate grid requires a fixed prior")
     if args.lr_scheduler != "none":
         if not 0.0 < args.lr_scheduler_factor < 1.0:
             raise SystemExit("lr-scheduler-factor must be in (0, 1)")
@@ -246,6 +272,8 @@ def main() -> None:
             precision_policy,
             args.training_objective,
             args.fixed_prior,
+            args.soft_rank_temperature,
+            residual_gate_grid,
             args.head_warmup_steps,
             ("train", "validation") if args.withhold_holdout else SPLIT_NAMES,
             args.lr_scheduler,
@@ -290,6 +318,8 @@ def main() -> None:
         "training_objective": args.training_objective,
         "training_protocol": {
             "head_warmup_steps": args.head_warmup_steps,
+            "soft_rank_temperature": args.soft_rank_temperature,
+            "residual_gate_grid": list(residual_gate_grid),
             "evaluation_splits": (
                 ["train", "validation"]
                 if args.withhold_holdout
@@ -316,7 +346,7 @@ def main() -> None:
         "selection_rule": (
             "highest validation Spearman among post-update checkpoints; holdout is "
             "never used"
-            if args.training_objective == "rank_first"
+            if args.training_objective in RANK_ONLY_OBJECTIVES
             else "highest validation Spearman; holdout is never used"
         ),
         "architecture": _architecture_metadata(config),
@@ -332,9 +362,13 @@ def main() -> None:
                 "memory chunk at a time and accumulates its exact gradient contribution."
             ),
             "ranking_loss": (
-                "all unique training candidate pairs"
-                if args.training_objective == "rank_first"
-                else "one sampled pair per training candidate"
+                "scale-invariant differentiable soft Spearman"
+                if args.training_objective == "soft_spearman"
+                else (
+                    "all unique training candidate pairs"
+                    if args.training_objective == "rank_first"
+                    else "one sampled pair per training candidate"
+                )
             ),
             "batch_size_affects_objective": False,
         },
@@ -686,6 +720,8 @@ def _train_one_seed(
     precision_policy: PrecisionPolicy,
     training_objective: str,
     fixed_prior: str,
+    soft_rank_temperature: float = 0.1,
+    residual_gate_grid: tuple[float, ...] = (1.0,),
     head_warmup_steps: int = 0,
     evaluation_splits: tuple[str, ...] = SPLIT_NAMES,
     lr_scheduler: str = "none",
@@ -730,6 +766,7 @@ def _train_one_seed(
     best_validation_spearman = float("-inf")
     best_state: dict[str, torch.Tensor] | None = None
     best_epoch = 0
+    best_residual_gate = 1.0
     epochs_without_improvement = 0
     history: list[dict[str, float | int | str]] = []
     generator = torch.Generator(device=device)
@@ -759,6 +796,7 @@ def _train_one_seed(
         train_target,
         config,
         training_objective,
+        soft_rank_temperature,
     )
     (
         initial_validation_loss,
@@ -769,9 +807,25 @@ def _train_one_seed(
         validation_target,
         config,
         training_objective,
+        soft_rank_temperature,
+    )
+    validation_prior = (
+        tensors["fixed_prior"][validation_indices]
+        if "fixed_prior" in tensors
+        else None
+    )
+    (
+        initial_residual_gate,
+        initial_gated_validation_prediction,
+        initial_raw_validation_spearman,
+    ) = _select_residual_gate(
+        initial_validation_prediction,
+        validation_prior,
+        dataset.labels[dataset.split_mask("validation")],
+        residual_gate_grid,
     )
     initial_validation_unscaled = _unscale_prediction(
-        initial_validation_prediction,
+        initial_gated_validation_prediction,
         scalers,
     )
     initial_validation_metrics = regression_metrics(
@@ -816,11 +870,15 @@ def _train_one_seed(
         "output_head" if head_warmup_steps else "all"
     )
     initial_history_row["trainable_parameter_count"] = _trainable_parameter_count(model)
+    initial_history_row["validation_raw_spearman"] = initial_raw_validation_spearman
+    initial_history_row["residual_gate"] = initial_residual_gate
     history.append(initial_history_row)
     print(
         f"seed={seed} epoch=000/{config.max_epochs} "
         f"validation_loss={initial_validation_loss:.6f} "
-        f"validation_spearman={initial_validation_metrics['spearman']:.4f} "
+            f"validation_spearman={initial_validation_metrics['spearman']:.4f} "
+            f"raw_spearman={initial_raw_validation_spearman:.4f} "
+            f"residual_gate={initial_residual_gate:g} "
         f"precision={precision_policy.mode} optimizer_step=none",
         flush=True,
     )
@@ -861,9 +919,17 @@ def _train_one_seed(
             train_target,
         )
         prediction_leaf = full_train_prediction.detach().requires_grad_(True)
-        if training_objective == "rank_first":
+        if training_objective in RANK_ONLY_OBJECTIVES:
             train_huber = prediction_leaf.sum() * 0.0
-            train_rank = _full_pairwise_loss_tensor(prediction_leaf, train_target)
+            train_rank = (
+                _soft_spearman_loss_tensor(
+                    prediction_leaf,
+                    train_target,
+                    soft_rank_temperature,
+                )
+                if training_objective == "soft_spearman"
+                else _full_pairwise_loss_tensor(prediction_leaf, train_target)
+            )
             train_loss = train_rank
         else:
             train_huber = functional.huber_loss(
@@ -941,8 +1007,22 @@ def _train_one_seed(
                 validation_target,
                 config,
                 training_objective,
+                soft_rank_temperature,
             )
-            validation_unscaled = _unscale_prediction(validation_prediction, scalers)
+            (
+                residual_gate,
+                gated_validation_prediction,
+                raw_validation_spearman,
+            ) = _select_residual_gate(
+                validation_prediction,
+                validation_prior,
+                dataset.labels[dataset.split_mask("validation")],
+                residual_gate_grid,
+            )
+            validation_unscaled = _unscale_prediction(
+                gated_validation_prediction,
+                scalers,
+            )
             validation_metrics = regression_metrics(
                 validation_unscaled,
                 dataset.labels[dataset.split_mask("validation")],
@@ -985,6 +1065,8 @@ def _train_one_seed(
         )
         history_row["trainable_scope"] = trainable_scope
         history_row["trainable_parameter_count"] = _trainable_parameter_count(model)
+        history_row["validation_raw_spearman"] = raw_validation_spearman
+        history_row["residual_gate"] = residual_gate
         history.append(history_row)
         if (
             first_positive_validation_epoch is None
@@ -992,7 +1074,7 @@ def _train_one_seed(
         ):
             first_positive_validation_epoch = epoch
         checkpoint_is_eligible = (
-            training_objective != "rank_first"
+            training_objective not in RANK_ONLY_OBJECTIVES
             or (
                 optimizer_step_effective
                 and trainable_scope == "all"
@@ -1010,6 +1092,7 @@ def _train_one_seed(
                 for name, value in model.state_dict().items()
             }
             best_epoch = epoch
+            best_residual_gate = residual_gate
             best_checkpoint_effective_step_count = effective_optimizer_steps
             best_checkpoint_backbone_effective_step_count = (
                 backbone_effective_optimizer_steps
@@ -1027,6 +1110,8 @@ def _train_one_seed(
             f"train_loss={float(train_loss.detach()):.6f} "
             f"validation_loss={validation_loss:.6f} "
             f"validation_spearman={validation_metrics['spearman']:.4f} "
+            f"raw_spearman={raw_validation_spearman:.4f} "
+            f"residual_gate={residual_gate:g} "
             f"scale={scaler_scale_before:g}->{scaler_scale_after:g} "
             f"optimizer_step={optimizer_state_step_before}->{optimizer_state_step_after} "
             f"step_skipped={int(optimizer_step_skipped)} "
@@ -1057,7 +1142,7 @@ def _train_one_seed(
         np.flatnonzero(evaluation_mask), device=device, dtype=torch.long
     )
     if best_state is None and (
-        training_objective != "rank_first" or fixed_prior == "none"
+        training_objective not in RANK_ONLY_OBJECTIVES or fixed_prior == "none"
     ):
         raise RuntimeError("NBFNet training did not produce a finite validation checkpoint")
     if best_state is None:
@@ -1068,6 +1153,7 @@ def _train_one_seed(
         model_state = None
         selected_prediction = tensors["fixed_prior"][evaluation_indices].detach().clone()
         best_epoch = 0
+        best_residual_gate = 0.0
         best_checkpoint_effective_step_count = 0
         best_checkpoint_backbone_effective_step_count = 0
         stopped_reason = "no_effective_optimizer_checkpoint"
@@ -1087,6 +1173,13 @@ def _train_one_seed(
                 config.prototype_batch_size,
                 precision_policy,
             )
+            if "fixed_prior" in tensors:
+                selected_prior = tensors["fixed_prior"][evaluation_indices]
+                selected_prediction = _apply_residual_gate(
+                    selected_prediction,
+                    selected_prior,
+                    best_residual_gate,
+                )
         model_state = best_state
     prediction = torch.full(
         (dataset.region_ids.size,),
@@ -1159,11 +1252,19 @@ def _train_one_seed(
                 <= initial_validation_metrics["spearman"] + config.min_improvement
             ),
             "selection_requires_effective_optimizer_step": training_objective
-            == "rank_first",
+            in RANK_ONLY_OBJECTIVES,
             "fixed_prior": fixed_prior,
             "stopped_reason": stopped_reason,
         },
         "prediction": unscaled_prediction,
+        "training_objective": training_objective,
+        "soft_rank_temperature": soft_rank_temperature,
+        "residual_gate": {
+            "alpha": best_residual_gate,
+            "grid": list(residual_gate_grid),
+            "selection_split": "validation",
+            "fallback_to_fixed_prior_available": 0.0 in residual_gate_grid,
+        },
         "history": history,
         "model_state": model_state,
     }
@@ -1257,6 +1358,7 @@ def _evaluation_loss(
     target: torch.Tensor,
     config: NBFNetConfig,
     training_objective: str,
+    soft_rank_temperature: float = 0.1,
 ) -> tuple[float, float, float]:
     huber = functional.huber_loss(
         prediction,
@@ -1264,10 +1366,14 @@ def _evaluation_loss(
         reduction="mean",
         delta=config.huber_delta,
     )
-    rank = _full_pairwise_loss_tensor(prediction, target)
+    rank = (
+        _soft_spearman_loss_tensor(prediction, target, soft_rank_temperature)
+        if training_objective == "soft_spearman"
+        else _full_pairwise_loss_tensor(prediction, target)
+    )
     total = (
         rank
-        if training_objective == "rank_first"
+        if training_objective in RANK_ONLY_OBJECTIVES
         else huber + config.rank_weight * rank
     )
     return float(total.item()), float(huber.item()), float(rank.item())
@@ -1283,6 +1389,86 @@ def _full_pairwise_loss_tensor(
     sign = torch.sign(target[left] - target[right])
     margin = sign * (prediction[left] - prediction[right])
     return functional.softplus(-margin).mean()
+
+
+def _soft_spearman_loss_tensor(
+    prediction: torch.Tensor,
+    target: torch.Tensor,
+    temperature: float = 0.1,
+) -> torch.Tensor:
+    """Scale-invariant differentiable approximation of one minus Spearman."""
+
+    if temperature <= 0.0:
+        raise ValueError("soft-rank temperature must be positive")
+    if prediction.ndim != 1 or target.shape != prediction.shape:
+        raise ValueError("prediction and target must be aligned one-dimensional tensors")
+    if len(prediction) < 2:
+        return prediction.sum() * 0.0
+    centered_prediction = prediction - prediction.mean()
+    prediction_scale = centered_prediction.square().mean().sqrt().clamp_min(1.0e-6)
+    standardized_prediction = centered_prediction / prediction_scale
+    soft_ranks = torch.sigmoid(
+        (standardized_prediction[:, None] - standardized_prediction[None, :])
+        / temperature
+    ).sum(dim=1)
+    target_ranks = _average_ranks(target).to(dtype=prediction.dtype)
+    centered_soft_ranks = soft_ranks - soft_ranks.mean()
+    centered_target_ranks = target_ranks - target_ranks.mean()
+    denominator = (
+        centered_soft_ranks.square().mean().sqrt()
+        * centered_target_ranks.square().mean().sqrt()
+    ).clamp_min(1.0e-6)
+    correlation = (
+        centered_soft_ranks * centered_target_ranks
+    ).mean() / denominator
+    return 1.0 - correlation.clamp(-1.0, 1.0)
+
+
+def _average_ranks(values: torch.Tensor) -> torch.Tensor:
+    less = (values[:, None] > values[None, :]).sum(dim=1)
+    equal = (values[:, None] == values[None, :]).sum(dim=1)
+    return less.to(torch.float32) + (equal.to(torch.float32) - 1.0) * 0.5
+
+
+def _apply_residual_gate(
+    prediction: torch.Tensor,
+    fixed_prior: torch.Tensor,
+    alpha: float,
+) -> torch.Tensor:
+    if prediction.shape != fixed_prior.shape:
+        raise ValueError("prediction and fixed prior shapes do not match")
+    if not 0.0 <= alpha <= 1.0:
+        raise ValueError("residual gate alpha must be in [0, 1]")
+    return fixed_prior + alpha * (prediction - fixed_prior)
+
+
+def _select_residual_gate(
+    prediction: torch.Tensor,
+    fixed_prior: torch.Tensor | None,
+    target: np.ndarray,
+    grid: tuple[float, ...],
+) -> tuple[float, torch.Tensor, float]:
+    raw = prediction.detach().float().cpu().numpy()
+    raw_spearman = regression_metrics(raw, target)["spearman"]
+    if fixed_prior is None:
+        return 1.0, prediction, raw_spearman
+    best_alpha = grid[0]
+    best_prediction = _apply_residual_gate(prediction, fixed_prior, best_alpha)
+    best_spearman = regression_metrics(
+        best_prediction.detach().float().cpu().numpy(),
+        target,
+    )["spearman"]
+    for alpha in grid[1:]:
+        candidate = _apply_residual_gate(prediction, fixed_prior, alpha)
+        spearman = regression_metrics(
+            candidate.detach().float().cpu().numpy(),
+            target,
+        )["spearman"]
+        if spearman > best_spearman + 1.0e-12:
+            best_alpha = alpha
+            best_prediction = candidate
+            best_spearman = spearman
+    return best_alpha, best_prediction, raw_spearman
 
 
 def _full_pairwise_loss(
@@ -1597,6 +1783,9 @@ def _save_checkpoint(
             "dataset_sha256": dataset.manifest["dataset_sha256"],
             "candidate_sha256": dataset.manifest["candidate_sha256"],
             "scalers": scalers,
+            "training_objective": run["training_objective"],
+            "soft_rank_temperature": run["soft_rank_temperature"],
+            "residual_gate": run["residual_gate"],
         },
         path,
     )
@@ -1654,6 +1843,22 @@ def _parse_int_list(value: str, option: str) -> list[int]:
         raise ValueError(f"{option} must be a comma-separated integer list") from error
     if not values or len(set(values)) != len(values):
         raise ValueError(f"{option} must contain unique integers")
+    return values
+
+
+def _parse_float_grid(value: str, option: str) -> tuple[float, ...]:
+    try:
+        values = tuple(
+            sorted(float(item.strip()) for item in value.split(",") if item.strip())
+        )
+    except ValueError as error:
+        raise ValueError(f"{option} must be a comma-separated float list") from error
+    if (
+        not values
+        or len(set(values)) != len(values)
+        or any(not 0.0 <= item <= 1.0 for item in values)
+    ):
+        raise ValueError(f"{option} must contain unique values in [0, 1]")
     return values
 
 

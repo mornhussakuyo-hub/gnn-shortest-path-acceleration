@@ -4,6 +4,8 @@ import copy
 import unittest
 from dataclasses import asdict
 
+import numpy as np
+
 try:
     import torch
 
@@ -23,8 +25,11 @@ try:
         _optimizer_state_step,
         _parameter_delta_norm,
         _parameter_snapshot,
+        _parse_float_grid,
         _resolve_precision_policy,
+        _select_residual_gate,
         _set_training_scope,
+        _soft_spearman_loss_tensor,
         _trainable_parameter_count,
         _evaluation_loss,
     )
@@ -268,6 +273,41 @@ class BidirectionalNBFNetTest(unittest.TestCase):
         )
         self.assertGreater(huber, 0.0)
         self.assertAlmostEqual(total, rank)
+
+    def test_soft_spearman_is_scale_invariant_and_rank_aligned(self) -> None:
+        target = torch.tensor([0.0, 1.0, 2.0, 3.0, 4.0])
+        aligned = torch.tensor([-2.0, -0.5, 0.0, 1.0, 3.0], requires_grad=True)
+        scaled = aligned.detach() * 17.0 + 23.0
+        reversed_prediction = -aligned.detach()
+        aligned_loss = _soft_spearman_loss_tensor(aligned, target, 0.1)
+        scaled_loss = _soft_spearman_loss_tensor(scaled, target, 0.1)
+        reversed_loss = _soft_spearman_loss_tensor(reversed_prediction, target, 0.1)
+        self.assertAlmostEqual(aligned_loss.item(), scaled_loss.item(), places=5)
+        self.assertLess(aligned_loss.item(), reversed_loss.item())
+        aligned_loss.backward()
+        self.assertTrue(torch.isfinite(aligned.grad).all())
+
+    def test_residual_gate_can_fall_back_to_fixed_prior(self) -> None:
+        target = np.asarray([0.0, 1.0, 2.0, 3.0])
+        prior = torch.tensor([0.0, 1.0, 2.0, 3.0])
+        prediction = torch.tensor([3.0, 2.0, 1.0, 0.0])
+        alpha, selected, raw_spearman = _select_residual_gate(
+            prediction,
+            prior,
+            target,
+            (0.0, 0.25, 0.5, 1.0),
+        )
+        self.assertEqual(alpha, 0.0)
+        self.assertTrue(torch.equal(selected, prior))
+        self.assertLess(raw_spearman, 0.0)
+
+    def test_residual_gate_grid_is_strict_and_sorted(self) -> None:
+        self.assertEqual(
+            _parse_float_grid("1,0,0.5", "--gate"),
+            (0.0, 0.5, 1.0),
+        )
+        with self.assertRaises(ValueError):
+            _parse_float_grid("0,1.5", "--gate")
 
     def test_zero_state_does_not_create_messages(self) -> None:
         layer = _DirectionalLayer(hidden_dim=4, edge_dim=3)
