@@ -33,6 +33,7 @@ try:
         _region_conflict_matrix,
         _select_residual_gate,
         _set_training_scope,
+        _scaled_split_top_k,
         _soft_spearman_loss_tensor,
         _soft_topk_weights,
         _trainable_parameter_count,
@@ -299,6 +300,12 @@ class BidirectionalNBFNetTest(unittest.TestCase):
         self.assertAlmostEqual(float(weights.sum().item()), 2.0, places=5)
         (weights * torch.arange(4.0)).sum().backward()
         self.assertTrue(torch.isfinite(prediction.grad).all())
+
+    def test_split_topk_preserves_full_deployment_selection_ratio(self) -> None:
+        self.assertEqual(_scaled_split_top_k(18, 840, 1200), 13)
+        self.assertEqual(_scaled_split_top_k(18, 180, 1200), 3)
+        self.assertEqual(_scaled_split_top_k(18, 1200, 1200), 18)
+        self.assertEqual(_scaled_split_top_k(1, 1, 1200), 1)
 
     def test_negative_composite_losses_are_not_false_doublings(self) -> None:
         history = [

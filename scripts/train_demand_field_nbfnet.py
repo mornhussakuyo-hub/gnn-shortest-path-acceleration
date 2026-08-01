@@ -102,6 +102,8 @@ class DeploymentObjective:
     train_conflict: torch.Tensor
     validation_conflict: torch.Tensor
     top_k: int
+    train_top_k: int
+    validation_top_k: int
     topk_temperature: float
     topk_gain_weight: float
     budget_weight: float
@@ -122,6 +124,9 @@ class DeploymentObjective:
     def metadata(self) -> dict[str, object]:
         return {
             "top_k": self.top_k,
+            "train_top_k": self.train_top_k,
+            "validation_top_k": self.validation_top_k,
+            "split_top_k_policy": "round(full_k * split_count / total_count)",
             "topk_temperature": self.topk_temperature,
             "topk_gain_weight": self.topk_gain_weight,
             "budget_weight": self.budget_weight,
@@ -732,11 +737,15 @@ def _prepare_deployment_objective(
     )
     split_context: dict[str, dict[str, object]] = {}
     conflicts: dict[str, torch.Tensor] = {}
+    total_candidate_count = len(dataset.region_ids)
     for split_name in ("train", "validation"):
         mask = dataset.split_mask(split_name)
         indices = np.flatnonzero(mask)
-        if len(indices) < top_k:
-            raise ValueError(f"{split_name} has fewer candidates than deployment K")
+        split_top_k = _scaled_split_top_k(
+            top_k,
+            len(indices),
+            total_candidate_count,
+        )
         split_scores = tensors["fixed_prior"][torch.as_tensor(
             indices, device=shortcut_cost.device, dtype=torch.long
         )]
@@ -745,7 +754,7 @@ def _prepare_deployment_objective(
         )]
         split_weights = _soft_topk_weights(
             split_scores,
-            top_k,
+            split_top_k,
             topk_temperature,
         )
         soft_budget = float((split_weights * split_cost).sum().item())
@@ -754,9 +763,10 @@ def _prepare_deployment_objective(
             target=dataset.labels[mask],
             region_nodes=dataset.region_nodes[mask],
             shortcut_cost=shortcut_cost_values[mask],
-            top_k=top_k,
+            top_k=split_top_k,
         )
         split_context[split_name] = {
+            "top_k": split_top_k,
             "soft_budget": soft_budget * shortcut_budget_ratio,
             "hard_budget": float(hard_metrics["shortcut_count"])
             * shortcut_budget_ratio,
@@ -776,6 +786,8 @@ def _prepare_deployment_objective(
         train_conflict=conflicts["train"],
         validation_conflict=conflicts["validation"],
         top_k=top_k,
+        train_top_k=int(split_context["train"]["top_k"]),
+        validation_top_k=int(split_context["validation"]["top_k"]),
         topk_temperature=topk_temperature,
         topk_gain_weight=topk_gain_weight,
         budget_weight=budget_weight,
@@ -795,6 +807,25 @@ def _prepare_deployment_objective(
         cost_source=_display_path(cost_labels),
         cost_source_sha256=_sha256(cost_labels),
     )
+
+
+def _scaled_split_top_k(
+    full_top_k: int,
+    split_candidate_count: int,
+    total_candidate_count: int,
+) -> int:
+    if full_top_k <= 0 or full_top_k > total_candidate_count:
+        raise ValueError("full deployment K must be in [1, total_candidate_count]")
+    if split_candidate_count <= 0 or split_candidate_count > total_candidate_count:
+        raise ValueError(
+            "split candidate count must be in [1, total_candidate_count]"
+        )
+    scaled = int(
+        np.floor(
+            full_top_k * split_candidate_count / total_candidate_count + 0.5
+        )
+    )
+    return max(1, min(split_candidate_count, scaled))
 
 
 def _load_shortcut_costs(path: Path, region_ids: np.ndarray) -> np.ndarray:
@@ -1107,7 +1138,7 @@ def _train_one_seed(
                 target=train_target,
                 shortcut_cost=deployment_objective.shortcut_cost[train_indices],
                 conflict_matrix=deployment_objective.train_conflict,
-                top_k=deployment_objective.top_k,
+                top_k=deployment_objective.train_top_k,
                 temperature=deployment_objective.topk_temperature,
                 soft_budget=deployment_objective.train_soft_budget,
                 topk_gain_weight=deployment_objective.topk_gain_weight,
@@ -1122,7 +1153,7 @@ def _train_one_seed(
                 target=validation_target,
                 shortcut_cost=deployment_objective.shortcut_cost[validation_indices],
                 conflict_matrix=deployment_objective.validation_conflict,
-                top_k=deployment_objective.top_k,
+                top_k=deployment_objective.validation_top_k,
                 temperature=deployment_objective.topk_temperature,
                 soft_budget=deployment_objective.validation_soft_budget,
                 topk_gain_weight=deployment_objective.topk_gain_weight,
@@ -1307,7 +1338,7 @@ def _train_one_seed(
                         target=train_target,
                         shortcut_cost=deployment_objective.shortcut_cost[train_indices],
                         conflict_matrix=deployment_objective.train_conflict,
-                        top_k=deployment_objective.top_k,
+                        top_k=deployment_objective.train_top_k,
                         temperature=deployment_objective.topk_temperature,
                         soft_budget=deployment_objective.train_soft_budget,
                         topk_gain_weight=deployment_objective.topk_gain_weight,
@@ -1416,7 +1447,7 @@ def _train_one_seed(
                             validation_indices
                         ],
                         conflict_matrix=deployment_objective.validation_conflict,
-                        top_k=deployment_objective.top_k,
+                        top_k=deployment_objective.validation_top_k,
                         temperature=deployment_objective.topk_temperature,
                         soft_budget=deployment_objective.validation_soft_budget,
                         topk_gain_weight=deployment_objective.topk_gain_weight,
@@ -2067,7 +2098,7 @@ def _validation_deployment_metrics(
         target=dataset.labels[mask],
         region_nodes=dataset.region_nodes[mask],
         shortcut_cost=shortcut_cost.detach().float().cpu().numpy()[mask],
-        top_k=objective.top_k,
+        top_k=objective.validation_top_k,
     )
     spearman = regression_metrics(prediction_values, dataset.labels[mask])["spearman"]
     metrics.update(
