@@ -689,9 +689,9 @@ def _plot_city(
             ax.scatter(
                 road[::stride, 0],
                 road[::stride, 1],
-                s=0.18,
+                s=0.36,
                 color=ROAD,
-                alpha=0.40,
+                alpha=0.68,
                 edgecolors="none",
                 linewidths=0,
                 rasterized=True,
@@ -806,9 +806,9 @@ def _plot_endpoint_appendix(
             ax.scatter(
                 road[::stride, 0],
                 road[::stride, 1],
-                s=0.14,
+                s=0.28,
                 color=ROAD,
-                alpha=0.38,
+                alpha=0.62,
                 edgecolors="none",
                 linewidths=0,
                 rasterized=True,
