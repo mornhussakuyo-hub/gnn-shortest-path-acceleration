@@ -1,0 +1,5 @@
+Historical trip demand guides exact road-index materialization without path logs.
+A graph residual model improves global region ranking in all 12 comparisons.
+Budget-aware learning jointly controls utility, index cost, and conflicts.
+Exact C++ tests reveal stable gains for computationally demanding trips.
+Full rankings support changing budgets and graph-wide resource allocation.

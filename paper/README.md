@@ -1,15 +1,16 @@
 # 论文初稿
 
-本目录是独立论文工作区，当前正文为中文 LaTeX 初稿，按照英文期刊论文结构组织。确定目标期刊
-后再整体翻译并替换为期刊模板，避免现在过早绑定版式。
+本目录是独立论文工作区，当前正文为中文 LaTeX 初稿，已经按 EAAI 的问题导向与投稿结构重组。
+正式投稿前仍需整体翻译为英文并替换为 Elsevier 模板。
 
 ## 当前文件
 
-- `main.tex`：完整初稿正文，包含摘要、引言、相关工作、问题定义、方法、实验、结果、讨论、
-  局限性和结论；
-- `main.pdf`：单栏完整初稿；
-- `main_twocolumn.tex`：复用 `main.tex` 正文的双栏预览入口；
-- `main_twocolumn.pdf`：10 页双栏预览版，宽表和占位图自动跨栏；
+- `main.tex` / `main.pdf`：EAAI 单栏匿名正文，包含摘要、引言、相关工作、问题定义、方法、实验、
+  结果、讨论、略有局限性、结论与术语表；
+- `main_authored.tex` / `main_authored.pdf`：供校内交流的署名单栏版本；
+- `title_page.tex` / `title_page.pdf`：双匿名投稿要求的独立标题页；
+- `highlights.txt`：5 条英文 Highlights，均不超过 85 个字符；
+- `main_twocolumn.tex` / `main_twocolumn.pdf`：历史双栏预览入口，不作为 EAAI 投稿文件；
 - `references.bib`：正文实际引用的参考文献；
 - `EVIDENCE.md`：正文数字到仓库冻结报告和机器可读产物的对应关系；
 - `figures/README.md`：正式制图清单和每张图的数据来源；
@@ -21,11 +22,17 @@
 2. 肖逸涵，第二作者；
 3. 王加文，第二作者。
 
-作者单位、英文姓名、邮箱、通讯作者、基金、利益冲突、作者贡献和致谢均未推测，正文中保持空白。
+作者单位、英文姓名、邮箱、通讯作者、基金、利益冲突、作者贡献和致谢均未推测，集中保留在独立
+标题页待确认，不写入匿名正文。
+
+全文只服务一个主要问题：在固定预处理和存储预算下，能否仅依据历史起终点需求与静态道路图，
+学习并选择少量值得物化且互不重叠的区域，在保持距离精确的同时降低未来查询成本。原有七组实验
+现作为“可预测性—时间泛化—信号来源—非重叠部署—真实性能—预算优化—适用边界”证据链，
+不再表述为七个并列研究问题。
 
 ## 编译
 
-已在本机使用 XeLaTeX 与 BibTeX 成功生成单栏和双栏两版 PDF。
+已在本机使用 XeLaTeX 与 BibTeX 成功生成匿名正文、署名交流稿和独立标题页。
 需要重新生成时，可在本目录运行：
 
 ```bash
@@ -38,8 +45,9 @@ xelatex main.tex
 或者：
 
 ```bash
-latexmk -xelatex -bibtex main.tex
-latexmk -xelatex -bibtex main_twocolumn.tex
+latexmk -xelatex main.tex
+latexmk -xelatex main_authored.tex
+latexmk -xelatex title_page.tex
 ```
 
 正文采用 `ctexart`，必须使用 XeLaTeX 或 LuaLaTeX，不建议使用 pdfLaTeX。
@@ -66,4 +74,4 @@ latexmk -xelatex -bibtex main_twocolumn.tex
 - 是否存在并列第二作者标注要求；
 - 通讯作者、邮箱和作者贡献；
 - 基金、利益冲突、数据/代码公开链接；
-- 目标期刊及其篇幅、摘要、图表和参考文献格式要求。
+- 数据/代码归档链接、英文图表与最终 Elsevier 模板适配。
