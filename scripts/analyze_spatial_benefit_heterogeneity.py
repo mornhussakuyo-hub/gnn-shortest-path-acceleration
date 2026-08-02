@@ -12,8 +12,13 @@ from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
+import matplotlib
+matplotlib.use("Agg")
+
 import matplotlib.pyplot as plt
 import numpy as np
+
+from paper_figure_style import BENEFIT_CMAP, INK, ROAD, configure_style
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -142,6 +147,20 @@ def _cell_index(
     return x_index, y_index
 
 
+def _square_grid_bounds(bounds: tuple[float, ...]) -> tuple[float, ...]:
+    """Return a centered square extent so one grid index is one square map cell."""
+    min_x, max_x, min_y, max_y = bounds
+    center_x = 0.5 * (min_x + max_x)
+    center_y = 0.5 * (min_y + max_y)
+    span = max(max_x - min_x, max_y - min_y)
+    return (
+        center_x - 0.5 * span,
+        center_x + 0.5 * span,
+        center_y - 0.5 * span,
+        center_y + 0.5 * span,
+    )
+
+
 def _history_hot_cells(
     queries: list[dict[str, int]],
     coordinates: dict[int, tuple[float, float]],
@@ -187,11 +206,12 @@ def _sha256(path: Path) -> str:
 
 
 def analyze_city(config: CityConfig, *, grid_size: int, min_cell_queries: int) -> None:
-    coordinates, bounds = _load_nodes(config.nodes)
+    coordinates, road_bounds = _load_nodes(config.nodes)
+    grid_bounds = _square_grid_bounds(road_bounds)
     queries = _load_queries(config.queries)
     query_lookup = {row["query_id"]: row for row in queries}
     hot_cells, history_counts, history_count = _history_hot_cells(
-        queries, coordinates, bounds, grid_size
+        queries, coordinates, grid_bounds, grid_size
     )
     output_dir = ROOT / "results/spatial_benefit_heterogeneity" / config.name
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -225,9 +245,9 @@ def analyze_city(config: CityConfig, *, grid_size: int, min_cell_queries: int) -
                     destination_x, destination_y = coordinates[result["destination"]]
                     midpoint_x = 0.5 * (origin_x + destination_x)
                     midpoint_y = 0.5 * (origin_y + destination_y)
-                    midpoint_cell = _cell_index(midpoint_x, midpoint_y, bounds, grid_size)
-                    origin_cell = _cell_index(origin_x, origin_y, bounds, grid_size)
-                    destination_cell = _cell_index(destination_x, destination_y, bounds, grid_size)
+                    midpoint_cell = _cell_index(midpoint_x, midpoint_y, grid_bounds, grid_size)
+                    origin_cell = _cell_index(origin_x, origin_y, grid_bounds, grid_size)
+                    destination_cell = _cell_index(destination_x, destination_y, grid_bounds, grid_size)
                     detailed_rows.append(
                         {
                             "city": config.name,
@@ -261,7 +281,7 @@ def analyze_city(config: CityConfig, *, grid_size: int, min_cell_queries: int) -
     detail_path = output_dir / "query_deltas.csv.gz"
     _write_csv_gz(detail_path, detailed_rows)
     seed_mean_rows = _seed_mean_rows(detailed_rows)
-    grid_rows = _grid_rows(seed_mean_rows, bounds, grid_size, min_cell_queries)
+    grid_rows = _grid_rows(seed_mean_rows, grid_bounds, grid_size, min_cell_queries)
     _write_csv(output_dir / "grid_summary.csv", grid_rows)
     stratum_rows = _stratum_rows(detailed_rows)
     _write_csv(output_dir / "stratum_summary.csv", stratum_rows)
@@ -272,7 +292,7 @@ def analyze_city(config: CityConfig, *, grid_size: int, min_cell_queries: int) -
     figure_paths = _plot_city(
         config.name,
         coordinates,
-        bounds,
+        grid_bounds,
         grid_rows,
         seed_mean_rows,
         output_dir,
@@ -286,6 +306,8 @@ def analyze_city(config: CityConfig, *, grid_size: int, min_cell_queries: int) -
         "seeds": list(SEEDS),
         "windows": list(WINDOWS),
         "grid_size": grid_size,
+        "grid_geometry": "square_metric_cells",
+        "grid_bounds_m": list(grid_bounds),
         "min_cell_queries": min_cell_queries,
         "history_fraction": HISTORY_FRACTION,
         "history_query_count": history_count,
@@ -609,14 +631,48 @@ def _plot_city(
     ]
     color_limit = max(valid_values) if valid_values else 1.0
     min_x, max_x, min_y, max_y = bounds
+    span = max_x - min_x
+    map_padding = 0.025 * span
+    map_bounds = (
+        min_x - map_padding,
+        max_x + map_padding,
+        min_y - map_padding,
+        max_y + map_padding,
+    )
     road = np.asarray(list(coordinates.values()), dtype=np.float64)
     stride = max(1, len(road) // 12_000)
-    fig, axes = plt.subplots(2, 2, figsize=(7.4, 8.0), constrained_layout=True)
+    fig = plt.figure(figsize=(7.2, 7.2))
+    grid = fig.add_gridspec(
+        3,
+        2,
+        height_ratios=(1.0, 1.0, 0.065),
+        left=0.045,
+        right=0.985,
+        bottom=0.075,
+        top=0.875,
+        hspace=0.20,
+        wspace=0.12,
+    )
+    axes = np.asarray(
+        [
+            [fig.add_subplot(grid[0, 0]), fig.add_subplot(grid[0, 1])],
+            [fig.add_subplot(grid[1, 0]), fig.add_subplot(grid[1, 1])],
+        ]
+    )
+    colorbar_ax = fig.add_subplot(grid[2, :])
     image = None
     for row_index, method in enumerate(METHODS):
         for column_index, window in enumerate(WINDOWS):
             ax = axes[row_index, column_index]
-            ax.scatter(road[::stride, 0], road[::stride, 1], s=0.18, color="#CBD2D5", alpha=0.45, rasterized=True)
+            ax.scatter(
+                road[::stride, 0],
+                road[::stride, 1],
+                s=0.18,
+                color=ROAD,
+                alpha=0.28,
+                rasterized=True,
+                zorder=1,
+            )
             array = np.full((grid_size, grid_size), np.nan)
             selected = [
                 row
@@ -631,29 +687,35 @@ def _plot_city(
                 array.T,
                 origin="lower",
                 extent=(min_x, max_x, min_y, max_y),
-                cmap="RdBu",
+                cmap=BENEFIT_CMAP,
                 vmin=-color_limit,
                 vmax=color_limit,
                 interpolation="nearest",
-                alpha=0.82,
+                alpha=1.0,
+                zorder=2,
             )
-            ax.set_title(f"{method} · {'Y' if window == 'current_y' else 'F'}", fontsize=10, weight="bold")
+            ax.set_title(
+                f"{method} · {'Y' if window == 'current_y' else 'F'}"
+                f"  ({len(selected)} valid cells)",
+                fontsize=8.7,
+                pad=6,
+            )
             ax.set_xticks([])
             ax.set_yticks([])
-            ax.set_aspect("equal")
-            ax.text(
-                0.02,
-                0.02,
-                f"valid cells={len(selected)}",
-                transform=ax.transAxes,
-                fontsize=7,
-                color="#263238",
-                bbox={"facecolor": "white", "alpha": 0.78, "edgecolor": "none", "pad": 2},
-            )
+            ax.set_xlim(map_bounds[0], map_bounds[1])
+            ax.set_ylim(map_bounds[2], map_bounds[3])
+            ax.set_aspect("equal", adjustable="box")
+            ax.set_box_aspect(1)
+            for spine in ax.spines.values():
+                spine.set_visible(False)
     if image is not None:
-        colorbar = fig.colorbar(image, ax=axes, location="bottom", shrink=0.72, pad=0.035)
+        colorbar = fig.colorbar(image, cax=colorbar_ax, orientation="horizontal")
         colorbar.set_label("Mean expanded-node delta vs. Z0 per query  (positive = better)")
-    fig.suptitle(f"{city.title()}: spatial deployment benefit relative to Z0", fontsize=13, weight="bold")
+    fig.suptitle(
+        f"{city.title()}: spatial deployment benefit relative to Z0",
+        fontsize=12,
+        y=0.965,
+    )
     paper_base = ROOT / "paper/figures" / f"spatial_benefit_{city}"
     output_base = output_dir / "spatial_benefit"
     paths = []
@@ -661,7 +723,7 @@ def _plot_city(
         base.parent.mkdir(parents=True, exist_ok=True)
         for extension, dpi in (("pdf", 300), ("png", 220)):
             path = base.with_suffix(f".{extension}")
-            fig.savefig(path, dpi=dpi, bbox_inches="tight", facecolor="white")
+            fig.savefig(path, dpi=dpi, facecolor="white")
             paths.append(path)
     plt.close(fig)
     paths.extend(
@@ -722,9 +784,10 @@ def _plot_endpoint_appendix(
                 road[::stride, 0],
                 road[::stride, 1],
                 s=0.14,
-                color="#CBD2D5",
-                alpha=0.42,
+                color=ROAD,
+                alpha=0.26,
                 rasterized=True,
+                zorder=1,
             )
             array = np.full((grid_size, grid_size), np.nan)
             cells = endpoint_grids[(method, window, endpoint)]
@@ -738,27 +801,29 @@ def _plot_endpoint_appendix(
                 array.T,
                 origin="lower",
                 extent=(min_x, max_x, min_y, max_y),
-                cmap="RdBu",
+                cmap=BENEFIT_CMAP,
                 vmin=-color_limit,
                 vmax=color_limit,
                 interpolation="nearest",
-                alpha=0.82,
+                alpha=1.0,
+                zorder=2,
             )
             endpoint_label = "O" if endpoint == "origin" else "D"
             window_label = "Y" if window == "current_y" else "F"
-            ax.set_title(f"{method} · {window_label}-{endpoint_label}", fontsize=8.5, weight="bold")
+            ax.set_title(
+                f"{method} · {window_label}-{endpoint_label}\n{valid_count} valid cells",
+                fontsize=8.2,
+                weight="bold",
+                pad=4,
+            )
             ax.set_xticks([])
             ax.set_yticks([])
-            ax.set_aspect("equal")
-            ax.text(
-                0.02,
-                0.02,
-                f"n={valid_count}",
-                transform=ax.transAxes,
-                fontsize=6.5,
-                color="#263238",
-                bbox={"facecolor": "white", "alpha": 0.78, "edgecolor": "none", "pad": 1.5},
-            )
+            ax.set_xlim(min_x, max_x)
+            ax.set_ylim(min_y, max_y)
+            ax.set_aspect("equal", adjustable="box")
+            ax.set_box_aspect(1)
+            for spine in ax.spines.values():
+                spine.set_visible(False)
     if image is not None:
         colorbar = fig.colorbar(image, ax=axes, location="bottom", shrink=0.62, pad=0.035)
         colorbar.set_label("Mean expanded-node delta vs. Z0 per query  (positive = better)")
@@ -813,7 +878,7 @@ def _write_report(
     lines.extend(
         [
             "",
-            f"固定 {summary['grid_size']}×{summary['grid_size']} 网格、最少 "
+            f"固定 {summary['grid_size']}×{summary['grid_size']} 米制等边方格、最少 "
             f"{summary['min_cell_queries']} 条查询着色，共 {valid_count} 个方法—窗口有效网格记录。",
             "改善、持平和退化记录均保留；本分析是已解锁 Y/F 上的机制诊断，不是新的时间外确认。",
             "",
@@ -826,6 +891,7 @@ def main() -> None:
     args = parse_args()
     if args.grid_size <= 1 or args.min_cell_queries <= 0:
         raise SystemExit("grid size must exceed 1 and min cell queries must be positive")
+    configure_style()
     cities = CITY_CONFIGS.values() if args.city == "all" else (CITY_CONFIGS[args.city],)
     for city in cities:
         analyze_city(city, grid_size=args.grid_size, min_cell_queries=args.min_cell_queries)

@@ -17,6 +17,6 @@
     "BRIDGE": "Frozen G4 global-Spearman checkpoints, three seeds.",
     "BRIDGE-B": "S0-S2 are exploratory seed-42 results; S3 reports frozen seeds 42-44.",
     "error_bars": "Population standard deviation across seeds.",
-    "spatial_benefit": "Frozen query-level expanded-node delta relative to Z0; fixed 16x16 road bounds, all signs retained."
+    "spatial_benefit": "Frozen query-level expanded-node delta relative to Z0; fixed 16x16 square metric cells, all signs retained."
   }
 }

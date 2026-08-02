@@ -15,30 +15,37 @@
     "future_f"
   ],
   "grid_size": 16,
+  "grid_geometry": "square_metric_cells",
+  "grid_bounds_m": [
+    425117.84699999983,
+    463413.69600000023,
+    4619751.953,
+    4658047.801999999
+  ],
   "min_cell_queries": 5,
   "history_fraction": 0.35,
   "history_query_count": 35000,
   "hot_cell_fraction": 0.2,
-  "nonempty_history_cell_count": 162,
-  "hot_cell_count": 33,
+  "nonempty_history_cell_count": 87,
+  "hot_cell_count": 18,
   "query_count_per_window": 2000,
   "query_seed_rows": 24000,
   "interpretation_gates": {
     "BRIDGE": {
       "windows": {
         "current_y": {
-          "positive_non_head_seed_count": 0,
-          "non_head_delta_mean": -10.56388888888889,
-          "head_delta_mean": -64.4799645390071,
-          "improved_valid_cell_fraction": 0.4074074074074074,
-          "valid_cell_count": 54
+          "positive_non_head_seed_count": 1,
+          "non_head_delta_mean": -4.424242424242424,
+          "head_delta_mean": -65.26017130620986,
+          "improved_valid_cell_fraction": 0.47058823529411764,
+          "valid_cell_count": 34
         },
         "future_f": {
           "positive_non_head_seed_count": 3,
-          "non_head_delta_mean": 13.45744680851064,
-          "head_delta_mean": -56.34522560335782,
-          "improved_valid_cell_fraction": 0.5319148936170213,
-          "valid_cell_count": 47
+          "non_head_delta_mean": 25.80864197530864,
+          "head_delta_mean": -57.566772374911906,
+          "improved_valid_cell_fraction": 0.5,
+          "valid_cell_count": 30
         }
       },
       "non_head_broadening_gate": false,
@@ -47,18 +54,18 @@
     "BRIDGE-B": {
       "windows": {
         "current_y": {
-          "positive_non_head_seed_count": 1,
-          "non_head_delta_mean": -5.8666666666666645,
-          "head_delta_mean": -69.78156028368794,
-          "improved_valid_cell_fraction": 0.42592592592592593,
-          "valid_cell_count": 54
+          "positive_non_head_seed_count": 3,
+          "non_head_delta_mean": 15.26010101010101,
+          "head_delta_mean": -71.68504639543184,
+          "improved_valid_cell_fraction": 0.4117647058823529,
+          "valid_cell_count": 34
         },
         "future_f": {
-          "positive_non_head_seed_count": 1,
-          "non_head_delta_mean": -3.5957446808510642,
-          "head_delta_mean": -75.40678558936692,
-          "improved_valid_cell_fraction": 0.3404255319148936,
-          "valid_cell_count": 47
+          "positive_non_head_seed_count": 3,
+          "non_head_delta_mean": 29.330246913580247,
+          "head_delta_mean": -77.8176532769556,
+          "improved_valid_cell_fraction": 0.43333333333333335,
+          "valid_cell_count": 30
         }
       },
       "non_head_broadening_gate": false,

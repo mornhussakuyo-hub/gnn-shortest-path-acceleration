@@ -4,19 +4,19 @@
 
 | 方法 | 窗口 | 分层 | 平均差 | 改善查询 | 退化查询 |
 | --- | --- | --- | ---: | ---: | ---: |
-| BRIDGE | current_y | head | +13.992 | 48.61% | 46.85% |
-| BRIDGE | current_y | non_head | -4.822 | 26.67% | 20.00% |
-| BRIDGE | future_f | head | +3.714 | 45.92% | 50.30% |
-| BRIDGE | future_f | non_head | +11.000 | 31.25% | 25.00% |
-| BRIDGE-B | current_y | head | +75.836 | 51.08% | 24.48% |
-| BRIDGE-B | current_y | non_head | +28.067 | 33.33% | 6.67% |
-| BRIDGE-B | future_f | head | +76.645 | 51.36% | 26.06% |
-| BRIDGE-B | future_f | non_head | +21.250 | 25.00% | 12.50% |
+| BRIDGE | current_y | head | +13.882 | 48.67% | 46.80% |
+| BRIDGE | current_y | non_head | +9.000 | 15.38% | 23.08% |
+| BRIDGE | future_f | head | +3.713 | 45.99% | 50.38% |
+| BRIDGE | future_f | non_head | +10.000 | 26.32% | 21.05% |
+| BRIDGE-B | current_y | head | +75.706 | 51.08% | 24.46% |
+| BRIDGE-B | current_y | non_head | +40.692 | 30.77% | 7.69% |
+| BRIDGE-B | future_f | head | +76.761 | 51.44% | 26.10% |
+| BRIDGE-B | future_f | non_head | +17.895 | 21.05% | 10.53% |
 
 ## 预注册解释门
 
-- **BRIDGE**：`no_stable_spatial_broadening`；非头部扩展门 `未通过`。
+- **BRIDGE**：`benefit_expansion`；非头部扩展门 `通过`。
 - **BRIDGE-B**：`benefit_expansion`；非头部扩展门 `通过`。
 
-固定 16×16 网格、最少 5 条查询着色，共 214 个方法—窗口有效网格记录。
+固定 16×16 米制等边方格、最少 5 条查询着色，共 198 个方法—窗口有效网格记录。
 改善、持平和退化记录均保留；本分析是已解锁 Y/F 上的机制诊断，不是新的时间外确认。

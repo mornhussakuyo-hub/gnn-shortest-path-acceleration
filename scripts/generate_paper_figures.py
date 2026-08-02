@@ -21,45 +21,24 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
 
+from paper_figure_style import (
+    BLUE,
+    GREEN,
+    GRID,
+    INK,
+    MUTED,
+    ORANGE,
+    PALE_BLUE,
+    PALE_GREEN,
+    PALE_ORANGE,
+    PURPLE,
+    RED,
+    configure_style,
+)
+
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "paper" / "figures"
-
-BLUE = "#3B6FB6"
-ORANGE = "#E6862A"
-GREEN = "#3A9D70"
-RED = "#C75252"
-PURPLE = "#7562B5"
-INK = "#263238"
-MUTED = "#65747B"
-GRID = "#D9E0E3"
-PALE_BLUE = "#EAF1FA"
-PALE_ORANGE = "#FCEFE2"
-PALE_GREEN = "#E8F4EE"
-
-
-def configure_style() -> None:
-    plt.rcParams.update(
-        {
-            "font.family": "DejaVu Sans",
-            "font.size": 9,
-            "axes.titlesize": 10.5,
-            "axes.labelsize": 9,
-            "axes.edgecolor": "#8A989E",
-            "axes.linewidth": 0.7,
-            "axes.spines.top": False,
-            "axes.spines.right": False,
-            "xtick.labelsize": 8.5,
-            "ytick.labelsize": 8.5,
-            "legend.fontsize": 8.5,
-            "figure.facecolor": "white",
-            "axes.facecolor": "white",
-            "savefig.facecolor": "white",
-            "pdf.fonttype": 42,
-            "ps.fonttype": 42,
-        }
-    )
-
 
 def load_json(path: Path) -> dict:
     with path.open(encoding="utf-8") as handle:
@@ -181,27 +160,27 @@ def make_pipeline(output: Path) -> None:
             )
         )
         ax.text(x + 0.015, 0.878, title, ha="left", va="center", weight="bold", color=INK)
-        ax.text(x + 0.015, 0.842, subtitle, ha="left", va="center", fontsize=7.8, color=MUTED)
+        ax.text(x + 0.015, 0.842, subtitle, ha="left", va="center", fontsize=6.8, color=MUTED)
 
-    draw_box(ax, (0.02, 0.46), 0.15, 0.20, "Road graph\n+ historical OD", face="#F4F6F7", edge="#8A989E", fontsize=7.2, weight="bold")
-    draw_box(ax, (0.215, 0.46), 0.18, 0.20, "Z0\nparameter-free\nbidirectional diffusion", face=PALE_BLUE, edge=BLUE, fontsize=7.2, weight="bold")
-    draw_box(ax, (0.44, 0.46), 0.18, 0.20, "BRIDGE\nfrozen Z0\n+ neural residual", face=PALE_ORANGE, edge=ORANGE, fontsize=7.2, weight="bold")
-    draw_box(ax, (0.665, 0.46), 0.145, 0.20, "BRIDGE-B\nbudget-aware head", face=PALE_GREEN, edge=GREEN, fontsize=6.8, weight="bold")
-    draw_box(ax, (0.855, 0.46), 0.125, 0.20, "Hard-disjoint\nregion set", face="#F2EFFA", edge=PURPLE, fontsize=6.8, weight="bold")
+    draw_box(ax, (0.02, 0.46), 0.145, 0.20, "Road graph\n+ historical OD", face="#F4F6F7", edge="#8A989E", fontsize=6.9, weight="bold")
+    draw_box(ax, (0.195, 0.46), 0.185, 0.20, "Z0\nparameter-free\nbidirectional\ndiffusion", face=PALE_BLUE, edge=BLUE, fontsize=6.1, weight="bold")
+    draw_box(ax, (0.41, 0.46), 0.18, 0.20, "BRIDGE\nfrozen Z0\n+ neural residual", face=PALE_ORANGE, edge=ORANGE, fontsize=6.9, weight="bold")
+    draw_box(ax, (0.62, 0.46), 0.17, 0.20, "BRIDGE-B\nbudget-aware\ndeployment head", face=PALE_GREEN, edge=GREEN, fontsize=6.4, weight="bold")
+    draw_box(ax, (0.82, 0.46), 0.16, 0.20, "Disjoint\nregion selection", face="#F2EFFA", edge=PURPLE, fontsize=6.5, weight="bold")
 
     for start, end in [
-        ((0.17, 0.56), (0.215, 0.56)),
-        ((0.395, 0.56), (0.44, 0.56)),
-        ((0.62, 0.56), (0.665, 0.56)),
-        ((0.81, 0.56), (0.855, 0.56)),
+        ((0.165, 0.56), (0.195, 0.56)),
+        ((0.38, 0.56), (0.41, 0.56)),
+        ((0.59, 0.56), (0.62, 0.56)),
+        ((0.79, 0.56), (0.82, 0.56)),
     ]:
         arrow(ax, start, end)
 
     draw_box(ax, (0.215, 0.10), 0.205, 0.18, "Spatially isolated\ncandidate regions\n(Jaccard groups)", face="#F4F6F7", edge="#8A989E", fontsize=7.0)
     draw_box(ax, (0.49, 0.10), 0.205, 0.18, "Selective CRP-style\nboundary overlay\n(existing exact substrate)", face="#F4F6F7", edge="#8A989E", fontsize=7.0)
     draw_box(ax, (0.765, 0.10), 0.215, 0.18, "Exact bidirectional query\n+ local endpoint access\n(distance preserved)", face="#F4F6F7", edge="#8A989E", fontsize=7.0)
-    arrow(ax, (0.317, 0.28), (0.317, 0.46))
-    arrow(ax, (0.917, 0.46), (0.695, 0.20))
+    arrow(ax, (0.317, 0.28), (0.287, 0.46))
+    arrow(ax, (0.90, 0.46), (0.695, 0.20))
     arrow(ax, (0.695, 0.19), (0.765, 0.19))
 
     ax.text(
@@ -590,12 +569,20 @@ def write_rows(output: Path, rows: list[dict[str, object]]) -> None:
             "mechanism_ablation.pdf",
             "system_results.pdf",
             "bridge_b_progression.pdf",
+            "spatial_benefit_porto.pdf",
+            "spatial_benefit_chicago.pdf",
+            "spatial_benefit_porto_endpoints.pdf",
+            "spatial_benefit_chicago_endpoints.pdf",
         ],
         "data_table": "main_results.csv",
         "notes": {
             "BRIDGE": "Frozen G4 global-Spearman checkpoints, three seeds.",
             "BRIDGE-B": "S0-S2 are exploratory seed-42 results; S3 reports frozen seeds 42-44.",
             "error_bars": "Population standard deviation across seeds.",
+            "spatial_benefit": (
+                "Frozen query-level expanded-node delta relative to Z0; fixed 16x16 "
+                "square metric cells, all signs retained."
+            ),
         },
     }
     with (output / "figure_manifest.json").open("w", encoding="utf-8") as handle:
