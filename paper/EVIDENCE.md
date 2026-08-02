@@ -12,6 +12,7 @@
 | 1,200 个候选、512 节点与 840/180/180 split | 两城 `candidate_manifest.json`、`demand_field_dataset.json` |
 | Porto 521 个、Chicago 452 个 Jaccard 重叠组 | 两城候选/数据 manifest 与阶段七报告 |
 | 每候选每窗口 2,000 条标签查询 | 两城当前和未来 `label_manifest.json` |
+| 两城两窗口合计 960 万次标签查询 | `1,200×2,000×2×2`，由两城 Y/F `label_manifest.json` 共同核验 |
 
 ## 排序结果
 
