@@ -22,6 +22,7 @@
 | 表 3：未来窗口 | 两城 `future_window_z0/` 与 `g4_frozen_evaluation/` |
 | 表 4：度保持重连 | 两城 `z0_orthogonal_ablation/summary.json` |
 | 表 7：BRIDGE-B 三种子 | 两城 `g5_cost_aware_exploration/s3_gain1_seeds43_44_short/` 及 full predictions |
+| RQ6：E0 线性成本后处理 | 两城 `g5_cost_aware_exploration/e0_{scores,online_k18}/`、`reports/阶段七_成本感知神经部署优化.md` 第 3 节 |
 
 统一人工可读口径见：
 

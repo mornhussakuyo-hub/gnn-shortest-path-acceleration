@@ -53,6 +53,8 @@ latexmk -xelatex -bibtex main_twocolumn.tex
 - BRIDGE 稳定改善全局 Spearman，但不写成全面改善 Top-K 或在线收益；
 - BRIDGE-B 将 Top-K 收益、shortcut 预算与区域冲突纳入训练；三种子稳定保住全局/头部并降低
   shortcut，两城在线展开与 Z0 的差异均不足 3%，其中 Porto 小幅改善；
+- 固定线性成本后处理 E0 虽显著减少 shortcut，但 12 个城市/种子/权重配置仅 1 个同时通过 Y/F
+  在线门，没有复现 BRIDGE-B 在 Porto 的跨种子稳定改善；
 - 查询尺度分层表明中长距离/高搜索工作量查询更能摊薄索引接入成本；短步行、骑行式负载是明确
   适用边界，但不能把两城差异写成交通方式的因果证明；
 - 全部表格数字来自 `reports/最终研究成果与论文结论.md` 的冻结结果。
