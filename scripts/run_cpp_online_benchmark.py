@@ -21,6 +21,13 @@ sys.path.insert(0, str(ROOT_DIR))
 from scripts.export_cpp_online_benchmark import DEFAULT_METHODS, export_benchmark_input
 
 
+BRIDGE_B_METHODS = (
+    "g5_s2_seed42",
+    "g5_s3_seed43",
+    "g5_s3_seed44",
+)
+
+
 @dataclass(frozen=True)
 class CityConfig:
     name: str
@@ -32,6 +39,8 @@ class CityConfig:
     future_manifest: Path
     selections: tuple[Path, ...]
     python_summaries: tuple[Path, ...]
+    bridge_b_selections: tuple[Path, ...]
+    bridge_b_python_summaries: tuple[Path, ...]
 
 
 CITY_CONFIGS = {
@@ -50,6 +59,18 @@ CITY_CONFIGS = {
         python_summaries=(
             ROOT_DIR / "results/gnn_v2/multi_region_online/summary.json",
             ROOT_DIR / "results/gnn_v2/multi_region_online_g4/summary.json",
+        ),
+        bridge_b_selections=(
+            ROOT_DIR
+            / "results/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/selections.csv",
+            ROOT_DIR
+            / "results/gnn_v2/g5_cost_aware_exploration/s3_gain1_seeds43_44_short_online_k18/selections.csv",
+        ),
+        bridge_b_python_summaries=(
+            ROOT_DIR
+            / "results/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/summary.json",
+            ROOT_DIR
+            / "results/gnn_v2/g5_cost_aware_exploration/s3_gain1_seeds43_44_short_online_k18/summary.json",
         ),
     ),
     "chicago": CityConfig(
@@ -70,6 +91,18 @@ CITY_CONFIGS = {
             ROOT_DIR
             / "results/chicago/gnn_v2/multi_region_online_g4_clean_rerun/summary.json",
         ),
+        bridge_b_selections=(
+            ROOT_DIR
+            / "results/chicago/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/selections.csv",
+            ROOT_DIR
+            / "results/chicago/gnn_v2/g5_cost_aware_exploration/s3_gain1_seeds43_44_short_online_k18/selections.csv",
+        ),
+        bridge_b_python_summaries=(
+            ROOT_DIR
+            / "results/chicago/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/summary.json",
+            ROOT_DIR
+            / "results/chicago/gnn_v2/g5_cost_aware_exploration/s3_gain1_seeds43_44_short_online_k18/summary.json",
+        ),
     ),
 }
 
@@ -77,6 +110,7 @@ CITY_CONFIGS = {
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the frozen two-city C++ benchmark.")
     parser.add_argument("--city", choices=("all", *CITY_CONFIGS), default="all")
+    parser.add_argument("--suite", choices=("main", "bridge-b"), default="main")
     parser.add_argument("--cpu", type=int, default=None)
     parser.add_argument("--warmup", type=int, default=2)
     parser.add_argument("--repetitions", type=int, default=10)
@@ -100,8 +134,12 @@ def run_benchmark(
     repetitions: int,
     skip_export: bool,
     reuse_existing: bool,
+    suite: str,
+    methods: tuple[str, ...],
+    selection_paths: tuple[Path, ...],
+    python_summaries: tuple[Path, ...],
 ) -> dict[str, object]:
-    input_path = build_dir / f"{city.name}.benchmark.bin"
+    input_path = build_dir / f"{city.name}.{suite}.benchmark.bin"
     if not skip_export:
         input_metadata = export_benchmark_input(
             node_csv=city.node_csv,
@@ -110,18 +148,19 @@ def run_benchmark(
             candidate_path=city.candidates,
             current_manifest_path=city.current_manifest,
             future_manifest_path=city.future_manifest,
-            selection_paths=city.selections,
-            methods=DEFAULT_METHODS,
+            selection_paths=selection_paths,
+            methods=methods,
             k=18,
             output_path=input_path,
         )
     else:
         input_metadata = json.loads(input_path.with_suffix(".json").read_text())
 
-    output_dir = ROOT_DIR / "results/cpp_online_benchmark" / city.name
+    output_root = "cpp_online_benchmark" if suite == "main" else "cpp_online_benchmark_bridge_b"
+    output_dir = ROOT_DIR / "results" / output_root / city.name
     output_dir.mkdir(parents=True, exist_ok=True)
-    temporary_summary = build_dir / f"{city.name}.summary.csv.tmp"
-    log_path = build_dir / f"{city.name}.launcher.log"
+    temporary_summary = build_dir / f"{city.name}.{suite}.summary.csv.tmp"
+    log_path = build_dir / f"{city.name}.{suite}.launcher.log"
     command = [
         "taskset",
         "-c",
@@ -144,7 +183,7 @@ def run_benchmark(
             if not candidate.exists():
                 continue
             with candidate.open(encoding="utf-8", newline="") as file:
-                if sum(1 for _ in csv.DictReader(file)) == len(DEFAULT_METHODS) * 2:
+                if sum(1 for _ in csv.DictReader(file)) == len(methods) * 2:
                     raw_summary = candidate
                     complete_existing = True
                     break
@@ -165,14 +204,15 @@ def run_benchmark(
             raise RuntimeError(f"{city.name} benchmark failed; see {log_path}")
 
     rows = _read_summary(raw_summary)
-    _validate_rows(rows, city.python_summaries)
+    _validate_rows(rows, python_summaries, methods)
     if raw_summary != summary_path:
         raw_summary.replace(summary_path)
     protocol = {
         "schema": "aic.cpp_online_benchmark.v1",
+        "suite": suite,
         "city": city.name,
         "k": 18,
-        "methods": list(DEFAULT_METHODS),
+        "methods": list(methods),
         "windows": ["current_y", "future_f"],
         "query_count_per_window": 2_000,
         "endpoint_cache_capacity": 0,
@@ -241,7 +281,11 @@ def _read_summary(path: Path) -> list[dict[str, object]]:
     return rows
 
 
-def _validate_rows(rows: list[dict[str, object]], python_paths: tuple[Path, ...]) -> None:
+def _validate_rows(
+    rows: list[dict[str, object]],
+    python_paths: tuple[Path, ...],
+    methods: tuple[str, ...] = DEFAULT_METHODS,
+) -> None:
     expected: dict[tuple[str, str], dict[str, object]] = {}
     for path in python_paths:
         summary = json.loads(path.read_text(encoding="utf-8"))
@@ -252,7 +296,7 @@ def _validate_rows(rows: list[dict[str, object]], python_paths: tuple[Path, ...]
             for window, values in windows.items():
                 expected[(method, window)] = values
 
-    if len(rows) != len(DEFAULT_METHODS) * 2:
+    if len(rows) != len(methods) * 2:
         raise ValueError("C++ summary must contain every frozen method/window pair")
     for row in rows:
         key = (str(row["method"]), str(row["window"]))
@@ -354,6 +398,14 @@ def main() -> None:
         raise SystemExit(f"missing benchmark binary: {binary}")
     cities = CITY_CONFIGS.values() if args.city == "all" else (CITY_CONFIGS[args.city],)
     for city in cities:
+        if args.suite == "bridge-b":
+            methods = BRIDGE_B_METHODS
+            selection_paths = city.bridge_b_selections
+            python_summaries = city.bridge_b_python_summaries
+        else:
+            methods = DEFAULT_METHODS
+            selection_paths = city.selections
+            python_summaries = city.python_summaries
         run_benchmark(
             city,
             binary=binary,
@@ -363,6 +415,10 @@ def main() -> None:
             repetitions=args.repetitions,
             skip_export=args.skip_export,
             reuse_existing=args.reuse_existing,
+            suite=args.suite,
+            methods=methods,
+            selection_paths=selection_paths,
+            python_summaries=python_summaries,
         )
 
 

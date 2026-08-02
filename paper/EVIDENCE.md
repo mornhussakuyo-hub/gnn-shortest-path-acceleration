@@ -35,9 +35,12 @@
 | --- | --- |
 | 表 5：K=18 严格非重叠展开节点 | `results/gnn_v2/multi_region_online_g4/`、`results/chicago/gnn_v2/multi_region_online_g4_clean_rerun/` |
 | 表 6：C++ 平均/P95/扫边 | `results/cpp_online_benchmark/porto/summary.{csv,json}`、`results/cpp_online_benchmark/chicago/summary.{csv,json}` |
+| 表 6：BRIDGE-B C++ 三种子补充 | `results/cpp_online_benchmark_bridge_b/{porto,chicago}/summary.{csv,json}` |
+| 表 8：查询工作量四分位适用性 | `results/spatial_benefit_heterogeneity/{porto,chicago}/length_stratification.csv` |
 | 228,000 个在线查询--索引配对 | `reports/最终研究成果与论文结论.md` 第六节及阶段七成本感知报告 |
-| 560,000 个 C++ 正式计时配对 | `reports/阶段八_C++高性能在线评测.md` |
+| 800,000 个 C++ 正式计时配对 | 原 Z0/BRIDGE 的 560,000 个见`reports/阶段八_C++高性能在线评测.md`；BRIDGE-B 新增 240,000 个见 `results/cpp_online_benchmark_bridge_b/` |
 | BRIDGE-B 的 24,000 个三种子在线配对 | 两城 `g5_cost_aware_exploration/s{2,3}_*_online_k18/` |
+| 两城空间异质性与历史头部/非头部 | `results/spatial_benefit_heterogeneity/{porto,chicago}/`、`reports/阶段九_空间收益异质性与部署覆盖.md` |
 
 ## 方法实现
 
@@ -59,4 +62,6 @@
 - 单区域标签不能相加为多区域在线收益；
 - Porto 稳定未来窗口不等于强分布漂移鲁棒；
 - 空间覆盖更广不等于已证明人口或偏远地区公平；
+- 查询尺度分层支持中长距离适用性，但不证明交通方式本身的因果作用；
+- BRIDGE-B 相对原图在长查询上获益，不等于其在 Chicago 长查询上超过 Z0；
 - C++ 的 Porto 平均加速不能外推为所有城市平均加速。

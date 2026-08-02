@@ -1,0 +1,102 @@
+{
+  "schema": "aic.spatial_benefit_heterogeneity.v1",
+  "city": "chicago",
+  "methods": [
+    "BRIDGE",
+    "BRIDGE-B"
+  ],
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "windows": [
+    "current_y",
+    "future_f"
+  ],
+  "grid_size": 16,
+  "min_cell_queries": 5,
+  "history_fraction": 0.35,
+  "history_query_count": 35000,
+  "hot_cell_fraction": 0.2,
+  "nonempty_history_cell_count": 162,
+  "hot_cell_count": 33,
+  "query_count_per_window": 2000,
+  "query_seed_rows": 24000,
+  "interpretation_gates": {
+    "BRIDGE": {
+      "windows": {
+        "current_y": {
+          "positive_non_head_seed_count": 0,
+          "non_head_delta_mean": -10.56388888888889,
+          "head_delta_mean": -64.4799645390071,
+          "improved_valid_cell_fraction": 0.4074074074074074,
+          "valid_cell_count": 54
+        },
+        "future_f": {
+          "positive_non_head_seed_count": 3,
+          "non_head_delta_mean": 13.45744680851064,
+          "head_delta_mean": -56.34522560335782,
+          "improved_valid_cell_fraction": 0.5319148936170213,
+          "valid_cell_count": 47
+        }
+      },
+      "non_head_broadening_gate": false,
+      "interpretation": "no_stable_spatial_broadening"
+    },
+    "BRIDGE-B": {
+      "windows": {
+        "current_y": {
+          "positive_non_head_seed_count": 1,
+          "non_head_delta_mean": -5.8666666666666645,
+          "head_delta_mean": -69.78156028368794,
+          "improved_valid_cell_fraction": 0.42592592592592593,
+          "valid_cell_count": 54
+        },
+        "future_f": {
+          "positive_non_head_seed_count": 1,
+          "non_head_delta_mean": -3.5957446808510642,
+          "head_delta_mean": -75.40678558936692,
+          "improved_valid_cell_fraction": 0.3404255319148936,
+          "valid_cell_count": 47
+        }
+      },
+      "non_head_broadening_gate": false,
+      "interpretation": "no_stable_spatial_broadening"
+    }
+  },
+  "source_sha256": {
+    "data/processed/chicago/chicago_road_nodes.csv": "12e99301c7e9fa527e5c48998bcfdf79c3520636d89b1271f388961605a96e02",
+    "data/processed/chicago/chicago_queries_100k.csv": "d85f831cfdee0010efac090308c9f67d628c0ca0c59a5177a3714fddd6913071",
+    "results/chicago/gnn_v2/multi_region_online_g4_clean_rerun/details/z0.k18.current_y.csv.gz": "4b9d8b80afdb6d4f1ac5cf34b0c597485226e0e31f43c0506ba2bc684fdd15ac",
+    "results/chicago/gnn_v2/multi_region_online_g4_clean_rerun/details/g4_global_seed42.k18.current_y.csv.gz": "c9e3435e3c64636b51f177737d0038efd82f63fc8ed38dabe3b04d74da3c5d55",
+    "results/chicago/gnn_v2/multi_region_online_g4_clean_rerun/details/g4_global_seed43.k18.current_y.csv.gz": "8fd926e9dff4f45963c82fc7d1d3409781375c15c093c504de2424e47e654c95",
+    "results/chicago/gnn_v2/multi_region_online_g4_clean_rerun/details/g4_global_seed44.k18.current_y.csv.gz": "8a2a32c3e5d712708a29bf59938374bad3d0df9e5d8821f91d22f9f12f984cc3",
+    "results/chicago/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/details/g5_s2_seed42.k18.current_y.csv.gz": "d825de692493bf2b89f680ebe1bcb4ae7177f9953c308061d26299f81018dfd3",
+    "results/chicago/gnn_v2/g5_cost_aware_exploration/s3_gain1_seeds43_44_short_online_k18/details/g5_s3_seed43.k18.current_y.csv.gz": "69adcbbf3bbae5ac832159fd3707ee3ca071409ab0298f584e49ad2dc6b5b83d",
+    "results/chicago/gnn_v2/g5_cost_aware_exploration/s3_gain1_seeds43_44_short_online_k18/details/g5_s3_seed44.k18.current_y.csv.gz": "3c25605a485b29333c26df55082a826f7024f9791ee7400a2d4b3dfcaed6dcda",
+    "results/chicago/gnn_v2/multi_region_online_g4_clean_rerun/details/z0.k18.future_f.csv.gz": "168c9fedfd328c84450c9c3b0e4eb094e0cfb37d217a59bdb4174f5daec84d86",
+    "results/chicago/gnn_v2/multi_region_online_g4_clean_rerun/details/g4_global_seed42.k18.future_f.csv.gz": "f6648aa8c6d5bfae9c91898fcc87d084d65e4cc3b7835b5627fe236e9781684a",
+    "results/chicago/gnn_v2/multi_region_online_g4_clean_rerun/details/g4_global_seed43.k18.future_f.csv.gz": "ec37fec67b08f1ae3aa876eb92435be5a8c472abbb183a10b6650ce04c195868",
+    "results/chicago/gnn_v2/multi_region_online_g4_clean_rerun/details/g4_global_seed44.k18.future_f.csv.gz": "42e3201ad1143e258d4670f0c5585b6f11029b7abbdced558e59bad403d25358",
+    "results/chicago/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/details/g5_s2_seed42.k18.future_f.csv.gz": "93967c2d51fca09c0739985e95e89d96ae2ce4e25f35b8470e4c7b5571cd3610",
+    "results/chicago/gnn_v2/g5_cost_aware_exploration/s3_gain1_seeds43_44_short_online_k18/details/g5_s3_seed43.k18.future_f.csv.gz": "e95609999d34f519f9ba647d2cda3e4d1a0e30a50465261fcbbd7e5292ca52f6",
+    "results/chicago/gnn_v2/g5_cost_aware_exploration/s3_gain1_seeds43_44_short_online_k18/details/g5_s3_seed44.k18.future_f.csv.gz": "2520e779ed8f62947ed13411c00d7507f134718e706fbd44f8572b31f9af47f1"
+  },
+  "artifacts": {
+    "query_deltas": "results/spatial_benefit_heterogeneity/chicago/query_deltas.csv.gz",
+    "grid_summary": "results/spatial_benefit_heterogeneity/chicago/grid_summary.csv",
+    "stratum_summary": "results/spatial_benefit_heterogeneity/chicago/stratum_summary.csv",
+    "length_stratification": "results/spatial_benefit_heterogeneity/chicago/length_stratification.csv",
+    "figures": [
+      "paper/figures/spatial_benefit_chicago.pdf",
+      "paper/figures/spatial_benefit_chicago.png",
+      "results/spatial_benefit_heterogeneity/chicago/spatial_benefit.pdf",
+      "results/spatial_benefit_heterogeneity/chicago/spatial_benefit.png",
+      "paper/figures/spatial_benefit_chicago_endpoints.pdf",
+      "paper/figures/spatial_benefit_chicago_endpoints.png",
+      "results/spatial_benefit_heterogeneity/chicago/spatial_benefit_endpoints.pdf",
+      "results/spatial_benefit_heterogeneity/chicago/spatial_benefit_endpoints.png"
+    ]
+  }
+}

@@ -7,7 +7,7 @@
 
 - `main.tex`：完整初稿正文，包含摘要、引言、相关工作、问题定义、方法、实验、结果、讨论、
   局限性和结论；
-- `main.pdf`：18 页单栏完整初稿；
+- `main.pdf`：单栏完整初稿；
 - `main_twocolumn.tex`：复用 `main.tex` 正文的双栏预览入口；
 - `main_twocolumn.pdf`：10 页双栏预览版，宽表和占位图自动跨栏；
 - `references.bib`：正文实际引用的参考文献；
@@ -53,6 +53,8 @@ latexmk -xelatex -bibtex main_twocolumn.tex
 - BRIDGE 稳定改善全局 Spearman，但不写成全面改善 Top-K 或在线收益；
 - BRIDGE-B 将 Top-K 收益、shortcut 预算与区域冲突纳入训练；三种子稳定保住全局/头部并降低
   shortcut，两城在线展开与 Z0 的差异均不足 3%，其中 Porto 小幅改善；
+- 查询尺度分层表明中长距离/高搜索工作量查询更能摊薄索引接入成本；短步行、骑行式负载是明确
+  适用边界，但不能把两城差异写成交通方式的因果证明；
 - 全部表格数字来自 `reports/最终研究成果与论文结论.md` 的冻结结果。
 
 ## 仍需人工确认

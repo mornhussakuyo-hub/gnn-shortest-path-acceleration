@@ -59,7 +59,18 @@
 已生成：`bridge_b_progression.pdf`。S0--S2 明确标注为 seed 42 方法开发结果；S3 汇总冻结协议下
 seeds 42/43/44 的均值与总体标准差。Porto 三种子稳定优于 Z0，Chicago 则完整保留不利在线结果。
 
-## 图 6：典型区域地图（可选）
+## 图 6--7：空间收益异质性
+
+数据来源：
+
+- `results/spatial_benefit_heterogeneity/{porto,chicago}/query_deltas.csv.gz`；
+- 同目录 `grid_summary.csv`、`stratum_summary.csv` 与 `summary.json`。
+
+已生成 `spatial_benefit_porto.pdf` 与 `spatial_benefit_chicago.pdf`，完整展示 BRIDGE、BRIDGE-B
+相对 Z0 的 Y/F 改善与退化网格。`*_endpoints.pdf` 为起点/终点视角附图。地图只用于冻结后的
+机制诊断，不把已解锁 Y/F 包装为新的时间外确认。
+
+## 后续可选：典型区域地图
 
 在每城选择以下案例：
 

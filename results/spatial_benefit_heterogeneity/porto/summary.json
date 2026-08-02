@@ -1,0 +1,102 @@
+{
+  "schema": "aic.spatial_benefit_heterogeneity.v1",
+  "city": "porto",
+  "methods": [
+    "BRIDGE",
+    "BRIDGE-B"
+  ],
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "windows": [
+    "current_y",
+    "future_f"
+  ],
+  "grid_size": 16,
+  "min_cell_queries": 5,
+  "history_fraction": 0.35,
+  "history_query_count": 34328,
+  "hot_cell_fraction": 0.2,
+  "nonempty_history_cell_count": 229,
+  "hot_cell_count": 46,
+  "query_count_per_window": 2000,
+  "query_seed_rows": 24000,
+  "interpretation_gates": {
+    "BRIDGE": {
+      "windows": {
+        "current_y": {
+          "positive_non_head_seed_count": 2,
+          "non_head_delta_mean": -4.8222222222222175,
+          "head_delta_mean": 13.991771620486988,
+          "improved_valid_cell_fraction": 0.6226415094339622,
+          "valid_cell_count": 53
+        },
+        "future_f": {
+          "positive_non_head_seed_count": 3,
+          "non_head_delta_mean": 11.0,
+          "head_delta_mean": 3.7140456989247337,
+          "improved_valid_cell_fraction": 0.5740740740740741,
+          "valid_cell_count": 54
+        }
+      },
+      "non_head_broadening_gate": false,
+      "interpretation": "no_stable_spatial_broadening"
+    },
+    "BRIDGE-B": {
+      "windows": {
+        "current_y": {
+          "positive_non_head_seed_count": 3,
+          "non_head_delta_mean": 28.066666666666666,
+          "head_delta_mean": 75.83627204030226,
+          "improved_valid_cell_fraction": 0.8679245283018868,
+          "valid_cell_count": 53
+        },
+        "future_f": {
+          "positive_non_head_seed_count": 3,
+          "non_head_delta_mean": 21.25,
+          "head_delta_mean": 76.64465725806451,
+          "improved_valid_cell_fraction": 0.8518518518518519,
+          "valid_cell_count": 54
+        }
+      },
+      "non_head_broadening_gate": true,
+      "interpretation": "benefit_expansion"
+    }
+  },
+  "source_sha256": {
+    "data/processed/porto/波尔图道路节点.csv": "553ca53de50e67060683cbf5837b05512efcabb0eb50824198e1fddfc00cb7c9",
+    "data/processed/porto/波尔图可用起终点节点查询_200米.csv": "f4f7aa33d9207a82ffc38133c216ff5f53e6addf751ff1e737ccd62225c28754",
+    "results/gnn_v2/multi_region_online/details/z0.k18.current_y.csv.gz": "f6ee1c8e6aa586fe2c411d4971b9d30e74dac5e1c51709ce8dd0d4e2aa8f9ac3",
+    "results/gnn_v2/multi_region_online_g4/details/g4_global_seed42.k18.current_y.csv.gz": "971783bd10cf6cbd463d4f2f3120a801d00511cf5849a48841796f38b8cf9659",
+    "results/gnn_v2/multi_region_online_g4/details/g4_global_seed43.k18.current_y.csv.gz": "b8a49c1a9e9855aafa83a95a6066cd19d5bfdc2af02272ba8ffc4ec6c22a4b20",
+    "results/gnn_v2/multi_region_online_g4/details/g4_global_seed44.k18.current_y.csv.gz": "60077b3d93ad58087ec6a6846abf32df0c542437fb3d172f66a1416eccf79b7e",
+    "results/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/details/g5_s2_seed42.k18.current_y.csv.gz": "ce32ad7e8e998e430563f73b3d7484b9f2c1c484e38d68898169a494a209f05a",
+    "results/gnn_v2/g5_cost_aware_exploration/s3_gain1_seeds43_44_short_online_k18/details/g5_s3_seed43.k18.current_y.csv.gz": "b437375805e04f520a318af1e08dbe31eeae071efdf46918535b12802d348406",
+    "results/gnn_v2/g5_cost_aware_exploration/s3_gain1_seeds43_44_short_online_k18/details/g5_s3_seed44.k18.current_y.csv.gz": "ce3a2addff61e4ab5e41469bfc72184487ae1d52f26b8d8b066b69d4280796f3",
+    "results/gnn_v2/multi_region_online/details/z0.k18.future_f.csv.gz": "86978c7debfacc22c8e55e54ab762fdffe7dd36a8915d8842fdad423d96b191f",
+    "results/gnn_v2/multi_region_online_g4/details/g4_global_seed42.k18.future_f.csv.gz": "58808bb767e77a36a4a6d7914c2e667978a8e8996b2d11a7241ced4f70d0728e",
+    "results/gnn_v2/multi_region_online_g4/details/g4_global_seed43.k18.future_f.csv.gz": "ffbdadfb7a9c93732c04f9055c038365cf3bee408476735489625955b67bdf9c",
+    "results/gnn_v2/multi_region_online_g4/details/g4_global_seed44.k18.future_f.csv.gz": "003b13d4d7e78f6a22c66f72c6fd38104c9567e41dff66c5501157cfa2937e8d",
+    "results/gnn_v2/g5_cost_aware_exploration/s2_gain1_short_seed42_online_k18/details/g5_s2_seed42.k18.future_f.csv.gz": "df3289f4d56f1eb69faad7f41482011d369da2586ebd9ef54ed871f32e3abfec",
+    "results/gnn_v2/g5_cost_aware_exploration/s3_gain1_seeds43_44_short_online_k18/details/g5_s3_seed43.k18.future_f.csv.gz": "73db92bce5f907fbb400e6d8efc4bfd46b1d25892bb5bfda7d385aba9a26314f",
+    "results/gnn_v2/g5_cost_aware_exploration/s3_gain1_seeds43_44_short_online_k18/details/g5_s3_seed44.k18.future_f.csv.gz": "291366c9ba32a7145101f4f9809e9927495bcbc237ee795d464179230b74dded"
+  },
+  "artifacts": {
+    "query_deltas": "results/spatial_benefit_heterogeneity/porto/query_deltas.csv.gz",
+    "grid_summary": "results/spatial_benefit_heterogeneity/porto/grid_summary.csv",
+    "stratum_summary": "results/spatial_benefit_heterogeneity/porto/stratum_summary.csv",
+    "length_stratification": "results/spatial_benefit_heterogeneity/porto/length_stratification.csv",
+    "figures": [
+      "paper/figures/spatial_benefit_porto.pdf",
+      "paper/figures/spatial_benefit_porto.png",
+      "results/spatial_benefit_heterogeneity/porto/spatial_benefit.pdf",
+      "results/spatial_benefit_heterogeneity/porto/spatial_benefit.png",
+      "paper/figures/spatial_benefit_porto_endpoints.pdf",
+      "paper/figures/spatial_benefit_porto_endpoints.png",
+      "results/spatial_benefit_heterogeneity/porto/spatial_benefit_endpoints.pdf",
+      "results/spatial_benefit_heterogeneity/porto/spatial_benefit_endpoints.png"
+    ]
+  }
+}
