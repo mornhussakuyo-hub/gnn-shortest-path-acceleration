@@ -664,15 +664,6 @@ def _plot_city(
     for row_index, method in enumerate(METHODS):
         for column_index, window in enumerate(WINDOWS):
             ax = axes[row_index, column_index]
-            ax.scatter(
-                road[::stride, 0],
-                road[::stride, 1],
-                s=0.18,
-                color=ROAD,
-                alpha=0.28,
-                rasterized=True,
-                zorder=1,
-            )
             array = np.full((grid_size, grid_size), np.nan)
             selected = [
                 row
@@ -690,8 +681,20 @@ def _plot_city(
                 cmap=BENEFIT_CMAP,
                 vmin=-color_limit,
                 vmax=color_limit,
-                interpolation="nearest",
+                interpolation="none",
                 alpha=1.0,
+                resample=False,
+                zorder=1,
+            )
+            ax.scatter(
+                road[::stride, 0],
+                road[::stride, 1],
+                s=0.18,
+                color=ROAD,
+                alpha=0.40,
+                edgecolors="none",
+                linewidths=0,
+                rasterized=True,
                 zorder=2,
             )
             ax.set_title(
@@ -780,15 +783,6 @@ def _plot_endpoint_appendix(
     for row_index, method in enumerate(METHODS):
         for column_index, (window, endpoint) in enumerate(columns):
             ax = axes[row_index, column_index]
-            ax.scatter(
-                road[::stride, 0],
-                road[::stride, 1],
-                s=0.14,
-                color=ROAD,
-                alpha=0.26,
-                rasterized=True,
-                zorder=1,
-            )
             array = np.full((grid_size, grid_size), np.nan)
             cells = endpoint_grids[(method, window, endpoint)]
             valid_count = 0
@@ -804,8 +798,20 @@ def _plot_endpoint_appendix(
                 cmap=BENEFIT_CMAP,
                 vmin=-color_limit,
                 vmax=color_limit,
-                interpolation="nearest",
+                interpolation="none",
                 alpha=1.0,
+                resample=False,
+                zorder=1,
+            )
+            ax.scatter(
+                road[::stride, 0],
+                road[::stride, 1],
+                s=0.14,
+                color=ROAD,
+                alpha=0.38,
+                edgecolors="none",
+                linewidths=0,
+                rasterized=True,
                 zorder=2,
             )
             endpoint_label = "O" if endpoint == "origin" else "D"

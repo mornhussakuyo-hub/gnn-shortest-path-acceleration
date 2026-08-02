@@ -35,6 +35,9 @@ BENEFIT_CMAP = LinearSegmentedColormap.from_list(
     "aic_benefit",
     [RED, NEUTRAL, BLUE],
 )
+# Transparent cells carry white RGB so PDF viewers cannot introduce dark halos
+# when antialiasing the boundary between missing and colored raster cells.
+BENEFIT_CMAP.set_bad(color=(1.0, 1.0, 1.0, 0.0))
 
 
 def configure_style() -> None:
