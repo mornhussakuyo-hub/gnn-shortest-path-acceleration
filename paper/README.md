@@ -10,6 +10,15 @@
 - `main.pdf`：单栏完整初稿；
 - `main_twocolumn.tex`：复用 `main.tex` 正文的双栏预览入口；
 - `main_twocolumn.pdf`：10 页双栏预览版，宽表和占位图自动跨栏；
+- `main_en.tex`：英文稿，按 EAAI（Elsevier `elsarticle`）格式组织：frontmatter、
+  不超过 250 词的摘要、`\sep` 分隔关键词、author-year 引用（`elsarticle-harv`）、
+  生成式 AI 使用声明、CRediT/利益冲突/数据可用性声明；内容对齐 2026-08-02 定稿的
+  中文版（`main_authored.pdf`，含"证据一~七"结果结构、术语表附录与更新后的空间
+  网格数字），仓库内 `main.tex` 为更早版本；
+- `main_en.pdf`：英文稿单栏（`preprint,12pt`）编译结果；
+- `main_en_twocolumn.tex` / `main_en_twocolumn.pdf`：英文稿 `5p` 双栏预览；
+- `highlights_en.tex` / `highlights_en.pdf`：EAAI 要求单独提交的 Highlights
+  （3--5 条，每条不超过 85 字符）；
 - `references.bib`：正文实际引用的参考文献；
 - `EVIDENCE.md`：正文数字到仓库冻结报告和机器可读产物的对应关系；
 - `figures/README.md`：正式制图清单和每张图的数据来源；
@@ -43,6 +52,14 @@ latexmk -xelatex -bibtex main_twocolumn.tex
 ```
 
 正文采用 `ctexart`，必须使用 XeLaTeX 或 LuaLaTeX，不建议使用 pdfLaTeX。
+
+英文稿使用 `elsarticle`，普通 pdfLaTeX 流程即可；Windows 本机已用 Tectonic 验证：
+
+```bash
+tectonic main_en.tex
+tectonic main_en_twocolumn.tex
+tectonic highlights_en.tex
+```
 
 ## 冻结口径
 
