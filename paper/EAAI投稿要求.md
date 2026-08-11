@@ -255,19 +255,19 @@ AI 若属于研究方法的一部分，应在 Methods 中可复现地报告工�
 
 | 项目 | 状态要求 | 本项目当前情况 |
 | --- | --- | --- |
-| 单栏英文匿名主稿 | 必备 | 尚未形成 EAAI 英文版；当前中文单栏匿名稿可作翻译底稿 |
+| 单栏英文匿名主稿 | 必备 | 英文 `elsarticle` 单栏正文已完成并通过干净环境编译；正式期刊匿名版仍需移除作者元数据 |
 | 独立标题页与作者信息 | 必备 | 中文标题页已建；英文名、单位、地址、通讯作者、邮箱、ORCID 待确认 |
-| Abstract 与 1–6 keywords | 必备 | 中文摘要已有；需按 EAAI 规则重写英文摘要并收敛关键词 |
-| Highlights 独立文件 | 按必备准备 | 已建立英文文本，翻译全文后再核对措辞 |
+| Abstract 与 1–6 keywords | 必备 | 英文摘要为 180 词，关键词 6 个，均已进入英文正文 |
+| Highlights 独立文件 | 按必备准备 | 5 条英文 Highlights 已完成，逐条不超过 85 字符 |
 | Graphical abstract | 建议准备，系统标必需时上传 | 可由现有方法流程图改制 |
 | Cover letter | 强烈建议 | 尚未制作 |
-| Competing interests statement | 必备，即使无冲突 | 正文只有空白占位 |
+| Competing interests statement | 必备，即使无冲突 | 英文正文已有无冲突声明，仍须全体作者确认 |
 | Funding statement | 必备信息 | 正文只有空白占位 |
 | CRediT author statement | 按必备准备 | 正文只有空白占位 |
 | Data availability statement | 按必备准备 | 已有审计口径；永久链接待补 |
 | Code availability / repository | 强烈建议 | 需确定公开范围、归档版本和永久链接 |
-| Generative AI declaration | 有实质使用时必备 | 中文稿已按实际用途加入，投稿前由全体作者确认英文表述 |
-| 图表源文件与图注 | 必备 | 已有正式图，但需做英文版、版权和最终分辨率检查 |
+| Generative AI declaration | 有实质使用时必备 | 中英文正文均已按实际用途加入，投稿前由全体作者确认 |
+| 图表源文件与图注 | 必备 | 英文图表已进入正文并通过编译，仍需做版权与许可终审 |
 | Supplementary material | 视需要 | 可放扩展消融、额外地图、实现细节和复现清单 |
 | 推荐/回避审稿人 | 系统要求时提供 | 尚未准备；推荐人不得存在利益冲突 |
 

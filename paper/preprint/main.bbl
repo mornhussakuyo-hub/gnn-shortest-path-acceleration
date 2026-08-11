@@ -1,0 +1,157 @@
+\begin{thebibliography}{16}
+\expandafter\ifx\csname natexlab\endcsname\relax\def\natexlab#1{#1}\fi
+\providecommand{\url}[1]{\texttt{#1}}
+\providecommand{\href}[2]{#2}
+\providecommand{\path}[1]{#1}
+\providecommand{\DOIprefix}{doi:}
+\providecommand{\ArXivprefix}{arXiv:}
+\providecommand{\URLprefix}{URL: }
+\providecommand{\Pubmedprefix}{pmid:}
+\providecommand{\doi}[1]{\href{http://dx.doi.org/#1}{\path{#1}}}
+\providecommand{\Pubmed}[1]{\href{pmid:#1}{\path{#1}}}
+\providecommand{\bibinfo}[2]{#2}
+\ifx\xfnm\relax \def\xfnm[#1]{\unskip,\space#1}\fi
+%Type = Inproceedings
+\bibitem[{Dan et~al.(2025)Dan, Pan, Zheng and Meng}]{dan2025fahl}
+\bibinfo{author}{Dan, T.}, \bibinfo{author}{Pan, X.}, \bibinfo{author}{Zheng,
+  B.}, \bibinfo{author}{Meng, X.}, \bibinfo{year}{2025}.
+\newblock \bibinfo{title}{{FAHL}: An efficient labeling index for flow-aware
+  shortest path querying in road networks}, in: \bibinfo{booktitle}{2025 IEEE
+  41st International Conference on Data Engineering (ICDE)},
+  \bibinfo{publisher}{IEEE}. pp. \bibinfo{pages}{836--849}.
+\newblock \DOIprefix\doi{10.1109/ICDE65448.2025.00068}.
+%Type = Article
+\bibitem[{Dijkstra(1959)}]{dijkstra1959}
+\bibinfo{author}{Dijkstra, E.W.}, \bibinfo{year}{1959}.
+\newblock \bibinfo{title}{A note on two problems in connexion with graphs}.
+\newblock \bibinfo{journal}{Numerische Mathematik} \bibinfo{volume}{1},
+  \bibinfo{pages}{269--271}.
+\newblock \DOIprefix\doi{10.1007/BF01386390}.
+%Type = Misc
+\bibitem[{{Divvy}(2022)}]{divvydata}
+\bibinfo{author}{{Divvy}}, \bibinfo{year}{2022}.
+\newblock \bibinfo{title}{Divvy system data: Historical trip data}.
+\newblock \bibinfo{howpublished}{\url{https://divvybikes.com/system-data}}.
+\newblock \bibinfo{note}{Accessed 2026-07-31}.
+%Type = Misc
+\bibitem[{Efentakis et~al.(2014)Efentakis, Pfoser and Vassiliou}]{salt2014}
+\bibinfo{author}{Efentakis, A.}, \bibinfo{author}{Pfoser, D.},
+  \bibinfo{author}{Vassiliou, Y.}, \bibinfo{year}{2014}.
+\newblock \bibinfo{title}{{SALT}: A unified framework for all shortest-path
+  query variants on road networks}.
+\newblock \DOIprefix\doi{10.48550/arXiv.1411.0257},
+  \href{http://arxiv.org/abs/1411.0257}{{\tt arXiv:1411.0257}}.
+%Type = Misc
+\bibitem[{Frasca et~al.(2020)Frasca, Rossi, Eynard, Chamberlain, Bronstein and
+  Monti}]{frasca2020sign}
+\bibinfo{author}{Frasca, F.}, \bibinfo{author}{Rossi, E.},
+  \bibinfo{author}{Eynard, D.}, \bibinfo{author}{Chamberlain, B.},
+  \bibinfo{author}{Bronstein, M.M.}, \bibinfo{author}{Monti, F.},
+  \bibinfo{year}{2020}.
+\newblock \bibinfo{title}{{SIGN}: Scalable inception graph neural networks}.
+\newblock \DOIprefix\doi{10.48550/arXiv.2004.11198},
+  \href{http://arxiv.org/abs/2004.11198}{{\tt arXiv:2004.11198}}.
+%Type = Inproceedings
+\bibitem[{Jagerman et~al.(2022)Jagerman, Wang, Zhuang, Qin, Bendersky and
+  Najork}]{jagerman2022rax}
+\bibinfo{author}{Jagerman, R.}, \bibinfo{author}{Wang, X.},
+  \bibinfo{author}{Zhuang, H.}, \bibinfo{author}{Qin, Z.},
+  \bibinfo{author}{Bendersky, M.}, \bibinfo{author}{Najork, M.},
+  \bibinfo{year}{2022}.
+\newblock \bibinfo{title}{{Rax}: Composable learning-to-rank using {JAX}}, in:
+  \bibinfo{booktitle}{Proceedings of the 28th ACM SIGKDD Conference on
+  Knowledge Discovery and Data Mining}, \bibinfo{publisher}{ACM}. pp.
+  \bibinfo{pages}{3051--3060}.
+\newblock \DOIprefix\doi{10.1145/3534678.3539065}.
+%Type = Misc
+\bibitem[{Li et~al.(2020a)Li, Xiong, Thabet and Ghanem}]{li2020deepergcn}
+\bibinfo{author}{Li, G.}, \bibinfo{author}{Xiong, C.}, \bibinfo{author}{Thabet,
+  A.}, \bibinfo{author}{Ghanem, B.}, \bibinfo{year}{2020}a.
+\newblock \bibinfo{title}{{DeeperGCN}: All you need to train deeper {GCN}s}.
+\newblock \DOIprefix\doi{10.48550/arXiv.2006.07739},
+  \href{http://arxiv.org/abs/2006.07739}{{\tt arXiv:2006.07739}}.
+%Type = Article
+\bibitem[{Li et~al.(2020b)Li, Wang, Qiu, Yu and Wang}]{li2020cache}
+\bibinfo{author}{Li, X.}, \bibinfo{author}{Wang, B.}, \bibinfo{author}{Qiu,
+  T.}, \bibinfo{author}{Yu, G.}, \bibinfo{author}{Wang, N.},
+  \bibinfo{year}{2020}b.
+\newblock \bibinfo{title}{Constructing effective caches of shortest path
+  queries on road networks}.
+\newblock \bibinfo{journal}{IEEE Access} \bibinfo{volume}{8},
+  \bibinfo{pages}{193777--193789}.
+\newblock \DOIprefix\doi{10.1109/ACCESS.2020.3024664}.
+%Type = Inproceedings
+\bibitem[{Li et~al.(2018)Li, Yu, Shahabi and Liu}]{li2018dcrnn}
+\bibinfo{author}{Li, Y.}, \bibinfo{author}{Yu, R.}, \bibinfo{author}{Shahabi,
+  C.}, \bibinfo{author}{Liu, Y.}, \bibinfo{year}{2018}.
+\newblock \bibinfo{title}{Diffusion convolutional recurrent neural network:
+  Data-driven traffic forecasting}, in: \bibinfo{booktitle}{International
+  Conference on Learning Representations (ICLR)}.
+\newblock \URLprefix \url{https://arxiv.org/abs/1707.01926}.
+%Type = Misc
+\bibitem[{Moreira-Matias et~al.(2013)Moreira-Matias, Ferreira, Mendes-Moreira
+  et~al.}]{moreira2013porto}
+\bibinfo{author}{Moreira-Matias, L.}, \bibinfo{author}{Ferreira, M.},
+  \bibinfo{author}{Mendes-Moreira, J.}, et~al., \bibinfo{year}{2013}.
+\newblock \bibinfo{title}{Taxi service trajectory---prediction challenge, {ECML
+  PKDD} 2015}.
+\newblock \DOIprefix\doi{10.24432/C55W25}.
+%Type = Misc
+\bibitem[{{OpenStreetMap contributors}(2026)}]{openstreetmap}
+\bibinfo{author}{{OpenStreetMap contributors}}, \bibinfo{year}{2026}.
+\newblock \bibinfo{title}{Openstreetmap}.
+\newblock
+  \bibinfo{howpublished}{\url{https://www.openstreetmap.org/copyright}}.
+\newblock \bibinfo{note}{Open Database License; accessed 2026-07-31}.
+%Type = Inproceedings
+\bibitem[{Thomsen et~al.(2012)Thomsen, Yiu and Jensen}]{thomsen2012cache}
+\bibinfo{author}{Thomsen, J.R.}, \bibinfo{author}{Yiu, M.L.},
+  \bibinfo{author}{Jensen, C.S.}, \bibinfo{year}{2012}.
+\newblock \bibinfo{title}{Effective caching of shortest paths for
+  location-based services}, in: \bibinfo{booktitle}{Proceedings of the 2012 ACM
+  SIGMOD International Conference on Management of Data},
+  \bibinfo{publisher}{ACM}. pp. \bibinfo{pages}{313--324}.
+\newblock \DOIprefix\doi{10.1145/2213836.2213872}.
+%Type = Inproceedings
+\bibitem[{Touvron et~al.(2021)Touvron, Cord, Sablayrolles, Synnaeve and
+  J{\'e}gou}]{touvron2021layerscale}
+\bibinfo{author}{Touvron, H.}, \bibinfo{author}{Cord, M.},
+  \bibinfo{author}{Sablayrolles, A.}, \bibinfo{author}{Synnaeve, G.},
+  \bibinfo{author}{J{\'e}gou, H.}, \bibinfo{year}{2021}.
+\newblock \bibinfo{title}{Going deeper with image transformers}, in:
+  \bibinfo{booktitle}{Proceedings of the IEEE/CVF International Conference on
+  Computer Vision (ICCV)}, pp. \bibinfo{pages}{32--42}.
+%Type = Inproceedings
+\bibitem[{Wan et~al.(2022)Wan, Gao, Ma, Huang, Zhou, Jensen and
+  Zheng}]{wan2022wcf}
+\bibinfo{author}{Wan, J.}, \bibinfo{author}{Gao, Y.}, \bibinfo{author}{Ma, Y.},
+  \bibinfo{author}{Huang, K.}, \bibinfo{author}{Zhou, X.},
+  \bibinfo{author}{Jensen, C.S.}, \bibinfo{author}{Zheng, B.},
+  \bibinfo{year}{2022}.
+\newblock \bibinfo{title}{Workload-aware shortest path distance querying in
+  road networks}, in: \bibinfo{booktitle}{2022 IEEE 38th International
+  Conference on Data Engineering (ICDE)}, \bibinfo{publisher}{IEEE}. pp.
+  \bibinfo{pages}{2372--2384}.
+\newblock \DOIprefix\doi{10.1109/ICDE53745.2022.00223}.
+%Type = Inproceedings
+\bibitem[{Xu et~al.(2018)Xu, Li, Tian, Sonobe, ichi Kawarabayashi and
+  Jegelka}]{xu2018jk}
+\bibinfo{author}{Xu, K.}, \bibinfo{author}{Li, C.}, \bibinfo{author}{Tian, Y.},
+  \bibinfo{author}{Sonobe, T.}, \bibinfo{author}{ichi Kawarabayashi, K.},
+  \bibinfo{author}{Jegelka, S.}, \bibinfo{year}{2018}.
+\newblock \bibinfo{title}{Representation learning on graphs with jumping
+  knowledge networks}, in: \bibinfo{booktitle}{Proceedings of the 35th
+  International Conference on Machine Learning}, \bibinfo{publisher}{PMLR}. pp.
+  \bibinfo{pages}{5453--5462}.
+%Type = Inproceedings
+\bibitem[{Zhu et~al.(2021)Zhu, Zhang, Xhonneux and Tang}]{zhu2021nbfnet}
+\bibinfo{author}{Zhu, Z.}, \bibinfo{author}{Zhang, Z.},
+  \bibinfo{author}{Xhonneux, L.P.}, \bibinfo{author}{Tang, J.},
+  \bibinfo{year}{2021}.
+\newblock \bibinfo{title}{Neural bellman--ford networks: A general graph neural
+  network framework for link prediction}, in: \bibinfo{booktitle}{Advances in
+  Neural Information Processing Systems}.
+\newblock \URLprefix
+  \url{https://proceedings.neurips.cc/paper/2021/hash/f6a673f09493afcd8b129a0bcf1cd5bc-Abstract.html}.
+
+\end{thebibliography}
