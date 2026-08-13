@@ -23,6 +23,8 @@ from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
 
 from paper_figure_style import (
     BLUE,
+    FONT_SIZE_BODY,
+    FONT_SIZE_SMALL,
     GREEN,
     GRID,
     INK,
@@ -97,7 +99,7 @@ def draw_box(
     *,
     face: str,
     edge: str,
-    fontsize: float = 9,
+    fontsize: float = FONT_SIZE_SMALL,
     weight: str = "normal",
 ) -> None:
     box = FancyBboxPatch(
@@ -149,24 +151,33 @@ def make_pipeline(output: Path) -> None:
     labels = [
         ("H  History OD", "0–35%  ·  model input", PALE_BLUE, BLUE),
         ("Y  Current labels", "35–70%  ·  exact regional gain", PALE_ORANGE, ORANGE),
-        ("F  Future test", "70–100%  ·  frozen evaluation", PALE_GREEN, GREEN),
+        ("F  Future test", "70–100%  ·  frozen\nevaluation", PALE_GREEN, GREEN),
     ]
     for x, width, (title, subtitle, face, edge) in zip(starts, widths, labels):
         ax.add_patch(
             FancyBboxPatch(
-                (x, 0.82), width, 0.10,
+                (x, 0.78), width, 0.14,
                 boxstyle="round,pad=0.008,rounding_size=0.012",
                 facecolor=face, edgecolor=edge, linewidth=1.05,
             )
         )
-        ax.text(x + 0.015, 0.878, title, ha="left", va="center", weight="bold", color=INK)
-        ax.text(x + 0.015, 0.842, subtitle, ha="left", va="center", fontsize=6.8, color=MUTED)
+        ax.text(x + 0.015, 0.875, title, ha="left", va="center", weight="bold", color=INK)
+        ax.text(
+            x + 0.015,
+            0.815,
+            subtitle,
+            ha="left",
+            va="center",
+            fontsize=FONT_SIZE_SMALL,
+            color=MUTED,
+            linespacing=1.0,
+        )
 
-    draw_box(ax, (0.02, 0.46), 0.145, 0.20, "Road graph\n+ historical OD", face="#F4F6F7", edge="#8A989E", fontsize=6.9, weight="bold")
-    draw_box(ax, (0.195, 0.46), 0.185, 0.20, "Z0\nparameter-free\nbidirectional\ndiffusion", face=PALE_BLUE, edge=BLUE, fontsize=6.1, weight="bold")
-    draw_box(ax, (0.41, 0.46), 0.18, 0.20, "BRIDGE\nfrozen Z0\n+ neural residual", face=PALE_ORANGE, edge=ORANGE, fontsize=6.9, weight="bold")
-    draw_box(ax, (0.62, 0.46), 0.17, 0.20, "BRIDGE-B\nbudget-aware\ndeployment head", face=PALE_GREEN, edge=GREEN, fontsize=6.4, weight="bold")
-    draw_box(ax, (0.82, 0.46), 0.16, 0.20, "Disjoint\nregion selection", face="#F2EFFA", edge=PURPLE, fontsize=6.5, weight="bold")
+    draw_box(ax, (0.02, 0.46), 0.145, 0.20, "Road graph\n+ historical OD", face="#F4F6F7", edge="#8A989E", weight="bold")
+    draw_box(ax, (0.195, 0.46), 0.185, 0.20, "Z0\nparameter-free\nbidirectional\ndiffusion", face=PALE_BLUE, edge=BLUE, weight="bold")
+    draw_box(ax, (0.41, 0.46), 0.18, 0.20, "BRIDGE\nfrozen Z0\n+ neural residual", face=PALE_ORANGE, edge=ORANGE, weight="bold")
+    draw_box(ax, (0.62, 0.46), 0.17, 0.20, "BRIDGE-B\nbudget-aware\ndeployment\nhead", face=PALE_GREEN, edge=GREEN, weight="bold")
+    draw_box(ax, (0.82, 0.46), 0.16, 0.20, "Disjoint\nregion\nselection", face="#F2EFFA", edge=PURPLE, weight="bold")
 
     for start, end in [
         ((0.165, 0.56), (0.195, 0.56)),
@@ -176,18 +187,18 @@ def make_pipeline(output: Path) -> None:
     ]:
         arrow(ax, start, end)
 
-    draw_box(ax, (0.215, 0.10), 0.205, 0.18, "Spatially isolated\ncandidate regions\n(Jaccard groups)", face="#F4F6F7", edge="#8A989E", fontsize=7.0)
-    draw_box(ax, (0.49, 0.10), 0.205, 0.18, "Selective CRP-style\nboundary overlay\n(existing exact substrate)", face="#F4F6F7", edge="#8A989E", fontsize=7.0)
-    draw_box(ax, (0.765, 0.10), 0.215, 0.18, "Exact bidirectional query\n+ local endpoint access\n(distance preserved)", face="#F4F6F7", edge="#8A989E", fontsize=7.0)
+    draw_box(ax, (0.215, 0.10), 0.205, 0.18, "Spatially isolated\ncandidate regions\n(Jaccard groups)", face="#F4F6F7", edge="#8A989E")
+    draw_box(ax, (0.49, 0.075), 0.205, 0.22, "Selective CRP-style\nboundary overlay\n(existing exact\nsubstrate)", face="#F4F6F7", edge="#8A989E")
+    draw_box(ax, (0.765, 0.075), 0.215, 0.22, "Exact bidirectional\nquery + local\nendpoint access\n(distance preserved)", face="#F4F6F7", edge="#8A989E")
     arrow(ax, (0.317, 0.28), (0.287, 0.46))
-    arrow(ax, (0.90, 0.46), (0.695, 0.20))
+    arrow(ax, (0.90, 0.46), (0.875, 0.295))
     arrow(ax, (0.695, 0.19), (0.765, 0.19))
 
     ax.text(
         0.02,
         0.02,
         "Learning allocates offline materialization resources; online shortest-path answers remain exact.",
-        fontsize=7.2,
+        fontsize=FONT_SIZE_SMALL,
         color=MUTED,
         style="italic",
     )
@@ -310,15 +321,15 @@ def make_system(output: Path, rows: list[dict[str, object]]) -> None:
         ax.axhline(0, color=INK, linewidth=0.8)
         ax.axvline(1.5, color=GRID, linewidth=0.8)
         ax.grid(axis="y", color=GRID, linewidth=0.65, zorder=0)
-        ax.set_title(label, loc="left", weight="bold")
+        ax.set_title(label, loc="left", weight="bold", pad=24)
         ax.set_ylabel("Change vs. original graph (%)")
         ax.set_xticks(x, labels)
-        ax.text(0.99, 0.04, "lower is better", transform=ax.transAxes,
-                ha="right", va="bottom", color=MUTED, fontsize=7.5)
+        ax.text(0.02, 1.01, "lower is better", transform=ax.transAxes,
+                ha="left", va="bottom", color=MUTED, fontsize=FONT_SIZE_SMALL)
     handles, legend_labels = axes[0, 0].get_legend_handles_labels()
     fig.legend(handles, legend_labels, loc="upper center", ncol=2, frameon=False,
                bbox_to_anchor=(0.5, 1.015))
-    fig.subplots_adjust(wspace=0.25, hspace=0.34, top=0.91, bottom=0.12)
+    fig.subplots_adjust(wspace=0.25, hspace=0.48, top=0.86, bottom=0.12)
     save_figure(fig, output, "system_results")
 
 
@@ -381,7 +392,7 @@ def make_mechanism_ablation(output: Path, rows: list[dict[str, object]]) -> None
     ax_topology.set_ylim(0.40, 1.0)
     ax_topology.set_ylabel("Spearman")
     ax_topology.grid(axis="y", color=GRID, linewidth=0.65, zorder=0)
-    ax_topology.legend(frameon=False, fontsize=6.4, ncol=3, loc="lower center",
+    ax_topology.legend(frameon=False, fontsize=FONT_SIZE_SMALL, ncol=3, loc="lower center",
                        bbox_to_anchor=(0.5, 1.01), columnspacing=0.8, handlelength=1.8)
 
     signal_variants = [
@@ -403,10 +414,10 @@ def make_mechanism_ablation(output: Path, rows: list[dict[str, object]]) -> None
     ax_signal.axhline(0, color=INK, linewidth=0.8)
     ax_signal.set_title("(b) Signal and pooling", loc="left", weight="bold", y=1.22)
     ax_signal.set_xticks(sx, [label.replace(" ", "\n") for label, _, _ in signal_variants])
-    ax_signal.tick_params(axis="x", labelsize=6.6)
+    ax_signal.tick_params(axis="x", labelsize=FONT_SIZE_SMALL)
     ax_signal.set_ylabel("Spearman delta vs. Z0")
     ax_signal.grid(axis="y", color=GRID, linewidth=0.65, zorder=0)
-    ax_signal.legend(frameon=False, fontsize=6.4, ncol=2, loc="lower center",
+    ax_signal.legend(frameon=False, fontsize=FONT_SIZE_SMALL, ncol=2, loc="lower center",
                      bbox_to_anchor=(0.5, 1.01), columnspacing=0.8)
 
     depths = [1, 2, 4, 8, 16, 32]
@@ -422,8 +433,16 @@ def make_mechanism_ablation(output: Path, rows: list[dict[str, object]]) -> None
     ax_depth.set_xlabel("Diffusion depth")
     ax_depth.set_ylabel("Spearman")
     ax_depth.grid(color=GRID, linewidth=0.65, zorder=0)
-    ax_depth.legend(frameon=False, ncol=4, loc="upper center", fontsize=6.8,
-                    bbox_to_anchor=(0.5, -0.24), columnspacing=1.0)
+    ax_depth.legend(
+        frameon=False,
+        ncol=4,
+        loc="upper center",
+        fontsize=FONT_SIZE_SMALL,
+        bbox_to_anchor=(0.5, -0.24),
+        columnspacing=1.2,
+        handlelength=3.2,
+        handletextpad=0.7,
+    )
     fig.subplots_adjust(top=0.82, bottom=0.17)
     save_figure(fig, output, "mechanism_ablation")
 
@@ -539,14 +558,14 @@ def make_bridge_b_progression(output: Path, rows: list[dict[str, object]]) -> No
             if i > 0:
                 ax.annotate(f"{value:+.1f}", (i - width / 2, value),
                             xytext=(0, 4), textcoords="offset points",
-                            ha="center", fontsize=7.2, color=INK)
+                            ha="center", fontsize=FONT_SIZE_SMALL, color=INK)
     bar_handles, bar_labels = axes[0].get_legend_handles_labels()
     line_handles, line_labels = twin_axes[0].get_legend_handles_labels()
     fig.legend(bar_handles + line_handles, bar_labels + line_labels,
                loc="upper center", ncol=3, frameon=False, bbox_to_anchor=(0.5, 1.03))
     fig.text(0.5, 0.01,
              "S0–S2: seed 42 development; S3: mean ± SD over frozen seeds 42–44.",
-             ha="center", color=MUTED, fontsize=8, style="italic")
+             ha="center", color=MUTED, fontsize=FONT_SIZE_SMALL, style="italic")
     fig.subplots_adjust(wspace=0.48, top=0.83, bottom=0.19)
     save_figure(fig, output, "bridge_b_progression")
 

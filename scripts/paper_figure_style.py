@@ -20,6 +20,12 @@ PALE_ORANGE = "#FCEFE2"
 PALE_GREEN = "#E8F4EE"
 NEUTRAL = "#F7F7F5"
 
+FONT_FAMILY = "DejaVu Sans"
+FONT_SIZE_BODY = 9
+FONT_SIZE_SMALL = 8
+FONT_SIZE_PANEL_TITLE = 10
+FONT_SIZE_SUPTITLE = 11
+
 METHOD_COLORS = {
     "Z0": BLUE,
     "BRIDGE": ORANGE,
@@ -44,12 +50,12 @@ def configure_style() -> None:
     """Apply the manuscript-wide typography, stroke, and color conventions."""
     plt.rcParams.update(
         {
-            "font.family": "DejaVu Sans",
-            "font.size": 9,
-            "axes.titlesize": 10.5,
+            "font.family": FONT_FAMILY,
+            "font.size": FONT_SIZE_BODY,
+            "axes.titlesize": FONT_SIZE_PANEL_TITLE,
             "axes.titleweight": "bold",
             "axes.titlecolor": INK,
-            "axes.labelsize": 9,
+            "axes.labelsize": FONT_SIZE_BODY,
             "axes.labelcolor": INK,
             "axes.edgecolor": "#8A989E",
             "axes.linewidth": 0.7,
@@ -57,9 +63,9 @@ def configure_style() -> None:
             "axes.spines.right": False,
             "xtick.color": MUTED,
             "ytick.color": MUTED,
-            "xtick.labelsize": 8.5,
-            "ytick.labelsize": 8.5,
-            "legend.fontsize": 8.5,
+            "xtick.labelsize": FONT_SIZE_SMALL,
+            "ytick.labelsize": FONT_SIZE_SMALL,
+            "legend.fontsize": FONT_SIZE_SMALL,
             "legend.frameon": False,
             "figure.facecolor": "white",
             "axes.facecolor": "white",

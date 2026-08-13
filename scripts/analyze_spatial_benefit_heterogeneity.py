@@ -18,7 +18,14 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from paper_figure_style import BENEFIT_CMAP, INK, ROAD, configure_style
+from paper_figure_style import (
+    BENEFIT_CMAP,
+    FONT_SIZE_PANEL_TITLE,
+    FONT_SIZE_SUPTITLE,
+    INK,
+    ROAD,
+    configure_style,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -700,7 +707,8 @@ def _plot_city(
             ax.set_title(
                 f"{method} · {'Y' if window == 'current_y' else 'F'}"
                 f"  ({len(selected)} valid cells)",
-                fontsize=8.7,
+                fontsize=FONT_SIZE_PANEL_TITLE,
+                weight="bold",
                 pad=6,
             )
             ax.set_xticks([])
@@ -716,7 +724,8 @@ def _plot_city(
         colorbar.set_label("Mean expanded-node delta vs. Z0 per query  (positive = better)")
     fig.suptitle(
         f"{city.title()}: spatial deployment benefit relative to Z0",
-        fontsize=12,
+        fontsize=FONT_SIZE_SUPTITLE,
+        weight="bold",
         y=0.965,
     )
     paper_base = ROOT / "paper/figures" / f"spatial_benefit_{city}"
@@ -818,7 +827,7 @@ def _plot_endpoint_appendix(
             window_label = "Y" if window == "current_y" else "F"
             ax.set_title(
                 f"{method} · {window_label}-{endpoint_label}\n{valid_count} valid cells",
-                fontsize=8.2,
+                fontsize=FONT_SIZE_PANEL_TITLE,
                 weight="bold",
                 pad=4,
             )
@@ -835,7 +844,7 @@ def _plot_endpoint_appendix(
         colorbar.set_label("Mean expanded-node delta vs. Z0 per query  (positive = better)")
     fig.suptitle(
         f"{city.title()}: origin/destination spatial benefit appendix",
-        fontsize=12,
+        fontsize=FONT_SIZE_SUPTITLE,
         weight="bold",
     )
     paper_base = ROOT / "paper/figures" / f"spatial_benefit_{city}_endpoints"
