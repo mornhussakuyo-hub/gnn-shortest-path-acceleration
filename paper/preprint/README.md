@@ -1,16 +1,15 @@
 # arXiv 预印本包
 
-核对日期：2026-08-11。
+核对日期：2026-08-13。
 
 ## 文件
 
-- `main.pdf`：公开预览稿。科学正文与 `paper/main_en.tex` 一致，仅移除了待确认单位和空白
-  CRediT、Funding、Acknowledgments 占位。
-- `arxiv_source_2026-08-11.tar.gz`：arXiv 上传源文件包，顶层入口为 `main.tex`。
+- `main.pdf`：公开预览稿。科学正文与 `paper/main_en.tex` 的 2026-08-13 修订版一致。
+- `arxiv_source_2026-08-13.tar.gz`：arXiv 上传源文件包，顶层入口为 `main.tex`。
 - `main.tex`、`main.bbl`、`references.bib`、`elsarticle.cls`、`elsarticle-harv.bst` 和
   `figures/`：上传包的可检查展开内容。
 
-源文件包已在独立临时目录中仅依赖包内文件完成两轮 pdfLaTeX 编译，生成 30 页 PDF；引用、
+源文件包已在独立临时目录中仅依赖包内文件完成完整 pdfLaTeX/BibTeX 编译，生成 34 页 PDF；引用、
 交叉引用和图片均完整。
 
 ## 发布前人工门
@@ -22,20 +21,20 @@
 3. 检查数据、地图和图表的公开许可边界；
 4. 确认利益冲突声明和生成式 AI 使用声明准确。
 
-作者单位不是 arXiv PDF 的强制项，因此本预印本快照没有保留未确认单位。正式期刊标题页仍须补齐
-单位、通讯作者、邮箱、ORCID、CRediT、Funding 和 Acknowledgments。
+当前预印本保留三位作者和已确认的武汉大学人工智能学院单位；通讯作者、邮箱、ORCID 和致谢仍须
+在正式期刊投稿前补齐。
 
 ## arXiv 提交流程
 
 1. 登录或注册 arXiv；新账户或首次进入新分类可能需要 endorsement。
 2. 选择 `Start New Submission`。
 3. 建议主分类选 `cs.LG`，交叉分类选 `cs.DS`；最终分类由作者按论文定位确认。
-4. 上传 `arxiv_source_2026-08-11.tar.gz`，确认顶层 TeX 文件为 `main.tex`。
+4. 上传 `arxiv_source_2026-08-13.tar.gz`，确认顶层 TeX 文件为 `main.tex`。
 5. 从 PDF/源文件填写标题、三位作者、摘要和关键词；Comments 可写
-   `30 pages, 7 figures, preprint`。
+   `35 pages, 8 figures, preprint`。
 6. 若没有基金或单位的强制许可要求，优先选择
    `arXiv.org perpetual, non-exclusive license 1.0`，不要选择 CC0。
-7. 打开 arXiv 生成的 PDF，逐页核对首页作者、表格、公式、七幅图、参考文献和最后声明。
+7. 打开 arXiv 生成的 PDF，逐页核对首页作者、表格、公式、八幅图、参考文献和最后声明。
 8. 完成提交并等待 arXiv moderation；获得编号后再更新仓库和后续 EAAI 投稿材料。
 
 ## 与 EAAI 的关系

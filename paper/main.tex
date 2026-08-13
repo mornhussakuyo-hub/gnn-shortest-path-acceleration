@@ -117,10 +117,13 @@ Graph learning; Learning to rank; Region materialization
 \citep{dijkstra1959,salt2014}。真实需求又并非均匀分布，因此工程上更关键的不是“是否建立
 索引”，而是有限资源应优先投向哪些道路区域。
 
-本文围绕一个主要问题展开：\textbf{在固定预处理和存储预算下，能否只根据历史起终点需求与静态
-道路图，学习并选择少量值得物化且互不重叠的区域，在保持距离精确的同时降低未来查询成本？}
-这一问题把需求预测、索引资源配置和精确查询连接起来，也要求模型面对未见区域、未来负载和
-实际部署约束，而不能只在离线标签上得到较高相关性。
+本文围绕一个核心问题展开：\textbf{给定历史查询负载和有限索引预算，如何对全部候选道路区域
+排序，并选择 $K$ 个互不重叠的区域，使其离线物化最大程度提高未来精确查询效率？} 区域物化
+本身---即把区域内部的精确距离汇总为边界连接，使查询可以跳过区域内部---是已有索引技术；以
+离线计算换取在线速度的思想同样不是本文首创。本文研究的开放问题是\textbf{选择}：仅凭历史
+起终点（origin--destination，OD）端点和静态道路图，系统能否学会哪些少量区域最值得投入，
+同时保证每个在线答案仍然精确？这一问题把需求预测、索引资源配置和精确查询连接起来，也要求
+模型面对未见区域、未来负载和真实部署约束，而不能只在离线标签上得到较高相关性。
 
 已有负载感知索引和查询缓存表明，历史负载能够指导最短路加速
 \citep{wan2022wcf,dan2025fahl,thomsen2012cache,li2020cache}。然而，不同方法管理的是节点
@@ -128,10 +131,13 @@ Graph learning; Learning to rank; Region materialization
 成熟的精确区域覆盖结构作为系统底座，把研究重点收敛到历史需求驱动的区域价值估计、预算内
 集合选择以及无泄漏的端到端验证。
 
-为回答主问题，本文先以双向多尺度需求传播建立无需标签的区域排序，再以深层图网络学习冻结
-先验之外的排序残差，并进一步联合优化预算截断处的收益、索引成本和候选冲突。人工智能只负责
+为回答核心问题，本文构造三个递进层次。首先，无参数双向多尺度需求扩散 \zmethod（零参数场，
+名称由此而来）建立无标签区域排序。随后，深层图网络 \gmethod（Bidirectional Residual Index
+Deployment Gain Estimator，双向残差索引部署收益估计器）在冻结先验上学习排序残差。最后，预算
+感知变体 \bmethod 将预算截断处的收益、索引成本和候选冲突联合纳入优化。人工智能始终只负责
 离线资源配置，不预测最短路距离，也不进入用户请求关键路径；在线查询继续由精确图算法完成。
-这一设计使模型增量可以独立审计，也允许系统在不替换现有查询服务的情况下周期性更新物化区域。
+这一设计使确定性先验、神经增量和部署约束能够分别审计，也允许系统在不替换现有查询服务的
+情况下周期性更新物化区域。
 
 两城实验给出三层答案。首先，神经残差在两城、三种子和两个外部窗口的 12 次配对中一致改善
 完整候选排序，证明其获得了确定性传播之外的可重复信息。其次，预算感知训练能够稳定保护头部并
@@ -152,17 +158,17 @@ Graph learning; Learning to rank; Region materialization
   动态预算、冲突淘汰和全图候补资源配置的工程价值。
 \end{enumerate}
 
-实验以一条证据链回答上述主问题：先验证区域价值是否可预测及能否推广到未来，再通过消融确认
-有效信号，随后检验非重叠部署、墙钟性能和预算感知优化，最后分析
-空间位置与查询尺度决定的适用边界。七个环节共享同一候选、预算和精确性约束，分别承担主结论中
-不可互相替代的一项证据。
+本文其余部分安排如下：第二节回顾精确索引、负载感知加速和本文采用的图学习组件；第三节统一
+符号并形式化问题；第四节给出三个递进方法；第五节说明数据、泄漏控制、基线和评价指标；第六节
+按照从排序质量到部署与适用性的顺序报告实验；第七节讨论工程含义与局限，第八节总结全文。
 
 \section{相关工作}
 
 \subsection{精确最短路索引与区域覆盖图}
 
-精确最短路加速主要通过搜索剪枝、标签索引和分区覆盖图减少在线工作量。分区覆盖图把区域内部
-路径汇总到边界连接，并能在压缩图上保持精确距离；SALT 将这一结构与多类最短路查询统一起来
+精确最短路加速主要通过搜索剪枝、标签索引和分区覆盖图减少在线工作量。可定制路径规划
+（Customizable Route Planning，CRP）把区域内部路径汇总到精确边界连接，并能在压缩图上保持
+精确距离\citep{delling2017crp}；SALT 框架将这一分隔式覆盖结构与多类最短路查询统一起来
 \citep{salt2014}。这类研究重点解决索引如何构造以及如何精确查询，通常默认分区方案和物化范围
 已经给定。本文直接采用这一成熟结构作为底座，进一步研究有限预算只允许物化少量区域时，如何
 依据未来使用价值决定资源投向。因此，底层覆盖图保证“查得准”，本文的排序与选择负责“物化谁”。
@@ -198,15 +204,27 @@ Graph learning; Learning to rank; Region materialization
 物化还要求同时处理完整排序、预算截断、索引成本和空间冲突。本文的重点是把这些目标组织为面向
 精确道路查询的可部署流程，并用冻结协议检验神经增量是否真正转化为工程收益。
 
-\section{问题定义}
+\section{预备知识与问题陈述}
+
+本节形式化引言提出的核心问题：只依据历史 OD 端点与静态道路图，对全部候选区域排序，并在
+固定区域数量预算和被审计的索引成本下选择 $K$ 个互不重叠的区域，使其物化最大程度降低未来
+精确查询工作量。下面依次统一符号、定义候选与精确收益标签，并陈述选择目标。
 
 \subsection{道路图、查询负载与时间窗口}
 
 给定带正权有向道路图 $G=(V,E,w)$，其中 $w:E\rightarrow\mathbb{R}_{>0}$ 表示道路长度。
-一个查询 $q=(o_q,d_q,t_q)$ 包含起点、终点和时间戳。全部查询按时间排序后划分为三个连续且
-互不重叠的窗口：历史窗口 $H=[0,0.35)$、当前标签窗口 $Y=[0.35,0.70)$ 和未来冻结窗口
-$F=[0.70,1.00)$。$H$ 只用于构造需求输入，$Y$ 用于生成训练标签和 train/validation 选型，
-$F$ 只在协议冻结后进行零样本时间评测。
+一个查询 $q=(o_q,d_q,t_q)$ 包含起点节点、终点节点和时间戳。将全部查询按 $t_q$ 排序，并以
+$\tau_q\in[0,1)$ 表示查询在该序列中的归一化秩位置，定义三个连续、互不重叠的\textbf{查询集合}：
+\begin{equation}
+  \begin{aligned}
+  H&=\{q:\tau_q\in[0,0.35)\},\\
+  Y&=\{q:\tau_q\in[0.35,0.70)\},\\
+  F&=\{q:\tau_q\in[0.70,1.00)\}.
+  \end{aligned}
+\end{equation}
+分别称 $H$ 为历史集、$Y$ 为当前标签集、$F$ 为冻结未来集。$H$ 只用于构造下文定义的需求输入
+（端点边际、节点特征和需求原型）；$Y$ 提供训练标签和 train/validation 模型选择；只有在模型
+结构、超参数和选择协议全部冻结后才打开 $F$，进行零样本时间评测。
 
 历史窗口仅保留起终点边际需求。对节点 $v$，定义
 \begin{equation}
@@ -217,19 +235,27 @@ $F$ 只在协议冻结后进行零样本时间评测。
 \end{equation}
 方法不读取 $H$ 中任一查询的最短路径。
 
+全文所称\textbf{区域物化}，是指把候选区域内部的精确距离预先编码为边界连接，并在查询图中用
+这些连接替代区域内部节点；\textbf{区域收益}是物化后每条查询减少的搜索工作量；\textbf{完整
+排序}是对所有候选给出的连续优先级，而非一个固定预算下的单一集合；\textbf{预算头部}是区域
+数量或索引成本截断点附近的候选；\textbf{严格非重叠部署}要求任意两个同时物化的区域不共享
+道路节点。
+
 \subsection{候选区域与精确收益标签}
 
 候选集合 $\mathcal{R}=\{R_1,\ldots,R_M\}$ 在全图节点上以固定随机种子尽量空间均匀地产生，
 每个候选是包含 512 个节点的连通子图。候选生成不读取历史 OD、标签或模型输出。区域 $R$ 的
 边界集合 $B_R$ 包含与区域外节点相邻的节点，其余节点构成内部集合 $I_R$。
 
-对标签查询 $q$，记原图双向 Dijkstra 的展开节点数为 $N_G(q)$，只物化区域 $R$ 后的覆盖图搜索
+区域价值以搜索工作量衡量，具体记为搜索终止前 Dijkstra 类算法已确定的\textbf{展开节点}数。
+对查询 $q$，记原图双向 Dijkstra 的展开节点数为 $N_G(q)$，只物化区域 $R$ 后的覆盖图搜索
 与端点局部接入总展开节点数为 $N_R(q)$。区域的监督标签定义为
 \begin{equation}
   y_R^{Y}=\frac{1}{|Q_Y|}\sum_{q\in Q_Y}\left[N_G(q)-N_R(q)\right],
   \label{eq:label}
 \end{equation}
-其中 $Q_Y$ 是从 $Y$ 中以预先固定随机种子抽取的 2,000 条查询。未来标签 $y_R^F$ 使用完全
+其中 $Q_Y\subset Y$ 是从当前标签集 $Y$ 中以预先固定随机种子抽取的 2,000 条查询，本文称之为
+\textbf{标签查询}。未来标签 $y_R^F$ 使用完全
 相同定义，但仅在最终评测时从 $F$ 生成。标签衡量精确算法工作量而非不稳定的单次 Python
 墙钟时间；每条查询同时校验索引距离与原图距离相等。
 
@@ -255,9 +281,13 @@ shadow 协议在固定查询集合上的受控、可重复离线模拟。
 这一 hard-disjoint 约束来自当前索引的物化语义。式\eqref{eq:label}是单区域边际收益，多区域
 收益不能简单相加，因此最终价值必须通过将整个 $S$ 一次性物化后的真实在线查询确定。
 
+问题可紧凑表述为：\emph{只根据 $H$ 和 $G$ 学习候选分数 $s_R$，使按 $s_R$ 选出的严格非重叠
+Top-$K$ 集合，在受控索引成本下最大化未来精确查询工作量的实际减少量。} 后续方法均围绕这一
+评分器构造，实验则逐项检验完整排序、预算头部和真实部署收益。
+
 \section{方法}
 
-\subsection{CRP 式选择性区域物化}
+\subsection{索引底座：选择性区域物化}
 
 对每个被选择区域 $R$，离线阶段从每个 $u\in B_R$ 出发，在诱导子图 $G[R]$ 上运行受限
 Dijkstra，并对每个可达的 $v\in B_R$ 建立有向 shortcut：
@@ -265,9 +295,14 @@ Dijkstra，并对每个可达的 $v\in B_R$ 建立有向 shortcut：
   w_R(u,v)=d_{G[R]}(u,v).
 \end{equation}
 随后删除 $I_R$，保留外部节点、边界节点、剩余原始边和 shortcut。该结构沿用已有 CRP/边界
-覆盖图思想\citep{salt2014}。若查询端点位于某个 $I_R$，算法只在该区域内部计算端点至边界的
+覆盖图思想\citep{delling2017crp,salt2014}。若查询端点位于某个 $I_R$，算法只在该区域内部计算端点至边界的
 精确距离，并将这些距离作为双向搜索的初始 frontier；若起终点位于同一区域，还比较区域内部
 直达距离。由此避免整条查询回退原图，同时保持精确性。
+
+\paperfigure{figures/materialization_schematic.pdf}{选择性区域物化与三类端点情形示意。蓝色节点为
+物化后删除的区域内部节点，橙色节点为覆盖图中保留的边界节点；紫色虚线是新增的覆盖图逻辑
+shortcut，其权重等于绿色区域内真实最短路的精确距离。下排依次展示起终点均在区域外、一个端点
+位于区域内部以及两个端点位于同一区域时的精确查询路径。}
 
 \paragraph{距离精确性。}
 任意穿越区域 $R$ 的原图路径都可按进入和离开 $R$ 的边界节点切分。将其中每段区域内子路径替换
@@ -313,27 +348,87 @@ shortcut 精确且边权非负的条件下，覆盖图查询与原图最短路�
 \zmethod 不含可学习参数，不读取 $Y$ 或 $F$。其目标不是预测路径，而是估计候选区域在多尺度
 道路邻域中暴露于历史起终点需求的程度。
 
+\zmethod 的扩散权重、深度和池化均预先固定，因此无法适应标签实际奖励的城市特定结构。空间
+holdout 实验同时验证了这一设计的两面：固定需求场已经形成强排序轴，但仍存在只有监督信息才能
+捕捉的可测残差。下一层方法正是针对这一残差。
+
 \subsection{以 \zmethod 为先验的神经排序残差 \gmethod}
 
-\gmethod 包含起点塔和终点塔，二者分别沿正图和反图传播且参数不共享。每层使用边特征门控的
-message--aggregate 分支 $\mathcal{F}_\ell$，并采用严格恒等的 pre-norm 小残差更新：
+\gmethod---双向残差索引部署收益估计器---冻结 \zmethod，只学习其上的加性修正。模型包含起点
+塔和终点塔，二者分别沿正图和反图传播且参数不共享，并在多个深度读出。下面依次定义输入、单层
+传播和区域读出；隐藏宽度固定为 $d=32$，完整模型共有 418,183 个参数。
+
+\paragraph{需求原型与输入注入。}
+历史集合被压缩为 128 个只由 $H$ 和静态道路图构造的\textbf{需求原型}。原型 $p$ 保存带权起点
+节点集、带权终点节点集和出现权重 $w_p>0$；以 $a_p(v)$、$b_p(v)$ 表示节点 $v$ 上的起点和终点
+质量，其他节点取零。每个节点另有静态特征向量 $\bm{x}_v$，包含入/出度、邻接边长度、道路类型
+计数和来自 $H$ 的对数缩放端点计数。两个独立双层编码器 $E_o,E_d$ 将 $\bm{x}_v$ 映射为 $d$ 维
+种子，方向 token 用于区分双塔。原型 $p$ 的初始状态为
+\begin{equation}
+  \begin{aligned}
+  \bm{h}_{o,p}^{(0)}(v)&=\log\!\bigl(1+1000a_p(v)\bigr)
+  \bigl(E_o(\bm{x}_v)+\bm{t}_o\bigr),\\
+  \bm{h}_{d,p}^{(0)}(v)&=\log\!\bigl(1+1000b_p(v)\bigr)
+  \bigl(E_d(\bm{x}_v)+\bm{t}_d\bigr).
+  \end{aligned}
+  \label{eq:injection}
+\end{equation}
+原型未触及的节点以零向量开始；网络输入是每节点 $d$ 维状态，标量需求只负责缩放编码种子。
+预测头不读取手工区域特征或第 0 层状态，因此所有学习信息都必须经过图传播。
+
+\paragraph{单层传播。}
+每层使用边特征门控的 message--aggregate 分支 $\mathcal{F}_\ell$，并采用严格恒等的 pre-norm
+小残差更新：
 \begin{equation}
   \bm{h}^{(\ell+1)}=\bm{h}^{(\ell)}+
   0.01\,\mathcal{F}_\ell\!\left(\operatorname{LayerNorm}(\bm{h}^{(\ell)}),E\right).
   \label{eq:g3}
 \end{equation}
-该结构用于抑制旧 32 层主干中的反向指数放大；它是已有深层残差思想在本任务中的稳定化实现，
-不是新的通用残差结构。模型在 $1,2,4,8,16,32$ 层读取双塔状态并进行区域 mean+max 池化，输出
-残差 $r_\theta(R)$。最终分数为
+令 $\bm{x}=\operatorname{LayerNorm}(\bm{h}^{(\ell)})$，每条有向边 $(u,v)$ 的特征 $\bm e_{uv}$
+拼接道路长度和道路类型 one-hot 编码。分支对每条边计算门控消息，在接收节点处取入边均值，再
+投影得到输出：
+\begin{equation}
+  \begin{aligned}
+  \bm{m}_{uv}&=(W_\ell\bm{x}_u)\odot\sigma(U_\ell\bm e_{uv})\cdot
+  \sigma\!\bigl(g_\ell([\bm{x}_u;\bm{x}_v;\bm e_{uv}])\bigr),\\
+  \mathcal F_\ell(\bm{x},E)(v)&=\Phi_\ell\!\left(
+  \frac{1}{\max\{\deg^-(v),1\}}\sum_{(u,v)\in E}\bm m_{uv}\right).
+  \end{aligned}
+  \label{eq:fl}
+\end{equation}
+其中 $W_\ell$ 为线性映射，$\sigma(U_\ell\bm e_{uv})$ 为逐元素边门，$g_\ell$ 为输出单一标量门
+的双层网络，$\deg^-(v)$ 为接收节点入度，$\Phi_\ell$ 为双层投影。终点塔在反图上使用相同形式，
+但参数独立。该结构用于抑制旧 32 层主干中的反向指数放大；它是已有深层残差思想在本任务中的
+稳定化实现，不是新的通用残差结构。
+
+\paragraph{多深度读出与区域分数。}
+双塔在深度集合 $\mathcal D=\{1,2,4,8,16,32\}$ 读出，以
+$\beta_k=\operatorname{softmax}(\bm\theta_\beta)_k$ 学习深度权重。在深度 $k$，组合表示为
+\begin{equation}
+  \bm c_p^{(k)}(v)=\bigl[\bm o_p^{(k)}(v);\bm d_p^{(k)}(v);
+  \bm o_p^{(k)}(v)\odot\bm d_p^{(k)}(v);
+  |\bm o_p^{(k)}(v)-\bm d_p^{(k)}(v)|\bigr]\in\mathbb R^{4d}.
+\end{equation}
+以 $\bm u_p(v)=\sum_{k\in\mathcal D}\beta_k\bm c_p^{(k)}(v)$ 融合深度。区域池化拼接节点均值和
+最大值，三层感知机 $\psi$ 输出标量，各需求原型再按出现权重组合：
+\begin{equation}
+  \begin{aligned}
+  \bm z_p(R)&=\bigl[\operatorname{mean}_{v\in R}\bm u_p(v);
+  \operatorname{max}_{v\in R}\bm u_p(v)\bigr]\in\mathbb R^{8d},\\
+  r_\theta(R)&=\sum_p w_p\,\psi(\bm z_p(R)).
+  \end{aligned}
+  \label{eq:readout}
+\end{equation}
+$\psi$ 的最终线性层零初始化，因此训练前 $r_\theta\equiv0$。最终分数为
 \begin{equation}
   s_R=z_R+\alpha r_\theta(R),\qquad
   \alpha\in\{0,0.125,0.25,0.5,1\}.
   \label{eq:g4score}
 \end{equation}
-$\alpha=0$ 严格回退到 \zmethod；每个 epoch 的 $\alpha$ 仅在 validation 上选择，同分时优先更小
-残差。
+$\alpha=0$ 严格回退到 \zmethod；训练第 0 轮对所有 $\alpha$ 均与 \zmethod 相同。每个 epoch 的
+$\alpha$ 仅在 validation 上选择，同分时优先更小残差。
 
-\subsection{与评价一致的 soft Spearman 目标}
+\paragraph{与评价一致的软 Spearman 目标。}
 
 旧 pairwise softplus 目标可通过放大分数尺度持续下降，却不保证真实 Spearman 同向变化。为减少
 这种目标错位，先将批内分数标准化为 $\hat{s}_i$，再用成对 sigmoid 构造软排名
@@ -346,9 +441,16 @@ $\alpha=0$ 严格回退到 \zmethod；每个 epoch 的 $\alpha$ 仅在 validatio
 \begin{equation}
   \mathcal{L}_{\mathrm{rank}}=1-\operatorname{Pearson}
   (\widetilde{\bm r},\bm r^*).
+  \label{eq:softspearman}
 \end{equation}
+精确秩向量上的 Pearson 相关等于 Spearman 秩相关；这里预测秩经过软化，因此式
+\eqref{eq:softspearman}是评价 Spearman 的可微替代目标，而不是精确 Spearman 系数。本文称之为
+软 Spearman 损失。
 所有模型以 validation Spearman 选择 checkpoint。holdout 和 $F$ 不参与结构、学习率、epoch、
 $\alpha$ 或策略选择。
+
+软 Spearman 约束完整候选次序，但不直接描述固定截断点选中哪些候选、shortcut 成本以及候选能否
+共同部署。下一层方法正是针对这一缺口。
 
 \subsection{预算感知增强 \bmethod}
 
@@ -391,9 +493,9 @@ checkpoint 冻结后执行。该协议把“排序分数训练”和“集合能
 
 \begin{paperwidetable}
   \centering
+  \footnotesize
   \caption{两城数据与冻结切分。}
   \label{tab:data}
-  \resizebox{\textwidth}{!}{%
   \begin{tabular}{lrrrrrrr}
     \toprule
     城市 & 交通数据 & 节点数 & 有向边数 & 全部 OD & $H$ & $Y$ & $F$ \\
@@ -401,7 +503,7 @@ checkpoint 冻结后执行。该协议把“排序分数训练”和“集合能
     Porto & 出租车 & 133,839 & 221,589 & 98,082 & 34,328 & 34,329 & 29,425 \\
     Chicago & 共享单车 & 108,114 & 200,155 & 100,000 & 35,000 & 35,000 & 30,000 \\
     \bottomrule
-  \end{tabular}}
+  \end{tabular}
 \end{paperwidetable}
 
 Porto 使用公开出租车轨迹数据\citep{moreira2013porto}，将有效轨迹首末点映射为 OD；Chicago
@@ -470,14 +572,15 @@ C++ 评测在同一 C++20/O3 可执行程序内实现原图与压缩图双向 Di
 
 \section{实验结果}
 
-本节只回答引言提出的一个主问题：历史需求能否在有限预算下指导精确区域物化。为避免用单一
-指标替代端到端结论，证据按“可预测性—时间泛化—信号来源—非重叠部署—真实性能—预算优化—
-适用边界”依次展开。
+本节把核心问题拆成一条验证链：历史需求能否预测区域价值；冻结排序能否跨时间；信号来自哪些
+机制；排名能否转化为严格非重叠部署；工作量能否转化为墙钟收益；预算头部能否直接训练；收益
+最终落在哪些查询尺度。七个环节共享同一候选池、预算和精确性约束，不能由单一指标互相替代。
 
-\subsection{证据一：历史需求能够预测区域价值}
+\subsection{空间留出候选上的排序质量}
 
 \begin{paperwidetable}
   \centering
+  \footnotesize
   \caption{空间 holdout 排序结果。MLP 为五种子均值，\gmethod 为三种子均值。}
   \label{tab:holdout}
   \begin{tabular}{llcc}
@@ -503,12 +606,14 @@ $+0.012373/+0.010313/+0.008212$，Chicago 为
 $+0.006405/+0.006515/+0.004035$，六次比较方向一致。这一跨城市、跨种子的完全一致性表明，
 \gmethod 学到的不是偶然扰动，而是 \zmethod 之外可重复的全局排序信息。Chicago 的 NDCG@18
 呈现不同方向，则形成一组关键对照：soft Spearman 确实优化了完整候选序列，而固定预算下的头部
-质量由另一目标决定。两类指标的分离不是全局增益失效，而是学习目标边界被实验清楚识别。
+质量由另一目标决定。两类指标的分离不是全局增益失效，而是学习目标边界被实验清楚识别。后文
+预算感知实验将专门回到这一张力；下一步先检验全局增量能否跨时间保持。
 
-\subsection{证据二：冻结排序能够推广到未来窗口}
+\subsection{冻结未来窗口上的零样本泛化}
 
 \begin{paperwidetable}
   \centering
+  \footnotesize
   \caption{冻结未来窗口结果。}
   \label{tab:future}
   \begin{tabular}{llccc}
@@ -528,17 +633,18 @@ Porto 和 Chicago 的三个 \gmethod 种子在 future Spearman 上均超过各�
 holdout，\gmethod 在两城、三种子、两外部窗口的 12 次配对比较中全部取得正增量，构成本文神经
 增强稳定性的核心证据。Porto 的
 $Y/F$ 区域收益 Spearman 高达 0.9959，因此该结果对应稳定需求时段下的时间外泛化；强分布漂移
-仍需专门实验。Chicago 的时间漂移更明显，\gmethod 的全局增量更大，但 Top-$K$ 仍
-存在波动。
+仍需专门实验。Chicago 的区域收益在 $Y$ 与 $F$ 间变化更大，\gmethod 的全局增量也更大，但
+Top-$K$ 仍存在波动。确认可预测性和时间迁移后，下一步检验 \zmethod 的信号究竟来自哪里。
 
 \paperfigure{figures/ranking_results.pdf}{两城空间留出集（H/O）与未来窗口（F）的排序性能。\gmethod
 显示三个随机种子的均值与总体标准差。全局 Spearman 稳定提升，而头部 NDCG 独立变化，直观展示
 两类训练目标的差异。}
 
-\subsection{证据三：道路拓扑与双向需求构成有效信号}
+\subsection{机制消融：\zmethod 的信号来源}
 
 \begin{paperwidetable}
   \centering
+  \footnotesize
   \caption{正确道路拓扑与度保持随机重连的 Spearman 对照。}
   \label{tab:rewire}
   \begin{tabular}{lccc}
@@ -558,12 +664,13 @@ $Y/F$ 区域收益 Spearman 高达 0.9959，因此该结果对应稳定需求时
 贡献更强。无向图的全局相关性接近 \zmethod，但未来 NDCG@5 更低，说明方向信息主要影响头部。
 保持两侧边际需求的 OD 重耦合几乎不改变结果，因此现有证据支持边际需求传播，不支持原始 OD
 配对关系是必要因素。max pooling 几乎复现全局排序，mean pooling 明显较弱；多深度读出在不同
-切分间更稳健，但不存在对所有指标都最优的单一深度。
+切分间更稳健，但不存在对所有指标都最优的单一深度。简言之，全局价值轴依赖真实邻接和双侧
+需求；下一步检验它能否经受部署自身的冲突约束。
 
 \paperfigure{figures/mechanism_ablation.pdf}{\zmethod 的正交机制消融。度保持随机重连在两城当前与未来
 窗口均显著破坏排序，单侧需求、池化与单深度读出则呈现城市和窗口依赖；完整结果均予展示。}
 
-\subsection{证据四：排序可转化为精确非重叠部署}
+\subsection{从单区域排序到严格非重叠部署}
 
 直接按 \zmethod 分数选择 Porto Top-18 时，候选并集只有 2,773 个唯一节点，成员冗余系数为
 3.323，并存在共享 116 个节点的候选对，无法由当前索引共同物化。hard-disjoint 贪心最终选满
@@ -572,9 +679,9 @@ $Y/F$ 区域收益 Spearman 高达 0.9959，因此该结果对应稳定需求时
 
 \begin{paperwidetable}
   \centering
+  \footnotesize
   \caption{$K=18$ 严格非重叠部署的在线展开节点结果。负值表示相对原图减少。}
   \label{tab:online}
-  \resizebox{\textwidth}{!}{%
   \begin{tabular}{llrrr}
     \toprule
     城市 & 方法 & Shortcuts & 当前展开变化 & 未来展开变化 \\
@@ -591,25 +698,29 @@ $Y/F$ 区域收益 Spearman 高达 0.9959，因此该结果对应稳定需求时
             & \zmethod & 23,378 & $-21.47\%$ & $-21.92\%$ \\
             & \gmethod（三种子） & 20,718 & $-19.62\%$ & $-20.28\%$ \\
     \bottomrule
-  \end{tabular}}
+  \end{tabular}
 \end{paperwidetable}
 
 Porto 中，\gmethod 相对 \zmethod 仅多减少约 0.13/0.04 个百分点的当前/未来展开节点，同时
 shortcut 增加约 15.5\%，因此 \zmethod 的性能--存储性价比更高。Chicago 中，\zmethod 在展开
 节点上优于 \gmethod 与 Proxy。加入 \bmethod 后，两城全部 Python 在线评测合计 228,000 个
 查询--索引配对，距离
-正确率均为 100\%。该结果再次表明，全局排序增量需要经过部署评测后才能解释为系统收益。
+正确率均为 100\%。该结果再次表明，全局排序增量需要经过部署评测后才能解释为系统收益。全局
+顺序与预算头部的张力在真实部署中具体表现为成本，接下来进一步检验工作量能否转化为墙钟收益。
 
-\subsection{证据五：查询结构决定墙钟收益}
+\subsection{同一 C++ 实现下的墙钟性能}
 
 \begin{paperwidetable}
   \centering
+  \footnotesize
   \caption{C++20/O3 同实现的 $K=18$ 性能变化。负值表示降低。}
   \label{tab:cpp}
-  \resizebox{\textwidth}{!}{%
+  \setlength{\tabcolsep}{4pt}
   \begin{tabular}{llrrrrrr}
     \toprule
-    城市 & 方法 & 当前均值 & 未来均值 & 当前 P95 & 未来 P95 & 当前扫边 & 未来扫边 \\
+    & & \multicolumn{2}{c}{平均耗时} & \multicolumn{2}{c}{P95 耗时} & \multicolumn{2}{c}{扫描边} \\
+    \cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-8}
+    城市 & 方法 & 当前 & 未来 & 当前 & 未来 & 当前 & 未来 \\
     \midrule
     Porto & \zmethod & $-6.51\%$ & $-7.48\%$ & $-4.72\%$ & $-6.24\%$ & $-6.67\%$ & $-6.91\%$ \\
            & \gmethod & $-6.41\%$ & $-8.90\%$ & $-5.56\%$ & $-8.96\%$ & $-5.85\%$ & $-6.05\%$ \\
@@ -618,7 +729,7 @@ shortcut 增加约 15.5\%，因此 \zmethod 的性能--存储性价比更高。C
             & \gmethod & $+3.03\%$ & $+3.02\%$ & $-2.24\%$ & $-1.33\%$ & $+18.58\%$ & $+19.26\%$ \\
             & \bmethod & $+4.64\%$ & $+3.89\%$ & $+0.30\%$ & $-0.52\%$ & $+23.49\%$ & $+24.50\%$ \\
     \bottomrule
-  \end{tabular}}
+  \end{tabular}
   \vspace{0.35em}
 
   \parbox{0.94\textwidth}{\footnotesize 注：\gmethod 与 \bmethod 为三种子均值；表中省略标准差，完整数值保留
@@ -629,13 +740,13 @@ C++ 评测包含 800,000 个正式计时配对样本，距离正确率为 100\%�
 shortcut。Porto 的展开与扫边同时减少，因而平均耗时和 P95 均下降。Chicago 虽减少约 20\% 的
 展开节点，但密集边界 shortcut 使扫边增加 18\%--28\%，抵消了典型查询的收益；20 个方法--窗口
 组合中仍有 14 个 P95 下降。区域物化是否加速因此取决于边界形状与 shortcut 密度，而不仅取决于
-区域排序精度。
+区域排序精度。这是把索引成本直接纳入训练目标的第二个物理动机，下一节转向预算感知训练。
 
 \paperfigure{figures/system_results.pdf}{C++20/O3 同实现下，选择性物化在两城中的系统收益与成本。
 负值表示相对原图减少；Chicago 虽减少展开节点，却因密集 shortcut 增加扫边量，说明排序收益与
 墙钟加速并不等价。}
 
-\subsection{证据六：预算感知目标稳定协调头部与成本}
+\subsection{\bmethod 的预算感知部署}
 
 在训练 \bmethod 前，本文先构造零训练线性后处理 E0，以检验成本感知是否只需在已有 \gmethod
 分数上减去一个成本项。E0 将预测分数和单区域 shortcut 数分别转换为全候选百分位排名，并固定
@@ -658,6 +769,7 @@ S0--S2 以 seed 42 进行短训方法开发。S2 只把式\eqref{eq:bridgeb}中�
 
 \begin{paperwidetable}
   \centering
+  \footnotesize
   \caption{\bmethod 三种子冻结排序与 $K=18$ 在线结果。$\Delta Y/\Delta F$ 为相对 \zmethod
   的每查询展开节点差，负值表示更优。}
   \label{tab:bridgeb}
@@ -694,7 +806,7 @@ Chicago seeds 42/43 的成员集合相同，seed 44 部分变化。三个种子�
 方法开发；S3 为冻结 seeds 42/43/44 的均值与总体标准差。Porto 获得零方差稳定改善，Chicago
 稳定降低 shortcut 并保住头部；两城与 \zmethod 的在线展开差均不足 3\%。}
 
-\subsection{证据七：查询尺度界定方法的适用范围}
+\subsection{不同查询尺度下的适用性}
 
 为避免城市平均值掩盖局部差异，本文冻结所有选择结果后，以 \zmethod 为参照，将每条查询的
 展开节点差映射到固定 $16\times16$ 米制等边方格。热点只由历史窗口 $H$ 的端点频次定义，改善、
@@ -708,6 +820,7 @@ $87.8\%/90.0\%$，且历史头部与非头部的平均展开差均为正，属�
 
 \begin{paperwidetable}
   \centering
+  \footnotesize
   \caption{\bmethod 对查询工作量尺度的适用性。Q1/Q4 分别为原图展开量最低/最高四分位。}
   \label{tab:query-scale}
   \begin{tabular}{llrrrrr}
@@ -847,17 +960,6 @@ Spearman 方向错位，最终冻结 soft Spearman 协议。该诊断区分了�
 
 \paperfigure{figures/spatial_benefit_chicago.pdf}{Chicago 中 BRIDGE 与 BRIDGE-B 相对 Z0 的 Y/F
 逐查询展开节点空间差。正负网格并存，说明局部改善没有转化为城市平均优势。}
-
-\section{术语表}
-
-\begin{description}[leftmargin=8em,style=nextline]
-  \item[区域物化] 预先把候选区域内部的精确距离编码为边界连接，并在查询图中替代区域内部节点。
-  \item[区域收益] 只物化一个候选区域后，相对原图精确查询减少的平均展开节点数。
-  \item[完整排序] 对全部候选区域给出连续优先级，而不是只输出某个固定预算下的入选集合。
-  \item[预算头部] 在给定区域数量或索引成本限制下，排序截断点附近的候选及其累计收益。
-  \item[严格非重叠部署] 任意两个同时物化的区域不共享道路节点。
-  \item[旁路标签采样] 将少量真实查询异步复制到不影响正式响应的离线工作进程，以统计区域收益。
-\end{description}
 
 \section*{声明}
 

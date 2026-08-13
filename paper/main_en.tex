@@ -75,17 +75,19 @@
 
 \title{Graph learning for region materialization in exact shortest-path queries}
 
-% Author name romanizations pending confirmation; order is fixed.
-\author[a]{Shengyang Xi}
-\author[a]{Yihan Xiao}
-\author[a]{Jiawen Wang}
-% Corresponding author and email will be added after confirmation.
-\affiliation[a]{organization={School of Artificial Intelligence, Wuhan University},
-                addressline={299 Bayi Road},
-                city={Wuhan},
-                postcode={430072},
-                state={Hubei},
-                country={China}}
+\ifdefined\AICAnonymous
+\else
+  \author[a]{Shengyang Xi}
+  \author[a]{Yihan Xiao}
+  \author[a]{Jiawen Wang}
+  % Corresponding author and email will be added after confirmation.
+  \affiliation[a]{organization={School of Artificial Intelligence, Wuhan University},
+                  addressline={299 Bayi Road},
+                  city={Wuhan},
+                  postcode={430072},
+                  state={Hubei},
+                  country={China}}
+\fi
 
 \begin{abstract}
 Road networks answer exact shortest-path queries over and over, yet building an index
@@ -277,7 +279,8 @@ whether the neural increment truly converts into engineering gain.
 This section formalizes the core problem stated in the introduction: from historical
 OD endpoints and the static road graph alone, rank all candidate regions and select
 $K$ disjoint ones whose materialization most reduces the workload of future exact
-queries, within a fixed index budget. We first fix notation, then define candidates
+queries, under a fixed region-count budget with index cost audited explicitly. We first
+fix notation, then define candidates
 and their exact gain labels, and finally state the selection objective.
 
 \subsection{Road graph, query workload, and time windows}
@@ -381,7 +384,8 @@ once and running real online queries against it.
 
 The problem, stated compactly: \emph{learn $s_R$ from $H$ and $G$ alone such that the
 strictly disjoint top-$K$ set under $s_R$ maximizes the realized reduction in future
-exact-query workload, at an acceptable index cost.} Everything that follows either
+exact-query workload while its index cost is explicitly measured and controlled.}
+Everything that follows either
 builds such a scorer (Section~\ref{sec:method}) or verifies one against this
 definition (Sections~\ref{sec:design}--\ref{sec:results}).
 
@@ -406,6 +410,13 @@ algorithm computes exact distances from that endpoint to the region boundary onl
 seeds the bidirectional search frontier with them, and, when both endpoints share a
 region, also compares the direct in-region distance. A query never falls back to the
 original graph, and exactness is preserved.
+
+\paperfigure{figures/materialization_schematic.pdf}{Selective region materialization and
+three endpoint configurations. Blue nodes are region-interior nodes removed after
+materialization, whereas orange boundary nodes remain in the overlay. The purple dashed
+edge is a logical overlay shortcut whose weight equals the exact distance of the green
+in-region path. The bottom row shows queries with both endpoints outside, one endpoint
+inside, and both endpoints in the same region.}
 
 \paragraph{Distance exactness.}
 Any original-graph path crossing region $R$ can be cut at the boundary nodes where it
@@ -580,10 +591,11 @@ With $r_i^*$ the mean ranks of the true labels, the training loss is
   \label{eq:softspearman}
 \end{equation}
 where $\operatorname{Pearson}(\cdot,\cdot)$ is the Pearson linear correlation
-coefficient. Pearson correlation computed on ranks is exactly Spearman's rank
-correlation, so Equation~\eqref{eq:softspearman} is a differentiable surrogate of the
-Spearman metric used in evaluation --- we refer to it as the \emph{soft Spearman}
-loss. Checkpoints are selected by validation Spearman for every model. Holdout and $F$
+coefficient. Pearson correlation between exact rank vectors equals Spearman's rank
+correlation; because the predicted ranks here are softened, Equation~\eqref{eq:softspearman}
+is a differentiable surrogate rather than the exact Spearman coefficient. We refer to it
+as the \emph{soft Spearman} loss. Checkpoints are selected by validation Spearman for
+every model. Holdout and $F$
 take no part in choosing structure, learning rate, epochs, $\alpha$, or strategy.
 
 The soft Spearman loss constrains the full candidate order, and
@@ -1272,6 +1284,8 @@ negative cells coexist --- local improvements do not add up to a city-wide advan
 \end{figure}
 \fi
 
+\ifdefined\AICAnonymous
+\else
 \section*{Data availability}
 Raw data come from the public sources cited in the text. The public scope and permanent
 links for the processed data, fixed splits, and labels will be added after the license
@@ -1310,6 +1324,7 @@ commercial, or not-for-profit sectors.
 \section*{Acknowledgments}
 % TODO: fill in.
 \noindent\hrulefill
+\fi
 
 \bibliographystyle{elsarticle-harv}
 \bibliography{references}

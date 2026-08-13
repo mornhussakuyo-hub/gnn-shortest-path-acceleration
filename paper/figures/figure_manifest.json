@@ -2,6 +2,7 @@
   "schema": "aic.paper_figures.v1",
   "generator": "scripts/generate_paper_figures.py",
   "figure_files": [
+    "materialization_schematic.pdf",
     "method_pipeline.pdf",
     "ranking_results.pdf",
     "mechanism_ablation.pdf",

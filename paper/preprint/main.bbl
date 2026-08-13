@@ -1,4 +1,4 @@
-\begin{thebibliography}{16}
+\begin{thebibliography}{17}
 \expandafter\ifx\csname natexlab\endcsname\relax\def\natexlab#1{#1}\fi
 \providecommand{\url}[1]{\texttt{#1}}
 \providecommand{\href}[2]{#2}
@@ -20,6 +20,16 @@
   41st International Conference on Data Engineering (ICDE)},
   \bibinfo{publisher}{IEEE}. pp. \bibinfo{pages}{836--849}.
 \newblock \DOIprefix\doi{10.1109/ICDE65448.2025.00068}.
+%Type = Article
+\bibitem[{Delling et~al.(2017)Delling, Goldberg, Pajor and
+  Werneck}]{delling2017crp}
+\bibinfo{author}{Delling, D.}, \bibinfo{author}{Goldberg, A.V.},
+  \bibinfo{author}{Pajor, T.}, \bibinfo{author}{Werneck, R.F.},
+  \bibinfo{year}{2017}.
+\newblock \bibinfo{title}{Customizable route planning in road networks}.
+\newblock \bibinfo{journal}{Transportation Science} \bibinfo{volume}{51},
+  \bibinfo{pages}{566--591}.
+\newblock \DOIprefix\doi{10.1287/trsc.2014.0579}.
 %Type = Article
 \bibitem[{Dijkstra(1959)}]{dijkstra1959}
 \bibinfo{author}{Dijkstra, E.W.}, \bibinfo{year}{1959}.

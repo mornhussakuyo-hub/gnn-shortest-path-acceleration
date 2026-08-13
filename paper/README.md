@@ -1,7 +1,7 @@
 # 论文初稿
 
-本目录是独立论文工作区。中文正文已经按 EAAI 的问题导向与投稿结构重组，英文正文已使用
-Elsevier `elsarticle` 模板完成，并保持与当前冻结叙事、表格数字和证据边界一致。
+本目录是独立论文工作区。中文正文已经逐节同步 2026-08-13 英文修订稿；英文署名稿、匿名稿、
+双栏预览和 arXiv 入口现在共享同一份科学正文，避免后续版本失步。
 
 ## 当前文件
 
@@ -12,10 +12,10 @@ Elsevier `elsarticle` 模板完成，并保持与当前冻结叙事、表格数�
 - `highlights.txt`：5 条英文 Highlights，均不超过 85 个字符；
 - `main_twocolumn.tex` / `main_twocolumn.pdf`：历史双栏预览入口，不作为 EAAI 投稿文件；
 - `main_en.tex` / `main_en.pdf`：Fable5 完成的 EAAI 英文单栏正文与编译结果；
-- `main_en_anonymous.tex` / `main_en_anonymous.pdf`：正文不变、移除作者识别信息的 EAAI 双匿名英文稿；
+- `main_en_anonymous.tex` / `main_en_anonymous.pdf`：自动复用 `main_en.tex` 科学正文、移除作者识别信息的 EAAI 双匿名英文稿；
 - `main_en_twocolumn.tex` / `main_en_twocolumn.pdf`：复用英文正文的双栏预览入口与编译结果；
 - `highlights_en.tex` / `highlights_en.pdf`：英文 Highlights 的独立排版预览；
-- `preprint/`：已验证的 arXiv 公开预览稿、源文件上传包和逐步提交说明；
+- `preprint/`：由最新 `main_en.tex` 同步生成的独立 arXiv 公开稿、源文件上传包和逐步提交说明；
 - `references.bib`：正文实际引用的参考文献；
 - `EVIDENCE.md`：正文数字到仓库冻结报告和机器可读产物的对应关系；
 - `figures/README.md`：正式制图清单和每张图的数据来源；
@@ -25,10 +25,10 @@ Elsevier `elsarticle` 模板完成，并保持与当前冻结叙事、表格数�
 
 1. 席圣洋，第一作者；
 2. 肖逸涵，第二作者；
-3. 王加文，第二作者。
+3. 王加文，第三作者。
 
-作者单位、邮箱、通讯作者、基金、利益冲突、作者贡献和致谢均未推测，集中保留在独立
-标题页待确认，不写入匿名正文。
+作者单位、作者贡献和无基金声明已按已确认信息填写；通讯作者、邮箱、ORCID 和致谢仍待确认，
+匿名正文不包含作者识别信息。
 
 全文只服务一个主要问题：在固定预处理和存储预算下，能否仅依据历史起终点需求与静态道路图，
 学习并选择少量值得物化且互不重叠的区域，在保持距离精确的同时降低未来查询成本。原有七组实验
@@ -57,15 +57,16 @@ latexmk -xelatex title_page.tex
 
 正文采用 `ctexart`，必须使用 XeLaTeX 或 LuaLaTeX，不建议使用 pdfLaTeX。
 
-英文稿使用 `elsarticle`，可用普通 pdfLaTeX/BibTeX 流程或 Tectonic 编译：
+英文稿使用 `elsarticle`。本仓库的模板副本位于 `preprint/`，本机可按以下流程编译：
 
 ```bash
-pdflatex main_en.tex
-bibtex main_en
-pdflatex main_en.tex
-pdflatex main_en.tex
-pdflatex main_en_twocolumn.tex
-pdflatex highlights_en.tex
+TEXINPUTS=preprint: xelatex main_en.tex
+BSTINPUTS=preprint: BIBINPUTS=.: bibtex main_en
+TEXINPUTS=preprint: xelatex main_en.tex
+TEXINPUTS=preprint: xelatex main_en.tex
+TEXINPUTS=preprint: xelatex main_en_anonymous.tex
+TEXINPUTS=preprint: xelatex main_en_twocolumn.tex
+TEXINPUTS=preprint: pdflatex highlights_en.tex
 ```
 
 ## 冻结口径

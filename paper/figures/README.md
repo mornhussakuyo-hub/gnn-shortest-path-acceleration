@@ -6,6 +6,12 @@
 /home/MornHus/miniconda3/envs/mnist-v2/bin/python scripts/generate_paper_figures.py
 ```
 
+区域物化机制示意图由确定性程序路网单独生成：
+
+```bash
+/home/MornHus/miniconda3/envs/mnist-v2/bin/python scripts/generate_materialization_schematic.py
+```
+
 每张图同时输出矢量 PDF 和高分辨率 PNG；`main_results.csv` 保存所有绘图数值、标准差、状态与
 来源文件，`figure_manifest.json` 保存图表口径。
 
@@ -14,7 +20,13 @@
 为浅灰色。所有图统一 DejaVu Sans 字体、标题层级、坐标轴线宽、网格线、图例和矢量字体嵌入。
 空间主图采用正方形面板、等比例地图视口和 16×16 米制等边方格，不通过拉伸地图消除城市长宽比差异。收益方格作为无边框底层，浅灰路网叠加在其上，便于同时识别空间收益与道路结构。
 
-## 图 1：端到端方法总图
+## 图 1：区域物化机制示意图
+
+已生成：`materialization_schematic.pdf`。六个面板共用同一程序路网，分别展示区域内部节点、
+边界节点、覆盖图 shortcut，以及两端点在外部、一个端点在内部和两端点同区域三类查询。紫色
+虚线表示物化后的覆盖图逻辑边，不表示原道路。
+
+## 图 2：端到端方法总图
 
 内容：
 
@@ -27,7 +39,7 @@
 
 已生成：`method_pipeline.pdf`。底层覆盖图明确标为既有精确结构，本文贡献位于区域排序和部署协议。
 
-## 图 2：两城排序结果
+## 图 3：两城排序结果
 
 数据来源：
 
@@ -38,7 +50,7 @@
 已生成：`ranking_results.pdf`。三个面板统一展示 Spearman、NDCG@5、NDCG@18；G4/BRIDGE
 显示三种子均值和总体标准差，Z0 为确定性单次结果。
 
-## 图 3：机制消融
+## 图 4：机制消融
 
 数据来源：
 
@@ -48,7 +60,7 @@
 已生成：`mechanism_ablation.pdf`。主图突出正确拓扑与度保持重连；其余面板完整展示单侧需求、
 无向图、边际保持 OD 重耦合、传播深度和 mean/max 池化，没有只展示有利消融。
 
-## 图 4：系统收益与成本
+## 图 5：系统收益与成本
 
 数据来源：
 
@@ -59,12 +71,12 @@
 已生成：`system_results.pdf`。展开节点、扫边、平均耗时、P95 四联图同时显示 Porto 与 Chicago，
 可直接观察 Chicago 中“展开减少但扫边增加”的原因。
 
-## 图 5：BRIDGE-B 探索轨迹
+## 图 6：BRIDGE-B 探索轨迹
 
 已生成：`bridge_b_progression.pdf`。S0--S2 明确标注为 seed 42 方法开发结果；S3 汇总冻结协议下
 seeds 42/43/44 的均值与总体标准差。Porto 三种子稳定优于 Z0，Chicago 则完整保留不利在线结果。
 
-## 图 6--7：空间收益异质性
+## 图 7--8：空间收益异质性
 
 数据来源：
 

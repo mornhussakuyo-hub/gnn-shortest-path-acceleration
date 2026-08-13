@@ -583,6 +583,7 @@ def write_rows(output: Path, rows: list[dict[str, object]]) -> None:
         "schema": "aic.paper_figures.v1",
         "generator": str(Path(__file__).resolve().relative_to(ROOT)),
         "figure_files": [
+            "materialization_schematic.pdf",
             "method_pipeline.pdf",
             "ranking_results.pdf",
             "mechanism_ablation.pdf",
